@@ -1,0 +1,199 @@
+#!/usr/bin/env python3
+"""
+ATLAS Checkpoint - Pre-clear/compact safety checkpoint
+Saves all current state before clearing conversation or compacting
+Usage: ./atlas-checkpoint [optional_notes]
+"""
+
+import sys
+import json
+import os
+from datetime import datetime
+from pathlib import Path
+
+def check_current_session():
+    """Check if there's an active session to save"""
+    session_file = Path(".session_state.json")
+    
+    if not session_file.exists():
+        return None, "No active session found"
+    
+    try:
+        with open(session_file, 'r') as f:
+            session_data = json.load(f)
+        
+        todolist = session_data.get('todolist', [])
+        return session_data, f"Found session with {len(todolist)} todos"
+        
+    except Exception as e:
+        return None, f"Error reading session: {e}"
+
+def check_git_changes():
+    """Check for uncommitted git changes"""
+    try:
+        import subprocess
+        
+        # Check for any changes
+        result = subprocess.run(
+            ['git', 'status', '--porcelain'],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        
+        changes = [line.strip() for line in result.stdout.strip().split('\n') if line.strip()]
+        return changes, len(changes)
+        
+    except subprocess.CalledProcessError:
+        return [], 0
+    except Exception as e:
+        return [], 0
+
+def create_checkpoint_backup(session_data, notes=""):
+    """Create comprehensive checkpoint backup"""
+    timestamp = datetime.now()
+    
+    # Create checkpoint data
+    checkpoint_data = {
+        'checkpoint_info': {
+            'timestamp': timestamp.isoformat(),
+            'date': timestamp.strftime('%Y-%m-%d'),
+            'time': timestamp.strftime('%H:%M:%S'),
+            'notes': notes,
+            'type': 'pre_clear_checkpoint',
+            'version': '1.0'
+        },
+        'session_backup': session_data,
+        'todolist_snapshot': session_data.get('todolist', []),
+        'checkpoint_stats': {
+            'total_todos': len(session_data.get('todolist', [])),
+            'completed': len([t for t in session_data.get('todolist', []) if t.get('status') == 'completed']),
+            'pending': len([t for t in session_data.get('todolist', []) if t.get('status') != 'completed']),
+            'high_priority': len([t for t in session_data.get('todolist', []) if t.get('priority') == 'high'])
+        }
+    }
+    
+    # Create checkpoint directory if needed
+    checkpoint_dir = Path("MEMORY/CHECKPOINTS")
+    checkpoint_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Create checkpoint file
+    checkpoint_filename = f"checkpoint_{timestamp.strftime('%Y%m%d_%H%M%S')}.json"
+    checkpoint_path = checkpoint_dir / checkpoint_filename
+    
+    try:
+        with open(checkpoint_path, 'w') as f:
+            json.dump(checkpoint_data, f, indent=2)
+        
+        return checkpoint_path, checkpoint_data
+        
+    except Exception as e:
+        return None, None
+
+def verify_checkpoint(checkpoint_path, original_session):
+    """Verify checkpoint was saved correctly"""
+    try:
+        with open(checkpoint_path, 'r') as f:
+            checkpoint_data = json.load(f)
+        
+        # Verify essential data
+        saved_session = checkpoint_data.get('session_backup', {})
+        saved_todos = saved_session.get('todolist', [])
+        original_todos = original_session.get('todolist', [])
+        
+        if len(saved_todos) != len(original_todos):
+            return False, f"Todo count mismatch: {len(saved_todos)} vs {len(original_todos)}"
+        
+        # Check for required fields
+        required_fields = ['checkpoint_info', 'session_backup', 'todolist_snapshot', 'checkpoint_stats']
+        for field in required_fields:
+            if field not in checkpoint_data:
+                return False, f"Missing required field: {field}"
+        
+        return True, "Checkpoint verified successfully"
+        
+    except Exception as e:
+        return False, f"Verification failed: {e}"
+
+def show_checkpoint_summary(checkpoint_data, checkpoint_path):
+    """Display checkpoint summary"""
+    print("\n✅ CHECKPOINT CREATED SUCCESSFULLY")
+    print("=" * 50)
+    
+    info = checkpoint_data['checkpoint_info']
+    stats = checkpoint_data['checkpoint_stats']
+    
+    print(f"📁 File: {checkpoint_path}")
+    print(f"📅 Date: {info['date']}")
+    print(f"⏰ Time: {info['time']}")
+    
+    if info.get('notes'):
+        print(f"📝 Notes: {info['notes']}")
+    
+    print(f"\n📊 Session saved:")
+    print(f"   📝 Total todos: {stats['total_todos']}")
+    print(f"   ✅ Completed: {stats['completed']}")
+    print(f"   📋 Pending: {stats['pending']}")
+    print(f"   🔥 High priority: {stats['high_priority']}")
+
+def main():
+    """Main checkpoint function"""
+    print("🛡️  ATLAS Checkpoint - Pre-clear Safety")
+    print("=" * 50)
+    
+    # Get optional notes
+    notes = " ".join(sys.argv[1:]) if len(sys.argv) > 1 else ""
+    if notes:
+        print(f"📝 Checkpoint notes: {notes}")
+    
+    # Check current session
+    session_data, session_msg = check_current_session()
+    print(f"📊 Session check: {session_msg}")
+    
+    if not session_data:
+        print("\n⚠️  No active session to checkpoint")
+        print("💡 Create todos with TodoWrite first, then checkpoint")
+        return 1
+    
+    # Check git changes
+    git_changes, change_count = check_git_changes()
+    if change_count > 0:
+        print(f"⚠️  Git changes detected: {change_count} file(s)")
+        print("💡 Consider committing changes before clearing")
+    else:
+        print("✅ Git status clean")
+    
+    # Create checkpoint
+    print(f"\n💾 Creating checkpoint...")
+    checkpoint_path, checkpoint_data = create_checkpoint_backup(session_data, notes)
+    
+    if not checkpoint_path:
+        print("❌ Failed to create checkpoint")
+        return 1
+    
+    # Verify checkpoint
+    print(f"🔍 Verifying checkpoint...")
+    verified, verify_msg = verify_checkpoint(checkpoint_path, session_data)
+    
+    if not verified:
+        print(f"❌ Checkpoint verification failed: {verify_msg}")
+        return 1
+    
+    # Show summary
+    show_checkpoint_summary(checkpoint_data, checkpoint_path)
+    
+    print(f"\n🎯 READY FOR SAFE OPERATIONS:")
+    print(f"   ✅ Session state saved and verified")
+    print(f"   ✅ Todos preserved in checkpoint")
+    print(f"   ✅ Safe to use /clear or /compact")
+    
+    print(f"\n🔄 To restore after clearing:")
+    print(f"   1. Run: ./who")
+    print(f"   2. Or: ./atlas-restore {checkpoint_path.name}")
+    
+    print(f"\n✨ Checkpoint complete - proceed safely!")
+    
+    return 0
+
+if __name__ == "__main__":
+    exit(main())
