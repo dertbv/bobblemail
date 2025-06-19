@@ -1,0 +1,230 @@
+{
+  "is_trained": true,
+  "training_stats": {
+    "total_samples": 3131,
+    "deleted_samples": 1719,
+    "preserved_samples": 1412,
+    "binary_classifier": {
+      "train_accuracy": 0.5567092651757188,
+      "test_accuracy": 0.5598086124401914,
+      "precision": 0.5551948051948052,
+      "recall": 0.9941860465116279,
+      "f1_score": 0.7125,
+      "auc_score": 0.9284144136740899,
+      "train_samples": 2504,
+      "test_samples": 627,
+      "feature_count": 67
+    },
+    "category_classifier": {
+      "train_accuracy": 0.14836363636363636,
+      "test_accuracy": 0.16279069767441862,
+      "train_samples": 1375,
+      "test_samples": 344,
+      "category_count": 12,
+      "categories": [
+        "Adult & Dating",
+        "Brand Impersonation",
+        "Financial & Investment",
+        "Gambling",
+        "Generic Spam",
+        "Health & Medical",
+        "Legal & Compensation",
+        "Marketing & Promotional",
+        "Payment Scam",
+        "Phishing",
+        "Real Estate",
+        "Unknown"
+      ],
+      "macro_precision": 0.24926606422158684,
+      "macro_recall": 0.2394697744834621,
+      "macro_f1": 0.1681363689890523,
+      "weighted_f1": 0.15827420378546087
+    },
+    "clustering_analysis": {
+      "kmeans_clusters": 12,
+      "kmeans_purity": 0.3286794648051193,
+      "dbscan_clusters": 33,
+      "dbscan_noise_points": 1445,
+      "dbscan_purity": 0.9014598540145985,
+      "ground_truth_categories": 12,
+      "deleted_sample_count": 1719
+    },
+    "feature_count": 67,
+    "consolidated_categories": [
+      "Financial & Investment",
+      "Health & Medical",
+      "Adult & Dating",
+      "Legal & Compensation",
+      "Payment Scam",
+      "Phishing",
+      "Gambling",
+      "Brand Impersonation",
+      "Marketing & Promotional",
+      "Real Estate",
+      "Generic Spam",
+      "Unknown"
+    ]
+  },
+  "feature_names": [
+    "brand_impersonation",
+    "category_adult_&_dating_spam_confidence",
+    "category_adult_&_dating_spam_match",
+    "category_brand_impersonation_confidence",
+    "category_brand_impersonation_match",
+    "category_business_opportunity_spam_confidence",
+    "category_business_opportunity_spam_match",
+    "category_education/training_spam_confidence",
+    "category_education/training_spam_match",
+    "category_financial_&_investment_spam_confidence",
+    "category_financial_&_investment_spam_match",
+    "category_gambling_spam_confidence",
+    "category_gambling_spam_match",
+    "category_health_&_medical_spam_confidence",
+    "category_health_&_medical_spam_match",
+    "category_legal_&_compensation_scams_confidence",
+    "category_legal_&_compensation_scams_match",
+    "category_payment_scam_confidence",
+    "category_payment_scam_match",
+    "category_phishing_confidence",
+    "category_phishing_match",
+    "category_real_estate_spam_confidence",
+    "category_real_estate_spam_match",
+    "confidence_score",
+    "domain_has_numbers",
+    "domain_length",
+    "domain_main_length",
+    "domain_parts_count",
+    "domain_pattern_match",
+    "domain_pattern_type",
+    "emoji_density",
+    "emoji_spam_detected",
+    "encoded_spam",
+    "has_confidence",
+    "has_money_symbols",
+    "has_promotional_words",
+    "has_subdomain",
+    "has_urgency_words",
+    "legitimate_domain",
+    "provider_aol",
+    "provider_gmail",
+    "provider_icloud",
+    "provider_outlook",
+    "provider_reputation",
+    "provider_tier_1",
+    "provider_tier_2",
+    "provider_unknown",
+    "provider_yahoo",
+    "scam_emoji_ratio",
+    "sender_has_noreply",
+    "sender_has_numbers",
+    "subject_all_caps_words",
+    "subject_emoji_count",
+    "subject_exclamation_marks",
+    "subject_has_numbers",
+    "subject_length",
+    "subject_question_marks",
+    "subject_scam_emoji_count",
+    "subject_special_chars",
+    "subject_uppercase_ratio",
+    "suspicious_domain",
+    "suspicious_tld",
+    "text_length",
+    "text_word_count",
+    "tld_length",
+    "total_emoji_count",
+    "total_scam_emoji_count"
+  ],
+  "consolidated_categories": {
+    "Financial & Investment": [
+      "Financial & Investment Spam",
+      "Encoded Financial & Investment Spam",
+      "Business Opportunity Spam"
+    ],
+    "Health & Medical": [
+      "Health & Medical Spam",
+      "Encoded Pharmaceutical Spam"
+    ],
+    "Adult & Dating": [
+      "Adult & Dating Spam",
+      "Encoded Adult Content Spam",
+      "Encoded Social/Dating Spam"
+    ],
+    "Legal & Compensation": [
+      "Legal & Compensation Scams"
+    ],
+    "Payment Scam": [
+      "Payment Scam",
+      "Encoded Payment Scam"
+    ],
+    "Phishing": [
+      "Phishing",
+      "Encoded Phishing"
+    ],
+    "Gambling": [
+      "Gambling Spam",
+      "Encoded Gambling Spam"
+    ],
+    "Brand Impersonation": [
+      "Brand Impersonation",
+      "Encoded Brand Impersonation"
+    ],
+    "Marketing & Promotional": [
+      "Promotional Email",
+      "Encoded Marketing Spam"
+    ],
+    "Real Estate": [
+      "Real Estate Spam"
+    ],
+    "Generic Spam": [
+      "Encoded Spam",
+      "User Keyword"
+    ],
+    "Unknown": []
+  },
+  "category_to_consolidated": {
+    "Financial & Investment Spam": "Financial & Investment",
+    "Encoded Financial & Investment Spam": "Financial & Investment",
+    "Business Opportunity Spam": "Financial & Investment",
+    "Health & Medical Spam": "Health & Medical",
+    "Encoded Pharmaceutical Spam": "Health & Medical",
+    "Adult & Dating Spam": "Adult & Dating",
+    "Encoded Adult Content Spam": "Adult & Dating",
+    "Encoded Social/Dating Spam": "Adult & Dating",
+    "Legal & Compensation Scams": "Legal & Compensation",
+    "Payment Scam": "Payment Scam",
+    "Encoded Payment Scam": "Payment Scam",
+    "Phishing": "Phishing",
+    "Encoded Phishing": "Phishing",
+    "Gambling Spam": "Gambling",
+    "Encoded Gambling Spam": "Gambling",
+    "Brand Impersonation": "Brand Impersonation",
+    "Encoded Brand Impersonation": "Brand Impersonation",
+    "Promotional Email": "Marketing & Promotional",
+    "Encoded Marketing Spam": "Marketing & Promotional",
+    "Real Estate Spam": "Real Estate",
+    "Encoded Spam": "Generic Spam",
+    "User Keyword": "Generic Spam"
+  },
+  "label_classes": [
+    "Adult & Dating",
+    "Brand Impersonation",
+    "Financial & Investment",
+    "Gambling",
+    "Generic Spam",
+    "Health & Medical",
+    "Legal & Compensation",
+    "Marketing & Promotional",
+    "Payment Scam",
+    "Phishing",
+    "Real Estate",
+    "Unknown"
+  ],
+  "model_type": "GaussianNB",
+  "feature_count": 67,
+  "model_files": {
+    "binary_classifier": "ml_category_classifier_binary.pkl",
+    "feature_scaler": "ml_category_classifier_scaler.pkl",
+    "category_classifier": "ml_category_classifier_category.pkl",
+    "label_encoder": "ml_category_classifier_encoder.pkl"
+  }
+}

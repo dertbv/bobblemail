@@ -1,0 +1,23 @@
+{
+  "decision_thresholds": {
+    "high_confidence": 0.85,
+    "medium_confidence": 0.65,
+    "spam_threshold": 0.5
+  },
+  "ensemble_settings": {
+    "enable_ensemble": true,
+    "fallback_on_failure": true,
+    "min_processing_time_ms": 50,
+    "max_processing_time_ms": 1000
+  },
+  "classification_rules": {
+    "require_high_confidence_for_deletion": false,
+    "enable_whitelist_override": true,
+    "enable_provider_override": true
+  },
+  "performance_tracking": {
+    "enable_stats": true,
+    "log_decisions": true,
+    "track_accuracy": true
+  }
+}
