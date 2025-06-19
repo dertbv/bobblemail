@@ -34,6 +34,10 @@ __pycache__/
 # Task management
 .taskmaster/
 
+# ATLAS backup files
+MEMORY/CHECKPOINTS/
+MEMORY/ATLAS_BACKUPS/
+
 # Temporary files
 *.tmp
 *.temp
