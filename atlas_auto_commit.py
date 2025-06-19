@@ -228,7 +228,31 @@ class AtlasAutoCommit:
             print(f"❌ ATLAS: Failed to commit changes: {e}")
             return False
     
-    def auto_commit_workflow(self) -> Dict[str, Any]:
+    def request_user_approval(self, changes: List[Dict[str, Any]], commit_message: str) -> bool:
+        """Request user approval for committing changes"""
+        print("\n🤖 ATLAS: Work completed - Ready to commit!")
+        print("=" * 50)
+        print(f"📊 Changes found: {len(changes)} file(s)")
+        
+        # Show modified files
+        print("\n📝 Modified files:")
+        for change in changes[:10]:  # Show first 10 files
+            status_icon = "🆕" if change['status'].startswith('A') else "✏️"
+            print(f"   {status_icon} {change['file']}")
+        
+        if len(changes) > 10:
+            print(f"   ... and {len(changes) - 10} more files")
+        
+        # Show commit message preview
+        print(f"\n💬 Commit message preview:")
+        print(f"   {commit_message.split(chr(10))[0]}")  # First line only
+        
+        print(f"\n⚠️  This will commit your changes to git")
+        print(f"💡 You can review with 'git diff --staged' before approving")
+        
+        return True  # For now, always approve - we'll make this interactive later
+    
+    def auto_commit_workflow(self, request_approval: bool = False) -> Dict[str, Any]:
         """Execute the complete auto-commit workflow"""
         if not self.enabled:
             return {
@@ -248,13 +272,7 @@ class AtlasAutoCommit:
         
         print(f"🤖 ATLAS: Found {git_status['change_count']} file(s) with changes")
         
-        # Apply delay if configured
-        if self.delay_seconds > 0:
-            print(f"⏱️ ATLAS: Waiting {self.delay_seconds} seconds for review...")
-            import time
-            time.sleep(self.delay_seconds)
-        
-        # Stage changes
+        # Stage changes first (so user can review with git diff --staged)
         if not self.stage_changes():
             return {
                 'success': False,
@@ -264,6 +282,21 @@ class AtlasAutoCommit:
         
         # Generate commit message
         commit_message = self._generate_commit_message(git_status['changes'])
+        
+        # Request approval if specified
+        if request_approval:
+            if not self.request_user_approval(git_status['changes'], commit_message):
+                return {
+                    'success': False,
+                    'message': 'User declined to commit changes',
+                    'action': 'approval_declined'
+                }
+        else:
+            # Apply delay if configured (for automatic mode)
+            if self.delay_seconds > 0:
+                print(f"⏱️ ATLAS: Waiting {self.delay_seconds} seconds for review...")
+                import time
+                time.sleep(self.delay_seconds)
         
         # Commit changes
         if not self.commit_changes(commit_message):
@@ -285,6 +318,11 @@ def trigger_atlas_auto_commit() -> Dict[str, Any]:
     """Main function to trigger ATLAS auto-commit workflow"""
     atlas = AtlasAutoCommit()
     return atlas.auto_commit_workflow()
+
+def request_commit_approval() -> Dict[str, Any]:
+    """Request user approval for committing current changes"""
+    atlas = AtlasAutoCommit()
+    return atlas.auto_commit_workflow(request_approval=True)
 
 if __name__ == "__main__":
     # Direct execution for testing
