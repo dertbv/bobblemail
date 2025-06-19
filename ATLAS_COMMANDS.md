@@ -22,6 +22,11 @@
 ./atlas-orchestrate "Complex task description"
 ```
 
+**Start complex work with todo tracking:**
+```bash
+./atlas-orchestrate-todo "Complex task description"
+```
+
 ## Core Commands
 
 ### `./who`
@@ -62,7 +67,6 @@
 - Creates structured working log entry with 4-phase checklist
 - Updates FRESH_COMPACT_MEMORY.md with task context
 - Sets up systematic multi-task coordination framework
-- Prepares ATLAS for complex engineering challenges
 
 **When to use:**
 - Complex implementations (multiple interconnected components)
@@ -78,11 +82,32 @@
 - Documentation tasks
 - Routine maintenance
 
-**4-Phase Enhanced Workflow:**
-1. **ATLAS Strategic Planning**: Apply FAANG + startup experience to scope and decompose
-2. **ATLAS Systematic Execution**: Implement subtasks with context management
-3. **ATLAS Quality Orchestration**: Professional evaluation and iteration
-4. **ATLAS Learning Integration**: Extract patterns and update memory systems
+---
+
+### `./atlas-orchestrate-todo`
+**Enhanced orchestration with todo tracking**
+
+```bash
+# Start complex task session with checkboxes
+./atlas-orchestrate-todo "Implement OAuth authentication system"
+./atlas-orchestrate-todo "Build comprehensive user dashboard"
+```
+
+**What it does:**
+- Everything that `./atlas-orchestrate` does
+- PLUS creates a separate todo file you can check off ✅
+- Integrates with Claude Code's todo tracking features
+
+**When to use:**
+- Same scenarios as `./atlas-orchestrate` 
+- When you want visual progress tracking
+- When you like checking off completed work
+- For motivation on large tasks
+
+**What you get:**
+- Working log structure (same as `./atlas-orchestrate`)
+- Separate todo file: `atlas_todos_[timestamp].md`
+- Checkboxes for each phase and custom subtasks
 
 ---
 
@@ -165,6 +190,26 @@
 - Restoring previous work state
 - Debugging session issues
 
+---
+
+### `./atlas-create-todos`
+**Convert existing work to todo tracking**
+
+```bash
+# Add todos to work already in progress
+./atlas-create-todos "Task already started with ./atlas-orchestrate"
+```
+
+**What it does:**
+- Creates ONLY a todo file for existing work
+- No working log or memory updates
+- Useful for adding tracking to work already started
+
+**When to use:**
+- You started with `./atlas-orchestrate` but now want todos
+- Adding tracking to work already in progress
+- Creating checklists for existing tasks
+
 ## Advanced Usage
 
 ### Workflow Integration
@@ -177,8 +222,9 @@
 # For simple tasks - use standard ATLAS
 # Work on individual files, configs, simple fixes...
 
-# For complex tasks - use enhanced orchestration
-./atlas-orchestrate "Implement comprehensive user authentication"
+# For complex tasks - choose your approach
+./atlas-orchestrate "Implement comprehensive user authentication"          # Structure only
+./atlas-orchestrate-todo "Implement comprehensive user authentication"     # Structure + todos
 
 # Work through the 4-phase orchestration workflow...
 # Complete todos, get approval for commits
@@ -193,19 +239,12 @@
 ./atlas-save "completed session restoration system"
 ```
 
-**Git integration:**
-```bash
-# Before major git operations
-./atlas-checkpoint "before rebasing feature branch"
-
-# After git operations, restore context
-./who
-```
-
 **Enhanced orchestration workflow:**
 ```bash
-# Start complex task
-./atlas-orchestrate "Implement comprehensive OAuth authentication system"
+# Choose your approach
+./atlas-orchestrate "Implement comprehensive OAuth authentication system"          # No todos
+# OR
+./atlas-orchestrate-todo "Implement comprehensive OAuth authentication system"     # With todos
 
 # Phase 1: ATLAS Strategic Planning
 # - Apply accumulated experience to understand scope
@@ -230,30 +269,9 @@
 # Check progress
 cat FRESH_COMPACT_MEMORY.md
 cat WORKING_LOG/$(date +"%Y/%m-%b")/wl_$(date +"%Y_%m_%d").md
-```
 
-**Testing workflow:**
-```bash
-# Before risky changes
-./atlas-checkpoint "before experimental changes"
-
-# If things go wrong, restore
-./atlas-restore latest
-
-# If successful, continue normally
-./who
-```
-
-### Batch Operations
-
-**Checkpoint and continue:**
-```bash
-./atlas-checkpoint "batch checkpoint" && echo "Safe to /clear now"
-```
-
-**Save and show status:**
-```bash
-./atlas-save "milestone backup" && ./who
+# If using todos, check your todo file too
+cat atlas_todos_*.md
 ```
 
 ## File Locations
@@ -283,105 +301,80 @@ WORKING_LOG/                 # Daily activity logs
 ```
 SELF/ENHANCED_ORCHESTRATION.md     # Complete protocol documentation
 ATLAS_ORCHESTRATION_QUICKREF.md    # Quick reference guide
-./atlas-orchestrate                # Command script
+./atlas-orchestrate                # Basic orchestration command
+./atlas-orchestrate-todo           # Orchestration with todo tracking
+./atlas-create-todos               # Add todos to existing work
+atlas_todos_[timestamp].md          # Individual todo files (when created)
 ```
 
-## Troubleshooting
+## Decision Matrix
 
-### Common Issues
-
-**"No session state found"**
-```bash
-# Solution: Create todos first in Claude Code
-# Then use commands
-./who  # Will show "starting fresh"
+### Simple Decision Tree
 ```
+Do I have a big, complex job?
+├── YES → Do I want todo tracking?
+│   ├── YES → ./atlas-orchestrate-todo "job description"
+│   └── NO  → ./atlas-orchestrate "job description"
+└── NO  → Just work normally (simple task)
 
-**"No previous session found"**
-```bash
-# Normal for new projects - create some todos first
-# Or restore from specific backup
-./atlas-restore atlas_backup_filename.json
+Already started work but want todos?
+└── ./atlas-create-todos "job description"
 ```
-
-**"Checkpoint verification failed"**
-```bash
-# Try again - usually transient issue
-./atlas-checkpoint
-
-# If persistent, check disk space and permissions
-```
-
-**Git changes detected**
-```bash
-# Checkpoint warns about uncommitted changes
-# Either commit first, or proceed anyway
-git add . && git commit -m "work in progress"
-./atlas-checkpoint
-```
-
-### Recovery Options
-
-**Lost session data:**
-1. Try `./who` (auto-restores latest)
-2. Try `./atlas-restore latest`
-3. List and restore specific backup:
-   ```bash
-   ls MEMORY/ATLAS_BACKUPS/
-   ./atlas-restore filename.json
-   ```
-
-**Corrupted session file:**
-```bash
-# Remove corrupted file and restore
-rm .session_state.json
-./atlas-restore latest
-```
-
-## Tips and Best Practices
-
-### Naming Conventions
-```bash
-# Good checkpoint notes
-./atlas-checkpoint "completed milestone 3"
-./atlas-checkpoint "before major refactor"
-./atlas-checkpoint "working classifier implementation"
-
-# Good save notes  
-./atlas-save "end of sprint 2"
-./atlas-save "stable ML pipeline version"
-```
-
-### Timing
-- **Checkpoint**: Before risky operations (`/clear`, `/compact`, major changes)
-- **Save**: After completing meaningful work units
-- **Who**: Start of every session, after clearing/compacting
-
-### Integration
-- Use with git workflow - checkpoint before major git operations
-- Combine with todo management - save after completing milestones
-- Use with Claude Code features - checkpoint before `/compact`
-
-## Quick Reference Card
-
-| Command | Usage | Purpose |
-|---------|--------|---------|
-| `./who` | Session start | Identity + restore + context |
-| `./atlas-orchestrate` | Complex tasks | Enhanced multi-task coordination |
-| `./atlas-checkpoint` | Before /clear | Safety backup |
-| `./atlas-save` | Manual backup | Work preservation |
-| `./atlas-restore` | Recovery | Session restoration |
 
 ### Task Decision Matrix
 
 | Task Type | Command | Examples |
 |-----------|---------|----------|
-| **Simple** | Standard ATLAS | Single file edits, config changes, simple fixes |
-| **Complex** | `./atlas-orchestrate` | Multi-component features, system integration |
+| **Simple** | Work normally | Single file edits, config changes, simple fixes |
+| **Complex (no todos)** | `./atlas-orchestrate` | Multi-component features, prefer minimal tracking |
+| **Complex (with todos)** | `./atlas-orchestrate-todo` | Multi-component features, want visual progress |
+| **Add todos later** | `./atlas-create-todos` | Convert existing work to todo tracking |
 | **Emergency** | `./atlas-checkpoint` then work | Before risky operations or /clear |
 | **Recovery** | `./atlas-restore` | After session corruption or data loss |
 
-**Remember:** 
-- Always `./atlas-checkpoint` before `/clear` or `/compact`!
-- Use `./atlas-orchestrate` for complex multi-step engineering challenges
-- Check `ATLAS_ORCHESTRATION_QUICKREF.md` for detailed enhanced workflow guide
+## Enhanced Orchestration (4-Phase Workflow)
+
+Both `./atlas-orchestrate` and `./atlas-orchestrate-todo` use the same systematic approach:
+
+### Phase 1: ATLAS Strategic Planning
+- Apply FAANG + startup experience to understand scope and complexity
+- Break into logical subtasks using engineering best practices
+- Set quality standards based on DEVELOPMENT_BELIEFS.md principles
+
+### Phase 2: ATLAS Systematic Execution  
+- Work through each identified subtask systematically
+- Maintain context between related work pieces using accumulated experience
+- Update FRESH_COMPACT_MEMORY.md with progress and insights
+
+### Phase 3: ATLAS Quality Orchestration
+- Apply accumulated professional standards to evaluate work quality
+- Follow existing Git protocol (stage → Boss review → commit)
+- Iterate if quality doesn't meet professional standards
+
+### Phase 4: ATLAS Learning Integration
+- Extract new patterns and techniques for future similar work
+- Update relevant MEMORY/ files with insights and learnings
+- Document high-entropy information in WORKING_LOG/
+
+## Quick Reference Card
+
+| Command | Purpose | Creates |
+|---------|---------|---------|
+| `./who` | Start session, restore context | Session restoration |
+| `./atlas-orchestrate` | Complex tasks, structure only | Working log + memory |
+| `./atlas-orchestrate-todo` | Complex tasks + todo tracking | Working log + memory + todos |
+| `./atlas-create-todos` | Add todos to existing work | Todo file only |
+| `./atlas-checkpoint` | Safety backup | Checkpoint file |
+| `./atlas-save` | Manual backup | Backup file |
+| `./atlas-restore` | Restore session | Session restoration |
+
+## Key Principles
+
+✅ **Always start with** `./who`  
+✅ **Simple tasks** = work normally  
+✅ **Complex tasks** = choose `./atlas-orchestrate` or `./atlas-orchestrate-todo`  
+✅ **Want progress tracking?** = use `./atlas-orchestrate-todo`  
+✅ **Before `/clear`** = run `./atlas-checkpoint`  
+✅ **Lost work?** = try `./atlas-restore`  
+
+**Remember:** You're ATLAS - a senior engineer with FAANG + startup experience. These tools help you work systematically while maintaining your core professional identity and accumulated wisdom.

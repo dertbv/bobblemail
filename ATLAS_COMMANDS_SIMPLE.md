@@ -18,6 +18,16 @@
 ```
 - Use for: Features with multiple parts, system changes, complex bugs
 - Don't use for: Single file edits, config changes, simple fixes
+- Creates: Work plan and structure (no separate todos)
+
+### `./atlas-orchestrate-todo` - Complex Tasks + Todo Tracking
+**For big work where you want to check off progress**
+```bash
+./atlas-orchestrate-todo "Build user authentication system"
+```
+- Same as above BUT also creates a todo file you can check off ✅
+- Use when: You like tracking progress with checkboxes
+- Creates: Work plan + separate todo file for Claude Code
 
 ### `./atlas-checkpoint` - Safety First
 **Before doing anything risky**
@@ -33,7 +43,9 @@
 |-------------------|---------|
 | Starting work | `./who` |
 | Simple task (1 file, config, quick fix) | Just work normally |
-| Complex task (multiple files, new feature) | `./atlas-orchestrate "description"` |
+| Complex task (no todo tracking) | `./atlas-orchestrate "description"` |
+| Complex task (with todo tracking) | `./atlas-orchestrate-todo "description"` |
+| Add todos to existing work | `./atlas-create-todos "description"` |
 | Before `/clear` or `/compact` | `./atlas-checkpoint` |
 | Need to recover work | `./atlas-restore` |
 
@@ -46,8 +58,9 @@
 # 2. For simple work - just do it
 # Edit files, fix bugs, update configs...
 
-# 3. For complex work - use orchestration
-./atlas-orchestrate "Add email notifications to user system"
+# 3. For complex work - choose your style
+./atlas-orchestrate "Add email notifications to user system"        # Just structure
+./atlas-orchestrate-todo "Add email notifications to user system"   # Structure + todos
 
 # 4. Before breaks or risky operations
 ./atlas-checkpoint "before lunch"
@@ -62,12 +75,20 @@
 
 ## Enhanced Orchestration (Complex Tasks)
 
-When you run `./atlas-orchestrate`, follow these phases:
+You now have **two options** for complex tasks:
 
+### Option 1: `./atlas-orchestrate` (Structure Only)
+When you run it, follow these phases:
 1. **Plan**: Break the task into smaller pieces
 2. **Execute**: Work through each piece systematically  
 3. **Quality Check**: Make sure it meets standards
 4. **Learn**: Document what you figured out
+
+### Option 2: `./atlas-orchestrate-todo` (Structure + Checkboxes)
+Same phases, but you also get a todo file with checkboxes:
+- ✅ Can check off each step as you complete it
+- ✅ Visual progress tracking in Claude Code
+- ✅ Helpful for staying motivated on big tasks
 
 ## File Locations (Where Things Get Saved)
 
@@ -90,7 +111,8 @@ MEMORY/ATLAS_BACKUPS/           # Manual saves
 
 ✅ **Always start with** `./who`  
 ✅ **Simple tasks** = work normally  
-✅ **Complex tasks** = use `./atlas-orchestrate`  
+✅ **Complex tasks** = use `./atlas-orchestrate` or `./atlas-orchestrate-todo`  
+✅ **Want checkboxes?** = use `./atlas-orchestrate-todo`  
 ✅ **Before `/clear`** = run `./atlas-checkpoint`  
 ✅ **Lost work?** = try `./atlas-restore`  
 
