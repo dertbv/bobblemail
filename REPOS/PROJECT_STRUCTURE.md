@@ -65,7 +65,13 @@ email/
 - **Email**: IMAP, cryptography, tldextract
 - **Web**: uvicorn server
 
-**Database Files:**
-- `mail_filter.db` - Main database with comprehensive schema (emails, classifications, analytics, logs, sessions)
+**Database Architecture:**
+- `mail_filter.db` - Single comprehensive database with 25+ tables
+  - Email storage and processing data
+  - ML classification results and confidence scores  
+  - User feedback and learning analytics
+  - Domain validation and caching
+  - Session logs and system analytics
+  - Keyword management and protection patterns
 
-**Last Updated:** June 18, 2025
+**Last Updated:** June 19, 2025
