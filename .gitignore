@@ -1,0 +1,39 @@
+# Environment and secrets
+.env
+.env.local
+.env.production
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# ML Model files (binary)
+*.pkl
+*.pickle
+*.model
+
+# Log files
+*.log
+web_app.log
+
+# Session state
+.session_state.json
+
+# IDE and system files
+.DS_Store
+.idea/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Process files
+.atlas_watcher.pid
+
+# Task management
+.taskmaster/
+
+# Temporary files
+*.tmp
+*.temp
