@@ -708,11 +708,23 @@ class EmailProcessor:
                     deletion_reason = ""
                     match_source = ""
                     
-                    # STEP 1: Debug both classifiers to find the issue
+                    # STEP 1: Email Authentication Check (NEW SECURITY ENHANCEMENT)
+                    authentication_result = None
+                    try:
+                        from email_authentication import authenticate_email_headers
+                        authentication_result = authenticate_email_headers(headers)
+                        
+                        if debug_mode:
+                            auth_summary = authentication_result.get('auth_summary', 'Unknown')
+                            is_authentic = authentication_result.get('is_authentic', False)
+                            write_log(f"DEBUG UID {uid}: Authentication - {auth_summary} | Authentic: {is_authentic}", True)
+                            
+                    except Exception as e:
+                        if debug_mode:
+                            write_log(f"DEBUG UID {uid}: Authentication error: {e}", True)
+                        authentication_result = {'confidence_modifier': 0.0, 'is_authentic': False}
                     
-                    # Test Two-Pass Classifier (DISABLED)
-                    
-                    # Test Unified Keyword Processor (content-first classification)
+                    # STEP 2: Content Classification
                     # Initialize confidence to avoid None values
                     hybrid_confidence = 75.0  # Default medium confidence
                     
@@ -765,6 +777,19 @@ class EmailProcessor:
                     spam_classifier_detected = hybrid_spam
                     spam_category = hybrid_category
                     spam_confidence = hybrid_confidence
+                    
+                    # Apply authentication confidence modifier (NEW SECURITY ENHANCEMENT)
+                    if authentication_result:
+                        auth_modifier = authentication_result.get('confidence_modifier', 0.0)
+                        original_confidence = spam_confidence
+                        spam_confidence += auth_modifier
+                        
+                        # Cap confidence between 0-100
+                        spam_confidence = max(0.0, min(100.0, spam_confidence))
+                        
+                        if debug_mode and abs(auth_modifier) > 1.0:  # Only log significant adjustments
+                            auth_summary = authentication_result.get('auth_summary', 'Unknown')
+                            write_log(f"DEBUG UID {uid}: Auth adjustment - {original_confidence:.1f}% → {spam_confidence:.1f}% ({auth_modifier:+.1f}) | {auth_summary}", True)
                     
                     # Ensure confidence is never None - convert to 0.0 if needed
                     if spam_confidence is None:
