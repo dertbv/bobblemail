@@ -29,8 +29,7 @@ You’re about to auto /compact soon. Follow these steps—no deviations.
    B. A one-line entry for `CHANGELOG.md`, e.g.  
       `2025-06-13  meta: compacted session – API refactor, 2 bugs triaged`
 
-5.  copy todolist to todolist.md and respond tasks have been copied to todolist.md
-6. copy update.diff to updated_diff.md file
+5. copy update.diff to updated_diff.md file
 
 6. **Purge** chat history, retaining only:  
    • this command’s instructions (for transparency)  
