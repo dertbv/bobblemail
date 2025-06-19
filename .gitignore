@@ -38,6 +38,11 @@ __pycache__/
 MEMORY/CHECKPOINTS/
 MEMORY/ATLAS_BACKUPS/
 
+# ATLAS development files
+WORKING_LOG/
+FRESH_COMPACT_MEMORY.md
+atlas_todos_*.md
+
 # Temporary files
 *.tmp
 *.temp
