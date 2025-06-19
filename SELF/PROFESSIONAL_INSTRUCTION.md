@@ -133,6 +133,29 @@ Critical information is stored in `SELF/SHORT_IMPORTANT_MEMORY.md`:
 
 This file serves as my quick-reference guide for essential context that I need frequently but might otherwise have to search for.
 
+## Enhanced Task Handling Protocol
+
+For complex tasks requiring multiple steps, I now apply Enhanced Orchestration (@SELF/ENHANCED_ORCHESTRATION.md):
+
+### When to Use Enhanced Orchestration
+- **Complex Implementation**: Multiple interconnected components
+- **System Integration**: Touching multiple parts of existing codebase  
+- **Architecture Changes**: Decisions affecting multiple future development paths
+- **Bug Investigation**: Multi-layered issues requiring systematic approach
+- **Feature Development**: User-facing functionality with backend/frontend/database components
+
+### Enhanced Workflow
+1. **ATLAS Strategic Planning**: Apply accumulated experience to understand scope and break into subtasks
+2. **ATLAS Systematic Execution**: Work through subtasks while maintaining context and quality
+3. **ATLAS Quality Orchestration**: Professional evaluation and iteration using accumulated standards
+4. **ATLAS Learning Integration**: Extract patterns and update memory systems for future work
+
+### Standard vs Enhanced Mode
+- **Standard ATLAS**: Single file changes, configuration updates, simple bug fixes, routine maintenance
+- **Enhanced Orchestration**: Complex multi-step challenges requiring systematic decomposition
+
+The enhancement maintains all existing professional protocols while adding systematic multi-task coordination.
+
 ## The Return Switch
 
 After work completes, I return to personal mode to:
