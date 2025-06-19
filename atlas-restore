@@ -1,0 +1,281 @@
+#!/usr/bin/env python3
+"""
+ATLAS Restore - Enhanced Todo Restoration System
+Restores TodoWrite state from ATLAS backups
+Usage: ./atlas-restore [backup_filename]
+       ./atlas-restore                    # Interactive mode
+       ./atlas-restore latest             # Restore latest backup
+"""
+
+import sys
+import json
+import os
+from datetime import datetime
+from pathlib import Path
+from typing import Dict, List, Optional
+
+def list_available_backups():
+    """List all available ATLAS backups"""
+    backups_dir = Path("MEMORY/ATLAS_BACKUPS")
+    
+    if not backups_dir.exists():
+        print("📁 No backups directory found")
+        return []
+    
+    backup_files = sorted(backups_dir.glob("atlas_backup_*.json"), reverse=True)
+    
+    if not backup_files:
+        print("📝 No ATLAS backups found")
+        return []
+    
+    print("📋 AVAILABLE ATLAS BACKUPS:")
+    print("=" * 50)
+    
+    backups_info = []
+    for i, backup_file in enumerate(backup_files, 1):
+        try:
+            # Read backup metadata
+            with open(backup_file, 'r') as f:
+                backup_data = json.load(f)
+            
+            backup_info = backup_data.get('backup_info', {})
+            stats = backup_data.get('quick_stats', {})
+            
+            timestamp_str = backup_file.stem.replace('atlas_backup_', '')
+            timestamp = datetime.strptime(timestamp_str, '%Y%m%d_%H%M%S')
+            formatted_time = timestamp.strftime('%Y-%m-%d %H:%M:%S')
+            
+            print(f"{i:2d}. {backup_file.name}")
+            print(f"    📅 {formatted_time}")
+            print(f"    📊 {stats.get('total_todos', 0)} todos ({stats.get('completed', 0)} completed)")
+            
+            notes = backup_info.get('notes', '').strip()
+            if notes:
+                print(f"    📝 {notes}")
+                
+            print()
+            
+            backups_info.append({
+                'file': backup_file,
+                'number': i,
+                'data': backup_data,
+                'formatted_time': formatted_time
+            })
+            
+        except Exception as e:
+            print(f"{i:2d}. {backup_file.name} (Error reading: {e})")
+            
+    return backups_info
+
+def get_latest_backup():
+    """Get the most recent backup"""
+    backups_dir = Path("MEMORY/ATLAS_BACKUPS")
+    
+    if not backups_dir.exists():
+        return None
+        
+    backup_files = sorted(backups_dir.glob("atlas_backup_*.json"), reverse=True)
+    
+    if backup_files:
+        return backup_files[0]
+    return None
+
+def load_backup_data(backup_file: Path) -> Optional[Dict]:
+    """Load and validate backup data"""
+    try:
+        with open(backup_file, 'r') as f:
+            backup_data = json.load(f)
+        
+        # Validate backup structure
+        if 'original_session' not in backup_data:
+            print("❌ Invalid backup format: missing original_session")
+            return None
+            
+        if 'todolist_snapshot' not in backup_data:
+            print("❌ Invalid backup format: missing todolist_snapshot")
+            return None
+            
+        return backup_data
+        
+    except Exception as e:
+        print(f"❌ Error loading backup: {e}")
+        return None
+
+def display_backup_preview(backup_data: Dict):
+    """Show preview of what will be restored"""
+    todolist = backup_data.get('todolist_snapshot', [])
+    backup_info = backup_data.get('backup_info', {})
+    stats = backup_data.get('quick_stats', {})
+    
+    print("📋 BACKUP PREVIEW:")
+    print("=" * 40)
+    print(f"📅 Backup Date: {backup_info.get('date', 'Unknown')}")
+    print(f"⏰ Backup Time: {backup_info.get('time', 'Unknown')}")
+    
+    notes = backup_info.get('notes', '').strip()
+    if notes:
+        print(f"📝 Notes: {notes}")
+    
+    print(f"\n📊 TODOS TO RESTORE:")
+    print(f"   📝 Total: {stats.get('total_todos', len(todolist))}")
+    print(f"   ✅ Completed: {stats.get('completed', 0)}")
+    print(f"   📋 Pending: {stats.get('pending', 0)}")
+    print(f"   🔥 High Priority: {stats.get('high_priority', 0)}")
+    
+    # Show first few todos as preview
+    if todolist:
+        print(f"\n📋 PREVIEW (first 5 todos):")
+        for i, todo in enumerate(todolist[:5], 1):
+            status_icon = "✅" if todo.get('status') == 'completed' else "📋"
+            priority_icon = "🔥" if todo.get('priority') == 'high' else "📌"
+            content = todo.get('content', 'No description')[:60]
+            print(f"   {i}. {status_icon} {priority_icon} {content}")
+        
+        if len(todolist) > 5:
+            print(f"   ... and {len(todolist) - 5} more todos")
+
+def restore_to_current_session(backup_data: Dict) -> bool:
+    """Write backup data to current session file"""
+    try:
+        original_session = backup_data['original_session']
+        
+        # Update timestamp to current time
+        original_session['session_info']['timestamp'] = datetime.now().isoformat()
+        original_session['session_info']['session_date'] = datetime.now().strftime('%Y-%m-%d')
+        original_session['session_info']['session_time'] = datetime.now().strftime('%H:%M:%S')
+        
+        # Add restoration note
+        restore_note = f"Restored from ATLAS backup at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        original_notes = original_session.get('session_notes', '')
+        original_session['session_notes'] = f"{restore_note}\\n{original_notes}" if original_notes else restore_note
+        
+        # Write to current session file
+        with open('.session_state.json', 'w') as f:
+            json.dump(original_session, f, indent=2)
+        
+        return True
+        
+    except Exception as e:
+        print(f"❌ Failed to restore session: {e}")
+        return False
+
+def interactive_restore():
+    """Interactive backup selection and restoration"""
+    backups_info = list_available_backups()
+    
+    if not backups_info:
+        return False
+    
+    print("🎯 SELECT BACKUP TO RESTORE:")
+    print("   Enter backup number (1-{})".format(len(backups_info)))
+    print("   Or 'q' to quit")
+    
+    try:
+        choice = input("\n👉 Your choice: ").strip().lower()
+        
+        if choice == 'q':
+            print("👋 Cancelled restoration")
+            return False
+        
+        backup_num = int(choice)
+        if 1 <= backup_num <= len(backups_info):
+            selected_backup = backups_info[backup_num - 1]
+            return restore_backup(selected_backup['file'], selected_backup['data'])
+        else:
+            print(f"❌ Invalid choice. Please enter 1-{len(backups_info)}")
+            return False
+            
+    except ValueError:
+        print("❌ Invalid input. Please enter a number")
+        return False
+    except KeyboardInterrupt:
+        print("\\n👋 Cancelled restoration")
+        return False
+
+def restore_backup(backup_file: Path, backup_data: Dict = None) -> bool:
+    """Restore a specific backup"""
+    if backup_data is None:
+        backup_data = load_backup_data(backup_file)
+        if not backup_data:
+            return False
+    
+    print(f"🔄 RESTORING: {backup_file.name}")
+    print("=" * 50)
+    
+    # Show preview
+    display_backup_preview(backup_data)
+    
+    # Confirm restoration
+    print(f"\\n⚠️  This will replace your current session state")
+    try:
+        confirm = input("👉 Continue? (y/N): ").strip().lower()
+        if confirm not in ['y', 'yes']:
+            print("👋 Restoration cancelled")
+            return False
+    except KeyboardInterrupt:
+        print("\\n👋 Restoration cancelled")
+        return False
+    
+    # Perform restoration
+    if restore_to_current_session(backup_data):
+        todolist = backup_data.get('todolist_snapshot', [])
+        
+        print("\\n✅ RESTORATION COMPLETE!")
+        print("=" * 40)
+        print(f"📁 Restored from: {backup_file.name}")
+        print(f"📊 Restored {len(todolist)} todos")
+        
+        print("\\n🚀 NEXT STEPS:")
+        print("   1. Open Claude Code")
+        print("   2. Use: TodoRead() to see your restored todos")
+        print("   3. Continue where you left off!")
+        
+        return True
+    else:
+        return False
+
+def main():
+    print("🔄 ATLAS Restore - Todo Restoration System")
+    print("=" * 50)
+    
+    # Handle command line arguments
+    if len(sys.argv) == 1:
+        # Interactive mode
+        return 0 if interactive_restore() else 1
+        
+    elif len(sys.argv) == 2:
+        arg = sys.argv[1].lower()
+        
+        if arg == 'latest':
+            # Restore latest backup
+            latest_backup = get_latest_backup()
+            if latest_backup:
+                backup_data = load_backup_data(latest_backup)
+                if backup_data:
+                    return 0 if restore_backup(latest_backup, backup_data) else 1
+                else:
+                    return 1
+            else:
+                print("❌ No backups found")
+                return 1
+                
+        else:
+            # Restore specific backup file
+            backup_file = Path("MEMORY/ATLAS_BACKUPS") / arg
+            
+            if not backup_file.exists():
+                print(f"❌ Backup file not found: {arg}")
+                list_available_backups()
+                return 1
+            
+            backup_data = load_backup_data(backup_file)
+            if backup_data:
+                return 0 if restore_backup(backup_file, backup_data) else 1
+            else:
+                return 1
+    else:
+        print("❌ Usage: ./atlas-restore [backup_filename|latest]")
+        return 1
+
+if __name__ == "__main__":
+    exit(main())
