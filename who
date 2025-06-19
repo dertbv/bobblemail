@@ -1,0 +1,221 @@
+#!/usr/bin/env python3
+"""
+Enhanced "who am i" command for ATLAS
+Displays identity AND restores latest session automatically
+"""
+
+import os
+import sys
+from pathlib import Path
+
+def show_atlas_identity():
+    """Display ATLAS identity from CLAUDE.md and SELF files"""
+    print("🤖 ATLAS - Adaptive Technical Learning and Architecture System")
+    print("=" * 70)
+    
+    # Read core identity
+    try:
+        claude_md = Path("CLAUDE.md")
+        if claude_md.exists():
+            with open(claude_md, 'r') as f:
+                content = f.read()
+                # Extract the key identity section
+                lines = content.split('\n')
+                in_identity = False
+                for line in lines:
+                    if "## I Am ATLAS" in line:
+                        in_identity = True
+                        continue
+                    if in_identity and line.startswith("## "):
+                        break
+                    if in_identity and line.strip():
+                        print(f"   {line}")
+        
+        # Quick summary from SELF/IDENTITY.md
+        identity_file = Path("SELF/IDENTITY.md")
+        if identity_file.exists():
+            with open(identity_file, 'r') as f:
+                content = f.read()
+                if "### Short Description" in content:
+                    lines = content.split('\n')
+                    in_short = False
+                    for line in lines:
+                        if "### Short Description" in line:
+                            in_short = True
+                            continue
+                        if in_short and line.strip() and not line.startswith('#'):
+                            print(f"\n💡 {line.strip()}")
+                            break
+    
+    except Exception as e:
+        print(f"⚠️  Could not read identity files: {e}")
+    
+    print("\n" + "=" * 70)
+
+def auto_restore_session():
+    """Automatically restore latest session"""
+    print("\n🔄 RESTORING LATEST SESSION...")
+    
+    # Check if atlas-restore exists
+    restore_script = Path("atlas-restore")
+    if not restore_script.exists():
+        print("❌ atlas-restore script not found")
+        return False
+    
+    # Run atlas-restore latest
+    try:
+        import subprocess
+        result = subprocess.run(
+            ["python3", "atlas-restore", "latest"],
+            capture_output=True,
+            text=True
+        )
+        
+        if result.returncode == 0:
+            print("✅ Session restored successfully!")
+            # Show just the summary, not full output
+            lines = result.stdout.split('\n')
+            for line in lines:
+                if "📊" in line or "📅" in line or "⏰" in line or "📝" in line:
+                    print(f"   {line}")
+        else:
+            print("ℹ️  No previous session found - starting fresh!")
+            
+    except Exception as e:
+        print(f"⚠️  Could not restore session: {e}")
+        return False
+    
+    return True
+
+def show_current_session_info():
+    """Show current session information"""
+    print("\n📊 CURRENT SESSION:")
+    
+    # Check if session state exists
+    session_file = Path(".session_state.json")
+    if session_file.exists():
+        try:
+            import json
+            with open(session_file, 'r') as f:
+                session_data = json.load(f)
+            
+            todolist = session_data.get('todolist', [])
+            completed = [t for t in todolist if t.get('status') == 'completed']
+            pending = [t for t in todolist if t.get('status') != 'completed']
+            high_priority = [t for t in pending if t.get('priority') == 'high']
+            
+            print(f"   📝 Total todos: {len(todolist)}")
+            print(f"   ✅ Completed: {len(completed)}")
+            print(f"   📋 Pending: {len(pending)}")
+            print(f"   🔥 High priority: {len(high_priority)}")
+            
+            # Show top 3 high priority tasks
+            if high_priority:
+                print(f"\n   🎯 Top priorities:")
+                for i, todo in enumerate(high_priority[:3], 1):
+                    content = todo.get('content', 'No description')[:50]
+                    print(f"      {i}. {content}{'...' if len(todo.get('content', '')) > 50 else ''}")
+            
+            # Show session focus if available
+            focus = session_data.get('current_focus', '')
+            if focus:
+                print(f"\n   🎯 Current focus: {focus}")
+                
+        except Exception as e:
+            print(f"   ⚠️  Could not read session data: {e}")
+    else:
+        print("   📝 No active session found")
+
+def show_recent_working_log():
+    """Show recent working log entries"""
+    print("\n📝 RECENT ACTIVITY:")
+    
+    working_log_dir = Path("WORKING_LOG")
+    if not working_log_dir.exists():
+        print("   📝 No working log directory found")
+        return
+    
+    # Find most recent log files
+    from datetime import datetime, timedelta
+    current_date = datetime.now()
+    
+    recent_logs = []
+    
+    # Check last 30 days for log files
+    for days_back in range(30):
+        check_date = current_date - timedelta(days=days_back)
+        year = check_date.year
+        month = f"{check_date.month:02d}-{check_date.strftime('%b').lower()}"
+        day_file = f"wl_{check_date.strftime('%Y_%m_%d')}.md"
+        
+        log_path = working_log_dir / str(year) / month / day_file
+        if log_path.exists():
+            recent_logs.append((check_date, log_path))
+            if len(recent_logs) >= 3:  # Only show last 3 days
+                break
+    
+    if recent_logs:
+        for date, log_path in recent_logs:
+            print(f"   📅 {date.strftime('%Y-%m-%d')}: {log_path.name}")
+            # Show first few lines of the log
+            try:
+                with open(log_path, 'r') as f:
+                    lines = f.readlines()[:3]  # First 3 lines
+                    for line in lines:
+                        if line.strip() and not line.startswith('#'):
+                            preview = line.strip()[:60]
+                            print(f"      {preview}{'...' if len(line.strip()) > 60 else ''}")
+                            break
+            except:
+                pass
+    else:
+        print("   📝 No recent working log entries found")
+
+def show_current_context():
+    """Show current working context"""
+    print("\n🎯 CURRENT CONTEXT:")
+    
+    # Show current directory
+    current_dir = Path.cwd().name
+    print(f"   📁 Project: {current_dir}")
+    
+    # Show current git branch
+    try:
+        import subprocess
+        result = subprocess.run(
+            ["git", "branch", "--show-current"],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        branch = result.stdout.strip()
+        print(f"   🌿 Branch: {branch}")
+    except:
+        print("   🌿 Branch: (not a git repo)")
+    
+    # Show current session info
+    show_current_session_info()
+    
+    # Show recent working log
+    show_recent_working_log()
+
+def main():
+    """Main enhanced 'who am i' function"""
+    print("\n")
+    
+    # 1. Show ATLAS identity
+    show_atlas_identity()
+    
+    # 2. Auto-restore latest session
+    auto_restore_session()
+    
+    # 3. Show current context
+    show_current_context()
+    
+    print("\n🚀 Ready to continue your work!")
+    print("💡 Use TodoRead() to see your current todos")
+    print("📝 Use atlas-save to backup your session before major changes")
+    print()
+
+if __name__ == "__main__":
+    main()
