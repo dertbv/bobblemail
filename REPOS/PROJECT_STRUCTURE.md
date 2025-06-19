@@ -66,8 +66,6 @@ email/
 - **Web**: uvicorn server
 
 **Database Files:**
-- `emails.db` - Main email storage
-- `email_classification.db` - Classification data
-- `processed_emails_bulletproof.db` - Processed emails
+- `mail_filter.db` - Main database with comprehensive schema (emails, classifications, analytics, logs, sessions)
 
 **Last Updated:** June 18, 2025
