@@ -215,6 +215,7 @@ def main():
     print("\n🚀 Ready to continue your work!")
     print("💡 Use TodoRead() to see your current todos")
     print("📝 Use atlas-save to backup your session before major changes")
+    print("🛡️  Use atlas-checkpoint before /clear or /compact operations")
     print()
 
 if __name__ == "__main__":

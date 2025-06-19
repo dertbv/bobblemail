@@ -21,9 +21,14 @@ class SessionMemory:
                           current_focus: str = "",
                           completed_tasks: List[str] = None,
                           next_priorities: List[str] = None,
-                          custom_data: Dict = None) -> bool:
+                          custom_data: Dict = None,
+                          git_state: Dict = None) -> bool:
         """Save complete session state to file"""
         try:
+            # Get current git state if not provided
+            if git_state is None:
+                git_state = self._get_git_state()
+            
             state = {
                 'session_info': {
                     'timestamp': datetime.now().isoformat(),
@@ -35,7 +40,8 @@ class SessionMemory:
                 'current_focus': current_focus,
                 'completed_tasks': completed_tasks or [],
                 'next_priorities': next_priorities or [],
-                'custom_data': custom_data or {}
+                'custom_data': custom_data or {},
+                'git_state': git_state
             }
             
             with open(self.storage_file, 'w') as f:
@@ -134,7 +140,63 @@ class SessionMemory:
             print(f"\n📝 SESSION NOTES:")
             print(f"   {session_notes}")
         
+        # Show git state if available
+        git_state = state.get('git_state', {})
+        if git_state and git_state.get('current_branch'):
+            print(f"\n🌿 GIT STATE:")
+            print(f"   Branch: {git_state.get('current_branch', 'unknown')}")
+            if git_state.get('has_uncommitted_changes'):
+                print(f"   ⚠️  {git_state.get('change_count', 0)} uncommitted change(s)")
+            else:
+                print(f"   ✅ Working tree clean")
+        
         print("="*50)
+    
+    def _get_git_state(self) -> Dict:
+        """Get current git state for session tracking"""
+        try:
+            import subprocess
+            
+            # Get current branch
+            try:
+                branch_result = subprocess.run(
+                    ['git', 'branch', '--show-current'],
+                    capture_output=True,
+                    text=True,
+                    check=True
+                )
+                current_branch = branch_result.stdout.strip()
+            except:
+                current_branch = "unknown"
+            
+            # Get git status
+            try:
+                status_result = subprocess.run(
+                    ['git', 'status', '--porcelain'],
+                    capture_output=True,
+                    text=True,
+                    check=True
+                )
+                changes = [line.strip() for line in status_result.stdout.strip().split('\n') if line.strip()]
+                has_changes = len(changes) > 0
+            except:
+                changes = []
+                has_changes = False
+            
+            return {
+                'current_branch': current_branch,
+                'has_uncommitted_changes': has_changes,
+                'change_count': len(changes),
+                'timestamp': datetime.now().isoformat()
+            }
+            
+        except Exception:
+            return {
+                'current_branch': 'unknown',
+                'has_uncommitted_changes': False,
+                'change_count': 0,
+                'timestamp': datetime.now().isoformat()
+            }
 
 # Global session memory instance
 session_memory = SessionMemory()

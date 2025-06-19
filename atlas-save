@@ -137,6 +137,7 @@ def main():
         
         print(f"\n🚀 ATLAS backup complete!")
         print(f"💡 Your current session remains active")
+        print(f"🛡️  For /clear or /compact, use ./atlas-checkpoint instead")
         
         return 0
     else:
