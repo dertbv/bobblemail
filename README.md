@@ -4,6 +4,7 @@ ML-powered email filtering with 95.6% accuracy using ensemble classification (Ra
 
 ## Key Features
 - **ML Ensemble Classification**: 40% Random Forest, 30% Naive Bayes, 30% keyword matching
+- **Email Authentication**: SPF/DKIM validation to detect spoofed emails and reduce false positives
 - **Domain Validation**: Two-factor validation with WHOIS verification and business prefix detection
 - **Web Interface**: Real-time processing, analytics, and learning feedback system
 - **ATLAS Integration**: Professional development workflow with session persistence
@@ -37,6 +38,7 @@ Python • FastAPI • SQLite • scikit-learn • ATLAS development system
 
 ## Documentation
 - [DEVELOPMENT_BELIEFS.md](DEVELOPMENT_BELIEFS.md) - Core principles (KISS, YAGNI, DRY)
+- [DOCS/EMAIL_AUTHENTICATION.md](DOCS/EMAIL_AUTHENTICATION.md) - SPF/DKIM validation system
 - [tests/README.md](tests/README.md) - Testing framework and integration tests
 - [ATLAS_COMMANDS.md](ATLAS_COMMANDS.md) - Workflow and session management
 
