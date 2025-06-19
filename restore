@@ -1,0 +1,30 @@
+#!/usr/bin/env python3
+"""
+ATLAS Session Restore Command
+Simple command to restore TodoWrite session state
+"""
+
+from session_bridge import session_startup_restore
+
+if __name__ == "__main__":
+    print("🤖 ATLAS Session Restore")
+    print("=" * 40)
+    
+    restored_todos = session_startup_restore()
+    
+    if restored_todos:
+        print(f"\n✅ Successfully restored {len(restored_todos)} todos!")
+        print("\n📋 TO CONTINUE IN CLAUDE:")
+        print("   1. Copy the restored todos shown above")
+        print("   2. Use: TodoWrite(todos=restored_todos)")
+        print("   3. You're back where you left off!")
+        
+        print(f"\n🎯 TOP PRIORITIES:")
+        high_priority = [t for t in restored_todos if t.get('priority') == 'high' and t.get('status') != 'completed']
+        for i, todo in enumerate(high_priority[:3], 1):
+            print(f"   {i}. {todo['content']}")
+            
+    else:
+        print("\n📝 No previous session found - starting fresh!")
+        
+    print("\n🚀 Ready to continue your work!")

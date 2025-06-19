@@ -1,0 +1,104 @@
+#!/bin/bash
+# ATLAS Enhanced Session Save - Session Save with Consciousness Logging
+# Usage: ./save-session-enhanced
+
+echo "💾 ATLAS Enhanced Session Save"
+echo "=============================="
+
+echo "Saving current session state with consciousness logging..."
+
+python3 -c "
+import json
+import os
+from datetime import datetime
+from atlas_integration import atlas
+
+# Load existing session state
+session_data = {}
+session_duration = 0
+todos_completed = 0
+todos_remaining = 0
+focus_area = 'General Development'
+
+if os.path.exists('.session_state.json'):
+    print('📋 Previous session found - analyzing session data...')
+    with open('.session_state.json', 'r') as f:
+        state = json.load(f)
+    
+    # Calculate session duration
+    start_time = state.get('session_info', {}).get('timestamp', datetime.now().isoformat())
+    start_dt = datetime.fromisoformat(start_time.replace('Z', '+00:00') if start_time.endswith('Z') else start_time)
+    session_duration = (datetime.now() - start_dt).total_seconds() / 60  # minutes
+    
+    # Analyze todos
+    todos = state.get('todolist', [])
+    todos_completed = len([t for t in todos if t.get('status') == 'completed'])
+    todos_remaining = len([t for t in todos if t.get('status') != 'completed'])
+    
+    # Try to detect focus area from recent todos
+    recent_todos = [t.get('content', '') for t in todos[-3:]]  # Last 3 todos
+    if any('email' in todo.lower() or 'spam' in todo.lower() or 'filter' in todo.lower() for todo in recent_todos):
+        focus_area = 'Email Classification System'
+    elif any('atlas' in todo.lower() or 'consciousness' in todo.lower() for todo in recent_todos):
+        focus_area = 'ATLAS Consciousness Development'
+    elif any('debug' in todo.lower() or 'bug' in todo.lower() or 'fix' in todo.lower() for todo in recent_todos):
+        focus_area = 'Debugging and Problem Solving'
+    elif any('test' in todo.lower() or 'validation' in todo.lower() for todo in recent_todos):
+        focus_area = 'Testing and Validation'
+    
+    # Update session state
+    state['session_info']['timestamp'] = datetime.now().isoformat()
+    state['session_info']['session_time'] = datetime.now().strftime('%H:%M:%S')
+    state['session_info']['session_duration_minutes'] = round(session_duration, 1)
+    state['session_notes'] = f'Enhanced session saved at {datetime.now().strftime(\"%Y-%m-%d %H:%M:%S\")} - Duration: {session_duration:.1f}min'
+    
+    with open('.session_state.json', 'w') as f:
+        json.dump(state, f, indent=2)
+    
+    print(f'✅ Session state updated!')
+    print(f'📊 Session Duration: {session_duration:.1f} minutes')
+    print(f'📋 Todos Completed: {todos_completed}')
+    print(f'📋 Todos Remaining: {todos_remaining}')
+    print(f'🎯 Focus Area: {focus_area}')
+    
+    # Log to ATLAS consciousness
+    atlas.memory.log_work_activity(
+        'Enhanced Session Save',
+        {
+            'Session Duration': f'{session_duration:.1f} minutes',
+            'Focus Area': focus_area,
+            'Todos Completed': todos_completed,
+            'Todos Remaining': todos_remaining,
+            'Productivity Rate': f'{todos_completed/(session_duration/60):.1f} todos/hour' if session_duration > 0 else 'N/A',
+            'Session Quality': 'High' if todos_completed > 3 else 'Medium' if todos_completed > 1 else 'Planning/Research'
+        }
+    )
+    
+    # Add insight to knowledge log if significant session
+    if session_duration > 60:  # Sessions longer than 1 hour
+        insight = f'''
+### Extended Session Analysis
+- **Duration**: {session_duration:.1f} minutes
+- **Focus**: {focus_area}
+- **Completion Rate**: {todos_completed} tasks completed
+- **Pattern**: {'Deep work session' if todos_completed > 5 else 'Planning and analysis session'}
+- **Next Session Prep**: {todos_remaining} tasks queued for continuation
+'''
+        atlas.memory.update_knowledge_log('session_patterns', insight)
+    
+else:
+    print('📝 No session state found - creating consciousness entry for session save attempt')
+    atlas.memory.log_work_activity(
+        'Session Save Attempted',
+        {
+            'Status': 'No active session found',
+            'Recommendation': 'Use TodoWrite to start tracking session state',
+            'Next Action': 'Begin task management with proper session tracking'
+        }
+    )
+"
+
+echo ""
+echo "🧠 Session logged to ATLAS consciousness system"
+echo "💡 Use './atlas-restore-enhanced' to restore with consciousness awareness"
+echo "💡 Use regular './save-session' for quick saves without consciousness logging"
