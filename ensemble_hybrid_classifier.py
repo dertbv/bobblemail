@@ -41,7 +41,10 @@ class EnsembleHybridClassifier:
         # Initialize ML Ensemble
         print("🤖 Initializing ML Ensemble...")
         try:
-            self.ensemble = MLEnsembleClassifier("ml_ensemble_config.json")
+            from ml_classifier import NaiveBayesClassifier
+            from random_forest_classifier import RandomForestClassifier
+            self.naive_bayes = NaiveBayesClassifier(self.db_path)
+            self.random_forest = RandomForestClassifier(self.db_path)
             self.ensemble_available = True
             print("✅ ML Ensemble ready")
         except Exception as e:
@@ -114,8 +117,7 @@ class EnsembleHybridClassifier:
         print(f"  Keyword Processor: ✅ Active")
         print(f"  Total Classifications: {self.stats['total_classifications']}")
         if self.ensemble_available:
-            ensemble_stats = self.ensemble.get_model_performance_stats()
-            print(f"  Active ML Models: {ensemble_stats['active_models']}/{ensemble_stats['total_models']}")
+            print(f"  Active ML Models: Naive Bayes + Random Forest + Keywords")
         print()
     
     def classify_email(self, subject="", sender="", body="", headers=""):
@@ -164,18 +166,83 @@ class EnsembleHybridClassifier:
         return self._format_classification_result(result, "fallback", processing_time)
     
     def _classify_with_ensemble(self, email_data):
-        """Classify using ML Ensemble"""
-        ensemble_result = self.ensemble.classify_email(
-            subject=email_data["subject"],
-            sender=email_data["sender"], 
-            body=email_data["body"],
-            headers=email_data["headers"]
+        """Classify using ML Ensemble voting system"""
+        # Get predictions from both ML models
+        votes = []
+        
+        # Naive Bayes prediction
+        try:
+            nb_result = self.naive_bayes.classify_email(
+                subject=email_data["subject"],
+                sender=email_data["sender"], 
+                body=email_data["body"]
+            )
+            votes.append(("naive_bayes", nb_result.get("final_classification", "NOT_SPAM"), nb_result.get("spam_probability", 0.2)))
+        except Exception as e:
+            print(f"⚠️ Naive Bayes failed: {e}")
+        
+        # Random Forest prediction  
+        try:
+            rf_result = self.random_forest.classify_email(
+                subject=email_data["subject"],
+                sender=email_data["sender"],
+                body=email_data["body"]
+            )
+            votes.append(("random_forest", rf_result.get("final_classification", "NOT_SPAM"), rf_result.get("spam_probability", 0.2)))
+        except Exception as e:
+            print(f"⚠️ Random Forest failed: {e}")
+        
+        # Keyword-based prediction with higher weight
+        keyword_result = classify_spam_type_with_processor(
+            email_data.get("headers", ""),
+            email_data["sender"],
+            email_data["subject"]
         )
+        keyword_prob = 0.8 if keyword_result["category"] != "NOT_SPAM" else 0.2
+        votes.append(("keywords", keyword_result["category"], keyword_prob))
+        
+        # Ensemble voting (weighted)
+        ensemble_result = self._ensemble_vote(votes)
         
         # Apply business rules and overrides
         final_result = self._apply_classification_rules(ensemble_result, email_data)
         
         return final_result
+    
+    def _ensemble_vote(self, votes):
+        """Ensemble voting with weighted majority"""
+        # Weights: Keywords 30%, Random Forest 40%, Naive Bayes 30%
+        weights = {"keywords": 0.3, "random_forest": 0.4, "naive_bayes": 0.3}
+        
+        category_scores = {}
+        total_spam_prob = 0
+        total_weight = 0
+        
+        for model, category, probability in votes:
+            weight = weights.get(model, 0.1)
+            
+            # Aggregate category scores
+            if category not in category_scores:
+                category_scores[category] = 0
+            category_scores[category] += weight
+            
+            # Aggregate spam probability
+            if category != "NOT_SPAM":
+                total_spam_prob += probability * weight
+            total_weight += weight
+        
+        # Determine final classification
+        if not category_scores:
+            return {"final_classification": "NOT_SPAM", "spam_probability": 0.2}
+        
+        final_category = max(category_scores, key=category_scores.get)
+        final_spam_prob = total_spam_prob / total_weight if total_weight > 0 else 0.2
+        
+        return {
+            "final_classification": final_category,
+            "spam_probability": final_spam_prob,
+            "confidence_level": "HIGH" if category_scores[final_category] > 0.6 else "MEDIUM"
+        }
     
     def _classify_with_fallback(self, email_data):
         """Fallback classification using legacy keyword processor"""

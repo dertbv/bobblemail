@@ -1033,7 +1033,10 @@ class KeywordProcessor:
                 'qualtrics-survey.com', 'qualtrics.com', 'locationrater.com',
                 'facebookmail.com', 'email.nextdoor.com', 'rs.email.nextdoor.com',
                 'ss.email.nextdoor.com', 'promotion.bedbathandbeyond.com',
-                'email.consumerreports.org', 'annualsurveyteam@email.consumerreports.org'
+                'email.consumerreports.org', 'annualsurveyteam@email.consumerreports.org',
+                # Automotive enthusiast and community platforms
+                'internetbrandsauto.com', 'internetbrands.com', 'automotiveforums.com',
+                'clubmazdausa.com', 'bmwcca.org', 'audiclub.org'
             ]
             
             # If it's a known third-party service, don't require exact name matching

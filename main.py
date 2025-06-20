@@ -423,6 +423,158 @@ def run_preview_for_account(account_id, debug_mode=False, preview_mode=True):
         traceback.print_exc()
         return {"success": False, "message": f"Error running preview: {str(e)}"}
 
+def run_exact_cli_processing_for_account(account_id, preview_mode=False):
+    """Run processing using EXACT CLI flow - for web interface to call exact CLI deletion path"""
+    from collections import defaultdict
+    try:
+        # Load account from database using array index (matching web interface)
+        accounts = db_credentials.load_credentials()
+        if account_id >= len(accounts):
+            return {"success": False, "message": f"Account index {account_id} not found"}
+        
+        account = accounts[account_id]
+        account_email = account['email_address']
+        account_provider = account.get('provider', 'unknown').lower()
+        
+        print(f"🍎 Starting EXACT CLI processing for {account_email} (Provider: {account_provider})")
+        
+        # Initialize connection manager EXACTLY like CLI
+        connection_manager = IMAPConnectionManager(db_credentials)
+        
+        # Connect to account using EXACT CLI method
+        mail = connection_manager.connect_to_imap(account=account)
+        if not mail:
+            return {"success": False, "message": "Failed to connect to email account"}
+        
+        try:
+            # Get current account info EXACTLY like CLI
+            current_account = connection_manager.current_account
+            if not current_account:
+                return {"success": False, "message": "No account information available"}
+
+            # Initialize domain validator with account provider context EXACTLY like CLI
+            domain_validator = DomainValidator(logger=write_log, account_provider=account_provider)
+
+            # Initialize processors with new architecture EXACTLY like CLI (including account email for provider detection)
+            processor = EmailProcessor(mail, domain_validator=domain_validator, account_email=account_email)
+            
+            # Get filters EXACTLY like CLI
+            filters = get_filters()
+            if not filters:
+                filters = None  # Pass None instead of empty list for cleaner logic like CLI
+            
+            # Get target folders from account
+            target_folders = account.get('target_folders', [])
+            if not target_folders:
+                connection_manager.disconnect()
+                return {"success": False, "message": "No folders configured for this account"}
+            
+            # Create processing session EXACTLY like CLI
+            from database import db
+            account_id_db = current_account.get('id')
+            if not account_id_db:
+                # Find account ID by email if not available - EXACTLY like CLI
+                account_records = db.execute_query("SELECT id FROM accounts WHERE email_address = ?", (account_email,))
+                account_id_db = account_records[0]['id'] if account_records else None
+            
+            # Create session in database EXACTLY like CLI
+            session_id = db.execute_insert("""
+                INSERT INTO sessions (account_id, session_type, is_preview)
+                VALUES (?, ?, ?)
+            """, (account_id_db, 'manual', preview_mode))
+            
+            # Set logger session context EXACTLY like CLI
+            logger.set_session_context(session_id, account_id_db)
+            logger.log_session_start(account_email, account_id_db, session_id)
+            
+            total_deleted = 0
+            total_preserved = 0
+            total_validated = 0
+            total_legitimate = 0
+            all_categories = defaultdict(int)
+            
+            start_time = datetime.now()
+            
+            # Process each target folder EXACTLY like CLI
+            for folder_name in target_folders:
+                print(f"🔍 Processing folder: {folder_name}")
+                
+                # Process folder with EXACT CLI parameters
+                deleted, _, preserved, validated, legitimate, categories = processor.process_folder_messages_with_new_architecture(
+                    folder_name, filters, domain_validator, 
+                    auto_confirm=True,      # CLI uses True for non-interactive
+                    preview_mode=preview_mode,  # CLI uses False for actual deletion
+                    debug_mode=False        # CLI uses False for clean output
+                )
+                
+                # Update totals EXACTLY like CLI
+                total_deleted += deleted
+                total_preserved += preserved
+                total_validated += validated
+                total_legitimate += legitimate
+                
+                # Track categories EXACTLY like CLI
+                for category, data in categories.items():
+                    all_categories[category] += data['count']
+                
+                if preview_mode:
+                    print(f"   📊 Would delete: {deleted:,} | preserve: {preserved:,} | legitimate: {legitimate:,}")
+                else:
+                    print(f"   📊 Deleted: {deleted:,} | preserved: {preserved:,} | legitimate: {legitimate:,}")
+            
+            # End session logging EXACTLY like CLI
+            elapsed_seconds = (datetime.now() - start_time).total_seconds()
+            try:
+                logger.log_session_end(total_deleted, total_preserved, total_validated, elapsed_seconds)
+            except Exception as e:
+                print(f"⚠️  Warning: Could not log session end: {e}")
+            
+            # Update session end time in database EXACTLY like CLI
+            try:
+                db.execute_update("""
+                    UPDATE sessions 
+                    SET end_time = CURRENT_TIMESTAMP, 
+                        folders_processed = ?, 
+                        total_deleted = ?, 
+                        total_preserved = ?, 
+                        total_validated = ?,
+                        categories_summary = ?
+                    WHERE id = ?
+                """, (
+                    json.dumps(target_folders),
+                    total_deleted,
+                    total_preserved, 
+                    total_validated,
+                    json.dumps(dict(all_categories)),
+                    session_id
+                ))
+            except Exception as e:
+                print(f"⚠️  Warning: Could not update session data: {e}")
+            
+            connection_manager.disconnect()
+            
+            return {
+                "success": True,
+                "account_email": account['email_address'],
+                "session_id": session_id,
+                "total_deleted": total_deleted,
+                "total_preserved": total_preserved,
+                "total_validated": total_validated,
+                "total_legitimate": total_legitimate,
+                "categories": dict(all_categories),
+                "folders_processed": target_folders,
+                "message": f"{'Preview' if preview_mode else 'Processing'} complete: {total_deleted} {'to delete' if preview_mode else 'deleted'}, {total_preserved} {'to preserve' if preview_mode else 'preserved'}"
+            }
+            
+        finally:
+            connection_manager.disconnect()
+            
+    except Exception as e:
+        print(f"❌ EXACT CLI processing error: {e}")
+        import traceback
+        traceback.print_exc()
+        return {"success": False, "message": f"Error running exact CLI processing: {str(e)}"}
+
 def single_account_filtering():
     """Handle single account filtering with smart confirmation logic"""
     # Clear screen and show clean interface

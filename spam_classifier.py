@@ -694,6 +694,16 @@ def check_all_keywords(text, category):
             keyword_length = len(term.split())
             keyword_specificity = len(term)  # Longer terms are more specific
             
+            # ENHANCEMENT: Context exclusions for problematic keywords
+            if category == "Financial & Investment Spam" and term == "stock":
+                # Exclude "stock" when it's clearly about product inventory
+                legitimate_commerce_patterns = [
+                    "back in stock", "in stock", "out of stock", "low stock",
+                    "stock up", "restock", "restocked", "stock alert"
+                ]
+                if any(pattern in text_lower for pattern in legitimate_commerce_patterns):
+                    continue  # Skip this keyword - it's legitimate commerce
+            
             # ENHANCEMENT: Penalize very short keywords that might be partial matches
             is_partial_match = False
             if len(term) <= 3 and keyword_length == 1:

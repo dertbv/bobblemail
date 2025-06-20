@@ -13,6 +13,7 @@ from collections import defaultdict
 
 # Import our new split modules  
 from keyword_processor import KeywordProcessor
+from ensemble_hybrid_classifier import EnsembleHybridClassifier
 from domain_validator import DomainValidator, decode_header_value
 from db_logger import write_log, logger
 from constants import ML_SETTINGS_FILE

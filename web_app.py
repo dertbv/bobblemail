@@ -5374,45 +5374,62 @@ async def get_accounts_api():
 
 @app.post("/api/single-account/{account_id}/preview")
 async def single_account_preview_api(account_id: int):
-    """Preview mode for single account - calls existing CLI function"""
+    """Preview mode for single account - calls EXACT CLI function with preview_mode=True"""
     try:
-        # Import the CLI function
-        from main import run_preview_for_account
+        # Import the EXACT CLI function that replicates the working CLI flow
+        from main import run_exact_cli_processing_for_account
         
-        # Call the existing CLI preview function
-        result = run_preview_for_account(account_id)
+        print(f"🔍 Calling EXACT CLI preview function for account {account_id}")
+        
+        # Call the EXACT CLI function with preview_mode=True for preview
+        result = run_exact_cli_processing_for_account(account_id, preview_mode=True)
         
         return {"success": True, "data": result}
     except Exception as e:
+        print(f"❌ Error calling EXACT CLI preview: {e}")
         return {"success": False, "error": str(e)}
 
 @app.post("/api/single-account/{account_id}/process")
 async def single_account_process_api(account_id: int):
-    """Actual processing for single account - calls CLI with preview_mode=False"""
+    """Actual processing for single account - calls EXACT CLI deletion flow directly"""
+    print("🍎🍎🍎 PROCESS ENDPOINT CALLED - USING EXACT CLI FLOW 🍎🍎🍎")
     try:
-        # Import necessary modules
-        from main import run_preview_for_account
-        from db_credentials import db_credentials
-        from email_processor import EmailProcessor
-        from config_auth import IMAPConnectionManager
+        # Import the EXACT CLI function that replicates the working CLI deletion flow
+        from main import run_exact_cli_processing_for_account
         
-        # Load account
-        accounts = db_credentials.load_credentials()
-        if account_id >= len(accounts):
-            return {"success": False, "error": "Account not found"}
+        print(f"🍎 Calling EXACT CLI processing function for account {account_id}")
+        print("🍎 This uses the EXACT same flow as CLI: Main → Option 2 → Option 1 (iCloud) → Option 1 (delete)")
         
-        account = accounts[account_id]
+        # Call the EXACT CLI function with preview_mode=False for actual deletion
+        cli_result = run_exact_cli_processing_for_account(account_id, preview_mode=False)
         
-        # Run actual processing (not preview mode)
-        result = run_preview_for_account(account_id, debug_mode=False, preview_mode=False)
-        
-        # Mark as actual processing
-        if result:
-            result['mode'] = 'process'  # Indicate this was actual processing
-        
-        return {"success": True, "data": result}
+        if cli_result["success"]:
+            print(f"🍎 EXACT CLI processing SUCCESS: {cli_result['total_deleted']} deleted, {cli_result['total_preserved']} preserved")
+            return {
+                "success": True, 
+                "data": {
+                    "success": True,
+                    "total_deleted": cli_result['total_deleted'],
+                    "total_preserved": cli_result['total_preserved'],
+                    "total_validated": cli_result['total_validated'],
+                    "total_legitimate": cli_result['total_legitimate'],
+                    "session_id": cli_result['session_id'],
+                    "account_email": cli_result['account_email'],
+                    "folders_processed": cli_result['folders_processed'],
+                    "categories": cli_result['categories'],
+                    "message": cli_result['message'],
+                    "mode": "process"
+                }
+            }
+        else:
+            print(f"🍎 EXACT CLI processing FAILED: {cli_result['message']}")
+            return {"success": False, "error": cli_result['message']}
+            
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        print(f"❌ Error calling EXACT CLI processing: {e}")
+        import traceback
+        traceback.print_exc()
+        return {"success": False, "error": f"Error calling exact CLI processing: {str(e)}"}
 
 @app.get("/api/single-account/{account_id}/emails/{session_id}")
 async def get_account_session_emails(account_id: int, session_id: str):
