@@ -122,6 +122,19 @@ def session_startup_restore():
     
     return restored_todos
 
+def auto_sync_todowrite():
+    """Automatically sync TodoWrite with session state (for use in ./who)"""
+    try:
+        restored_todos = restore_todowrite_session()
+        if restored_todos:
+            # This would ideally trigger TodoWrite automatically
+            # For now, return the todos ready for manual sync
+            return restored_todos
+        return []
+    except Exception as e:
+        print(f"⚠️ Auto-sync failed: {e}")
+        return []
+
 if __name__ == "__main__":
     # Demo the session bridge
     print("🌉 Session Bridge Demo")

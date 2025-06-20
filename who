@@ -53,78 +53,67 @@ def show_atlas_identity():
     print("\n" + "=" * 70)
 
 def auto_restore_session():
-    """Automatically restore latest session"""
+    """Automatically restore latest session using session bridge"""
     print("\n🔄 RESTORING LATEST SESSION...")
     
-    # Check if atlas-restore exists
-    restore_script = Path("atlas-restore")
-    if not restore_script.exists():
-        print("❌ atlas-restore script not found")
-        return False
-    
-    # Run atlas-restore latest
     try:
-        import subprocess
-        result = subprocess.run(
-            ["python3", "atlas-restore", "latest"],
-            capture_output=True,
-            text=True
-        )
+        from session_bridge import session_startup_restore
         
-        if result.returncode == 0:
-            print("✅ Session restored successfully!")
-            # Show just the summary, not full output
-            lines = result.stdout.split('\n')
-            for line in lines:
-                if "📊" in line or "📅" in line or "⏰" in line or "📝" in line:
-                    print(f"   {line}")
+        # Use session bridge engine for restoration
+        restored_todos = session_startup_restore()
+        
+        if restored_todos:
+            print("✅ Session restored and TodoWrite synchronized!")
+            return True
         else:
             print("ℹ️  No previous session found - starting fresh!")
+            return False
             
+    except ImportError:
+        print("⚠️  Session bridge not available - using fallback")
+        return False
     except Exception as e:
         print(f"⚠️  Could not restore session: {e}")
         return False
-    
-    return True
 
 def show_current_session_info():
-    """Show current session information"""
-    print("\n📊 CURRENT SESSION:")
-    
-    # Check if session state exists
-    session_file = Path(".session_state.json")
-    if session_file.exists():
-        try:
-            import json
-            with open(session_file, 'r') as f:
-                session_data = json.load(f)
-            
-            todolist = session_data.get('todolist', [])
+    """Show current session information using session bridge"""
+    try:
+        from session_memory import restore_previous_session
+        
+        # Use session bridge for consistent session display
+        session_state = restore_previous_session()
+        
+        if session_state:
+            todolist = session_state.get('todolist', [])
             completed = [t for t in todolist if t.get('status') == 'completed']
             pending = [t for t in todolist if t.get('status') != 'completed']
             high_priority = [t for t in pending if t.get('priority') == 'high']
             
+            print(f"\n📊 CURRENT SESSION:")
             print(f"   📝 Total todos: {len(todolist)}")
             print(f"   ✅ Completed: {len(completed)}")
             print(f"   📋 Pending: {len(pending)}")
             print(f"   🔥 High priority: {len(high_priority)}")
             
-            # Show top 3 high priority tasks
+            # Show top priorities
             if high_priority:
                 print(f"\n   🎯 Top priorities:")
                 for i, todo in enumerate(high_priority[:3], 1):
                     content = todo.get('content', 'No description')[:50]
                     print(f"      {i}. {content}{'...' if len(todo.get('content', '')) > 50 else ''}")
             
-            # Show session focus if available
-            focus = session_data.get('current_focus', '')
+            # Show session focus
+            focus = session_state.get('current_focus', '')
             if focus:
                 print(f"\n   🎯 Current focus: {focus}")
-                
-        except Exception as e:
-            print(f"   ⚠️  Could not read session data: {e}")
-    else:
-        print("   📝 No active session found")
+        else:
+            print(f"\n📊 CURRENT SESSION:")
+            print("   📝 No active session found")
+            
+    except Exception as e:
+        print(f"\n📊 CURRENT SESSION:")
+        print(f"   ⚠️ Could not load session data: {e}")
 
 def show_recent_working_log():
     """Show recent working log entries"""

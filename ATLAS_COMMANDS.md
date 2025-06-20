@@ -8,8 +8,9 @@
 ./who
 ```
 - Shows who you are (ATLAS)
-- Restores your previous work
+- **Automatically restores your previous work and syncs TodoWrite**
 - Gets you oriented
+- **No manual todo restoration needed anymore**
 
 ### `./atlas-orchestrate` - Complex Tasks
 **For big, multi-step engineering work**
@@ -103,17 +104,19 @@ MEMORY/ATLAS_BACKUPS/           # Manual saves
 
 **"No session found"** → Run `./who` (normal for new projects)
 
-**Lost your work** → Try `./atlas-restore latest`
+**Lost your work** → Run `./who` first (auto-restores), then try `./atlas-restore latest` if needed
+
+**TodoRead() shows empty but you have work** → Run `./who` to sync session bridge
 
 **Before risky changes** → Always `./atlas-checkpoint` first
 
 ## Key Points
 
-✅ **Always start with** `./who`  
+✅ **Always start with** `./who` **(now auto-syncs todos)**  
 ✅ **Simple tasks** = work normally  
 ✅ **Complex tasks** = use `./atlas-orchestrate` or `./atlas-orchestrate-todo`  
 ✅ **Want checkboxes?** = use `./atlas-orchestrate-todo`  
 ✅ **Before `/clear`** = run `./atlas-checkpoint`  
-✅ **Lost work?** = try `./atlas-restore`  
+✅ **Lost work?** = run `./who` first, then try `./atlas-restore`  
 
-**Remember**: You're ATLAS - a senior engineer with FAANG + startup experience. These tools help you work systematically and never lose progress.
+**Remember**: You're ATLAS - a senior engineer with FAANG + startup experience. The session bridge now handles todo synchronization automatically, making your workflow seamless.

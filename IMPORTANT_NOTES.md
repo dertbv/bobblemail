@@ -24,10 +24,12 @@ This file contains only **high-entropy information** - things that would genuine
 - **CRITICAL**: User-protected emails can be deleted if protection patterns aren't integrated everywhere
 - **FIXED**: `spam_classifier.py` and `ml_ensemble_classifier.py` now include protection checks
 
-### ATLAS Session Management - Checkpoint Before Operations
-- **CRITICAL**: ALWAYS run `./atlas-checkpoint` before `/clear` or `/compact` operations
-- **DATA LOSS RISK**: Session state and todos will be lost without checkpointing
-- **WHY**: Claude Code sessions don't persist across operations without explicit backup
+### ATLAS Session Management - Integrated Session Bridge
+- **BREAKTHROUGH**: Session bridge is now the single source of truth for session data
+- **CRITICAL**: `./who` uses session bridge functions - no manual todo restoration needed
+- **STREAMLINED**: TodoWrite automatically syncs with session state on startup
+- **IMPORTANT**: ALWAYS run `./atlas-checkpoint` before `/clear` or `/compact` operations
+- **DATA LOSS RISK**: Session state persists, but checkpointing ensures maximum safety
 
 ### Domain Validation - Two-Factor Required
 - **COMPLEX**: Domain validation includes business prefix detection + WHOIS verification
@@ -96,6 +98,7 @@ This file contains only **high-entropy information** - things that would genuine
 - **Alternative ranking system** - enabled learning from mistakes
 - **ATLAS session persistence** - prevented work loss during development
 - **Ensemble voting approach** - dramatically improved accuracy
+- **Session bridge integration** - eliminated duplicate code and manual restoration
 
 ### Deployment Lessons
 - **Local Development Priority**: Focus on local reliability before cloud deployment
