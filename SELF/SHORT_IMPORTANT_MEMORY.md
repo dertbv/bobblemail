@@ -4,7 +4,7 @@
 This file should capture **non-obvious, surprising information** that you'll need frequently. Focus on things that differ from standard practices or would surprise a new team member.
 
 ## Boss Information
-- **Name**: User/Boss (direct communication via Claude Code)
+- **Name**: Bobble (direct communication via Claude Code)
 - **Communication Style**: Direct, prefers KISS approach, values efficiency over perfection
 - **Review Preferences**: Wants approval for commits, dislikes double confirmation, focuses on working solutions
 

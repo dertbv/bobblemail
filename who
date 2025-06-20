@@ -199,6 +199,98 @@ def show_current_context():
     # Show recent working log
     show_recent_working_log()
 
+def show_project_memory():
+    """Display critical project context from SHORT_IMPORTANT_MEMORY.md"""
+    print("\n🧠 PROJECT MEMORY:")
+    
+    memory_file = Path("SELF/SHORT_IMPORTANT_MEMORY.md")
+    if not memory_file.exists():
+        print("   ⚠️ No project memory found")
+        return
+    
+    try:
+        with open(memory_file, 'r') as f:
+            content = f.read()
+            
+        # Show key sections
+        sections = ["Boss Information", "Project Overview", "Technology Stack", "Key Conventions"]
+        current_section = None
+        
+        lines = content.split('\n')
+        for line in lines:
+            # Detect section headers
+            if line.startswith('## '):
+                header = line.replace('## ', '').strip()
+                if any(section in header for section in sections):
+                    current_section = header
+                    print(f"\n   📋 {header}:")
+                    continue
+                else:
+                    current_section = None
+            
+            # Show content for relevant sections
+            if current_section and line.strip():
+                if line.startswith('- **'):
+                    # Format key-value pairs nicely
+                    clean_line = line.replace('- **', '').replace('**:', ':')
+                    print(f"      {clean_line}")
+                elif line.startswith('- '):
+                    print(f"      {line[2:]}")
+                elif not line.startswith('#') and line.strip():
+                    print(f"      {line.strip()}")
+                    
+    except Exception as e:
+        print(f"   ⚠️ Could not read project memory: {e}")
+
+def show_important_notes():
+    """Display critical warnings from IMPORTANT_NOTES.md"""
+    print("\n🚨 CRITICAL WARNINGS:")
+    
+    notes_file = Path("IMPORTANT_NOTES.md")
+    if not notes_file.exists():
+        print("   ⚠️ No important notes found")
+        return
+    
+    try:
+        with open(notes_file, 'r') as f:
+            content = f.read()
+            
+        # Show critical sections marked with 🚨 or CRITICAL/WARNING
+        lines = content.split('\n')
+        in_critical_section = False
+        section_count = 0
+        
+        for line in lines:
+            # Start of critical section
+            if '🚨' in line or 'CRITICAL' in line and '##' in line:
+                in_critical_section = True
+                section_count += 1
+                if section_count <= 3:  # Show first 3 critical sections
+                    print(f"\n   ⚠️ {line.replace('##', '').replace('🚨', '').strip()}")
+                continue
+            
+            # End of section
+            if line.startswith('## ') and '🚨' not in line and 'CRITICAL' not in line:
+                in_critical_section = False
+                if section_count >= 3:  # Stop after 3 sections
+                    break
+                continue
+            
+            # Show critical content
+            if in_critical_section and section_count <= 3:
+                if line.startswith('- **CRITICAL**') or line.startswith('- **WARNING**'):
+                    clean_line = line.replace('- **CRITICAL**:', '🔴').replace('- **WARNING**:', '🟠')
+                    print(f"      {clean_line}")
+                elif line.startswith('- **') and ('CRITICAL' in line or 'WARNING' in line):
+                    clean_line = line.replace('- **', '').replace('**:', ':')
+                    if 'CRITICAL' in clean_line:
+                        print(f"      🔴 {clean_line}")
+                    elif 'WARNING' in clean_line:
+                        print(f"      🟠 {clean_line}")
+                        
+    except Exception as e:
+        print(f"   ⚠️ Could not read important notes: {e}")
+
 def main():
     """Main enhanced 'who am i' function"""
     print("\n")
@@ -206,10 +298,16 @@ def main():
     # 1. Show ATLAS identity
     show_atlas_identity()
     
-    # 2. Auto-restore latest session
+    # 2. Show project memory (Boss info, project context)
+    show_project_memory()
+    
+    # 3. Show critical warnings (architecture, gotchas)
+    show_important_notes()
+    
+    # 4. Auto-restore latest session
     auto_restore_session()
     
-    # 3. Show current context
+    # 5. Show current context
     show_current_context()
     
     print("\n🚀 Ready to continue your work!")
