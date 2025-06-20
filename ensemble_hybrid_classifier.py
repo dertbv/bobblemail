@@ -17,7 +17,7 @@ from datetime import datetime
 # Import core components
 from keyword_processor import KeywordProcessor, classify_spam_type_with_processor
 from spam_classifier import is_legitimate_company_domain, detect_provider_from_sender
-from ml_ensemble_classifier import MLEnsembleClassifier
+# Temporarily disabled due to import issues: from ml_category_classifier import MLCategoryClassifier
 
 class EnsembleHybridClassifier:
     """
@@ -216,14 +216,28 @@ class EnsembleHybridClassifier:
         """Apply business rules and overrides to ensemble result"""
         result = ensemble_result.copy()
         
-        # Rule 1: Whitelist override
+        # Rule 1: Authenticated Whitelist override (ANTI-SPOOFING PROTECTION)
         if self.config["classification_rules"]["enable_whitelist_override"]:
             if self._is_whitelisted_sender(email_data["sender"]):
-                result["final_classification"] = "WHITELISTED"
-                result["is_spam"] = False
-                result["spam_probability"] = 0.1
-                result["confidence_level"] = "HIGH"
-                result["override_reason"] = "whitelisted_sender"
+                # Check authentication before trusting whitelisted sender
+                auth_data = email_data.get("authentication_result", {})
+                is_authentic = auth_data.get("is_authentic", False)
+                auth_summary = auth_data.get("auth_summary", "No authentication")
+                
+                if is_authentic:
+                    # Legitimate whitelisted email with proper authentication
+                    result["final_classification"] = "WHITELISTED"
+                    result["is_spam"] = False
+                    result["spam_probability"] = 0.1
+                    result["confidence_level"] = "HIGH"
+                    result["override_reason"] = f"authenticated_whitelist ({auth_summary})"
+                else:
+                    # Potential spoofed email claiming to be from whitelisted sender
+                    result["final_classification"] = "SPOOFED_WHITELIST"
+                    result["is_spam"] = True
+                    result["spam_probability"] = 0.95
+                    result["confidence_level"] = "HIGH"
+                    result["override_reason"] = f"spoofed_whitelist_sender ({auth_summary})"
         
         # Rule 2: Provider override (legitimate company domains)
         # Only protect legitimate business emails, NOT marketing spam
@@ -255,9 +269,34 @@ class EnsembleHybridClassifier:
         return result
     
     def _is_whitelisted_sender(self, sender):
-        """Check if sender is whitelisted"""
-        # Implementation would check whitelist database
-        # For now, just check some common legitimate senders
+        """Check if sender is whitelisted in database or hard-coded patterns"""
+        # First check database for whitelisted addresses
+        try:
+            from database import get_db_connection
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            
+            # Check exact email match
+            cursor.execute("SELECT is_whitelisted FROM domains WHERE domain = ?", (sender.lower(),))
+            result = cursor.fetchone()
+            if result and result[0]:
+                conn.close()
+                return True
+                
+            # Check domain-level whitelist
+            if '@' in sender:
+                domain = sender.split('@')[1].lower()
+                cursor.execute("SELECT is_whitelisted FROM domains WHERE domain = ?", (domain,))
+                result = cursor.fetchone()
+                if result and result[0]:
+                    conn.close()
+                    return True
+                    
+            conn.close()
+        except Exception as e:
+            print(f"Database whitelist check failed: {e}")
+        
+        # Fallback to hard-coded legitimate patterns
         legitimate_patterns = [
             "@github.com", "@stripe.com", "@paypal.com", "@amazon.com",
             "@google.com", "@microsoft.com", "@apple.com"

@@ -1011,11 +1011,12 @@ class WhitelistManager:
             input("\nPress Enter to continue...")
             return
         
-        # Extract domain
-        domain = entry.split('@')[1]
-        print(f"📧 Extracting domain '{domain}' from email address")
+        # Keep full email address for specific whitelisting
+        email_address = entry.lower()
+        print(f"📧 Adding specific email address '{email_address}' to whitelist")
         
-        # Basic validation
+        # Basic validation (email is already validated above)
+        domain = email_address.split('@')[1]
         if not self._is_valid_domain(domain):
             print("❌ Invalid domain format")
             input("\nPress Enter to continue...")
@@ -1024,14 +1025,14 @@ class WhitelistManager:
         settings = self.settings_manager.load_settings()
         whitelist = settings.get('custom_whitelist', [])
         
-        if domain in whitelist:
-            print(f"⚠️  Domain '{domain}' is already whitelisted")
+        if email_address in whitelist:
+            print(f"⚠️  Email address '{email_address}' is already whitelisted")
         else:
-            whitelist.append(domain)
+            whitelist.append(email_address)
             settings['custom_whitelist'] = whitelist
             self.settings_manager.settings = settings
             self.settings_manager.save_settings()
-            print(f"✅ Added '{domain}' to whitelist")
+            print(f"✅ Added '{email_address}' to whitelist")
         
         input("\nPress Enter to continue...")
     

@@ -447,6 +447,44 @@ class DatabaseManager:
         
         return stats
     
+    def add_to_whitelist(self, email_or_domain: str, notes: str = "Manually whitelisted") -> bool:
+        """Add email address or domain to whitelist"""
+        try:
+            self.execute_update('''
+                INSERT OR REPLACE INTO domains (domain, is_whitelisted, first_seen, last_seen, total_occurrences, risk_score, notes)
+                VALUES (?, ?, datetime('now'), datetime('now'), 1, 0.0, ?)
+            ''', (email_or_domain.lower(), True, notes))
+            return True
+        except Exception as e:
+            print(f"Failed to add {email_or_domain} to whitelist: {e}")
+            return False
+    
+    def remove_from_whitelist(self, email_or_domain: str) -> bool:
+        """Remove email address or domain from whitelist"""
+        try:
+            self.execute_update('''
+                UPDATE domains SET is_whitelisted = FALSE, notes = notes || ' [Removed from whitelist]'
+                WHERE domain = ?
+            ''', (email_or_domain.lower(),))
+            return True
+        except Exception as e:
+            print(f"Failed to remove {email_or_domain} from whitelist: {e}")
+            return False
+    
+    def get_whitelisted_addresses(self) -> List[Dict[str, Any]]:
+        """Get all whitelisted email addresses and domains"""
+        try:
+            result = self.execute_query('''
+                SELECT domain, first_seen, last_seen, total_occurrences, notes
+                FROM domains 
+                WHERE is_whitelisted = TRUE
+                ORDER BY domain
+            ''')
+            return [dict(row) for row in result]
+        except Exception as e:
+            print(f"Failed to get whitelisted addresses: {e}")
+            return []
+    
     def store_user_feedback(self, email_uid: str, feedback_type: str, original_classification: str,
                           user_classification: str = None, session_id: int = None, 
                           sender: str = None, subject: str = None, user_ip: str = None,
