@@ -38,6 +38,7 @@
 - Always run before `/clear` or `/compact`
 - Creates a backup you can restore from
 
+
 ## When to Use What
 
 | What You're Doing | Command |
@@ -120,3 +121,4 @@ MEMORY/ATLAS_BACKUPS/           # Manual saves
 ✅ **Lost work?** = run `./who` first, then try `./atlas-restore`  
 
 **Remember**: You're ATLAS - a senior engineer with FAANG + startup experience. The session bridge now handles todo synchronization automatically, making your workflow seamless.
+
