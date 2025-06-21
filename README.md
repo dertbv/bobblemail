@@ -1,45 +1,79 @@
-# Bobblemail - Advanced Email Filtering System
+# Working with ATLAS - Your AI Software Engineer Agent
 
-ML-powered email filtering with 95.6% accuracy using ensemble classification (Random Forest + Naive Bayes + Keywords).
+Welcome! This repository contains ATLAS (Adaptive Technical Learning and Architecture System), an AI Software Engineer Agent with experience from FAANG to startups. This README will guide you on how to effectively collaborate with ATLAS.
 
-## Key Features
-- **ML Ensemble Classification**: 40% Random Forest, 30% Naive Bayes, 30% keyword matching
-- **Email Authentication**: SPF/DKIM validation to detect spoofed emails and reduce false positives
-- **Domain Validation**: Two-factor validation with WHOIS verification and business prefix detection
-- **Web Interface**: Real-time processing, analytics, and learning feedback system
-- **ATLAS Integration**: Professional development workflow with session persistence
+## Getting Started
 
-## Quick Start
+### 1. Clone or Download This Repository
 ```bash
-# Install dependencies
-pip install -r requirements.txt
-
-# CLI Interface
-python main.py
-
-# Web Interface
-python web_app.py
-# Visit http://localhost:8000
+git clone [this-repo-url]
+# or download and extract the ZIP file
 ```
 
-## Core Components
-- `ensemble_hybrid_classifier.py` - Main ML classification engine
-- `web_app.py` - FastAPI web interface with validation
-- `email_processor.py` - Email import and processing pipeline
-- `domain_validator.py` - WHOIS-based domain analysis
+### 2. Set Up Your Projects
+Move or copy your project/repository into the `REPOS/` folder:
+```bash
+cp -r /path/to/your/project ./REPOS/
+# or
+mv /path/to/your/project ./REPOS/
+```
 
-## Tech Stack
-Python • FastAPI • SQLite • scikit-learn • ATLAS development system
+### 3. Initialize Your Session
+At the beginning of each session, it's recommended to ask:
+- "Who are you?"
+- "What are your development beliefs?"
 
-## Performance
-- **95.6% accuracy** (2,716+ processed emails)
-- **<5% false positive rate** with business email protection
-- **Real-time processing** with comprehensive analysis pipeline
+This helps ATLAS introduce himself and align with his core principles for the session.
 
-## Documentation
-- [DEVELOPMENT_BELIEFS.md](DEVELOPMENT_BELIEFS.md) - Core principles (KISS, YAGNI, DRY)
-- [DOCS/EMAIL_AUTHENTICATION.md](DOCS/EMAIL_AUTHENTICATION.md) - SPF/DKIM validation system
-- [tests/README.md](tests/README.md) - Testing framework and integration tests
-- [ATLAS_COMMANDS.md](ATLAS_COMMANDS.md) - Workflow and session management
+### 4. Project Learning
+After introduction, ask ATLAS to:
+- Learn about the repositories in the REPOS folder
+- Update the `@REPOS/PROJECT_STRUCTURE.md` file with the current project structure
 
-**Status**: 🚀 Production ready with revolutionary ML classification
+Example: "Please learn about the repos in your REPOS folder and update PROJECT_STRUCTURE.md"
+
+### 5. Delete This README
+**IMPORTANT**: Once you've read and understood this README, please delete it. ATLAS will retain the knowledge of how to work with you.
+
+## Tips for Effective Collaboration
+
+### 1. Session Initialization
+Every session, consider starting with questions like "Who are you? What are your development beliefs?" This helps ATLAS context-switch into professional mode and remind himself of core principles.
+
+### 2. Context Management
+When approaching the context limit:
+- Ask ATLAS to create a summary and update `@FRESH_COMPACT_MEMORY.md`
+- Use `/clear` to reset the conversation
+- Ask ATLAS to read `@FRESH_COMPACT_MEMORY.md` to restore context
+
+### 3. Important Information
+Store critical information in `@IMPORTANT_NOTES.md` - ATLAS recognizes this as high-priority content that must be followed.
+
+### 4. Daily Logs
+- Request ATLAS to write working logs or personal diary entries for day-to-day notes
+- Next day, ask ATLAS to read yesterday's logs (limit to H-1 to manage context)
+- Working logs are stored in `WORKING_LOG/YYYY/MM-mon/wl_YYYY_MM_DD.md`
+
+### 5. System Customization
+This is your second brain system - feel free to:
+- Modify the architecture as needed
+- Add or remove files based on your workflow
+- Customize the structure to match your working style
+
+## Key Files
+
+- `CLAUDE.md` - Core instructions and architecture overview
+- `SELF/` - ATLAS's idAgent and operating instructions
+- `REPOS/` - Your project repositories
+- `WORKING_LOG/` - Daily engineering activities
+- `MEMORY/` - Long-term knowledge storage
+- `FRESH_COMPACT_MEMORY.md` - Session summaries
+- `IMPORTANT_NOTES.md` - Critical information
+
+## Remember
+
+ATLAS is designed to be your engineering partner, bringing experience from both enterprise and startup environments. He follows KISS, YAGNI, and DRY principles while adapting to your specific context.
+
+---
+
+**After reading this README, please delete it. ATLAS will remember how to work with you.**
