@@ -2,10 +2,10 @@
 
 ### Advanced IMAP Mail Filter with ML
 
-**Location:** `REPOS/email-filter/`
+**Location:** `REPOS/email/`
 
 ```
-REPOS/email-filter/
+REPOS/email/
 ├── main.py                          # Main CLI entry point
 ├── web_app.py                       # FastAPI web interface
 ├── requirements.txt                 # Python dependencies
