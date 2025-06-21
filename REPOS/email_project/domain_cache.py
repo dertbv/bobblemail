@@ -234,60 +234,7 @@ class DomainValidationCache:
 # Global cache instance
 domain_cache = DomainValidationCache()
 
-def cached_domain_validation(domain: str, provider_hint: str = None, 
-                           force_refresh: bool = False) -> Tuple[str, str, bool]:
-    """
-    High-performance cached domain validation
-    
-    Args:
-        domain: Domain to validate
-        provider_hint: Provider context for validation
-        force_refresh: Force fresh WHOIS lookup even if cached
-        
-    Returns:
-        Tuple of (validation_result, reason, is_suspicious)
-    """
-    # Check cache first unless force refresh
-    if not force_refresh:
-        cached_result = domain_cache.get_cached_validation(domain)
-        if cached_result:
-            return (
-                cached_result['validation_result'],
-                f"{cached_result['validation_reason']} (cached)",
-                cached_result['is_suspicious']
-            )
-    
-    # Cache miss - perform actual validation
-    from domain_validator import lightweight_domain_validation, is_major_email_provider
-    
-    # Skip WHOIS for known major providers (immediate return)
-    if is_major_email_provider(domain):
-        result = ('SAFE', 'Major email provider', False)
-        domain_cache.cache_validation_result(
-            domain, result[0], result[1], result[2], provider_hint
-        )
-        return result
-    
-    # Perform WHOIS validation
-    validation_result = lightweight_domain_validation(domain, provider_hint)
-    
-    # Determine suspicion level and reason
-    if validation_result == 'SAFE':
-        is_suspicious = False
-        reason = "Domain age > 90 days"
-    elif validation_result == 'QUARANTINE':
-        is_suspicious = True
-        reason = "Domain age 30-90 days - manual review"
-    else:  # SUSPICIOUS
-        is_suspicious = True
-        reason = "Domain age < 30 days"
-    
-    # Cache the result
-    domain_cache.cache_validation_result(
-        domain, validation_result, reason, is_suspicious, provider_hint
-    )
-    
-    return (validation_result, reason, is_suspicious)
+# Note: cached_domain_validation moved to domain_validator.py to break circular dependency
 
 def print_cache_statistics():
     """Print cache performance statistics"""

@@ -557,10 +557,17 @@ class EmailProcessor:
     def _check_whitelist_protection(self, sender_email, subject=""):
         """Check if sender or subject is protected by custom whitelist"""
         try:
-            # Load ML settings to get custom whitelist
-            ml_settings = safe_json_load(ML_SETTINGS_FILE, {})
-            custom_whitelist = ml_settings.get('custom_whitelist', [])
-            custom_keyword_whitelist = ml_settings.get('custom_keyword_whitelist', [])
+            # Load whitelist from centralized settings
+            try:
+                from settings import Settings
+                whitelist_config = Settings.get_whitelist()
+                custom_whitelist = whitelist_config.get('custom_whitelist', [])
+                custom_keyword_whitelist = whitelist_config.get('custom_keyword_whitelist', [])
+            except ImportError:
+                # Fallback to JSON if settings.py not available
+                ml_settings = safe_json_load(ML_SETTINGS_FILE, {})
+                custom_whitelist = ml_settings.get('custom_whitelist', [])
+                custom_keyword_whitelist = ml_settings.get('custom_keyword_whitelist', [])
             
             # Check domain whitelist
             if custom_whitelist and sender_email and '@' in sender_email:

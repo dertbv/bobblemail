@@ -137,7 +137,7 @@ def display_application_header(menu_title: str = None):
         account_count = len(accounts) if accounts else 0
 
         # Get filter count
-        from main import get_filters
+        from config_loader import get_filters
         filters = get_filters()
         filter_count = len(filters)
 

@@ -13,7 +13,7 @@ from typing import Dict, List, Optional, Union
 from database import db
 from db_logger import logger, LogCategory
 from db_credentials import db_credentials
-from main import run_preview_for_account
+from processing_controller import run_preview_for_account
 from email_processor import EmailProcessor
 from config_auth import IMAPConnectionManager
 

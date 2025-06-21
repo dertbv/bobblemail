@@ -30,13 +30,14 @@ class EnsembleHybridClassifier:
     4. Performance tracking and optimization
     """
     
-    def __init__(self, db_path: str = "mail_filter.db", config_path: str = "ensemble_hybrid_config.json"):
+    def __init__(self, db_path: str = "mail_filter.db", config_path: str = None):
         """Initialize ensemble hybrid classifier"""
         self.db_path = db_path
-        self.config_path = config_path
+        self.config_path = config_path  # Legacy support, but now uses settings.py
         
-        # Load configuration
-        self.config = self.load_config()
+        # Load configuration from centralized settings
+        from settings import Settings
+        self.config = Settings.get_hybrid_config()
         
         # Initialize ML Ensemble
         print("🤖 Initializing ML Ensemble...")
@@ -105,10 +106,13 @@ class EnsembleHybridClassifier:
                         config[key] = value
                 return config
         except FileNotFoundError:
-            print(f"📋 Creating default ensemble hybrid config: {self.config_path}")
-            with open(self.config_path, 'w') as f:
-                json.dump(default_config, f, indent=2)
-            return default_config
+            print(f"⚠️  Config file {self.config_path} not found, using centralized settings")
+            from settings import Settings
+            return Settings.get_hybrid_config()
+        except json.JSONDecodeError as e:
+            print(f"❌ Error parsing config file {self.config_path}: {e}, using centralized settings")
+            from settings import Settings
+            return Settings.get_hybrid_config()
     
     def print_status(self):
         """Print classifier status"""

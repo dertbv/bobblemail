@@ -193,7 +193,7 @@ def initialize_web_timer():
     
     def batch_callback():
         # Import here to avoid circular imports
-        from main import batch_processing_for_timer
+        from processing_controller import batch_processing_for_timer
         return batch_processing_for_timer()
     
     web_timer = AutoBatchTimer(batch_callback)
@@ -1494,7 +1494,7 @@ async def run_batch_processing():
             """
 import sys
 sys.path.append('.')
-from main import batch_processing_for_timer
+from processing_controller import batch_processing_for_timer
 result = batch_processing_for_timer()
 print(f'BATCH_RESULT: {result}')
             """
@@ -1582,7 +1582,7 @@ async def fetch_emails_preview_api(account_id: int):
     
     try:
         # Call CLI function directly - this is now a true window into CLI!
-        from main import run_preview_for_account
+        from processing_controller import run_preview_for_account
         
         print(f"🔍 Calling CLI preview function for account {account_id}")
         cli_result = run_preview_for_account(account_id, debug_mode=True)
@@ -5377,7 +5377,7 @@ async def single_account_preview_api(account_id: int):
     """Preview mode for single account - calls EXACT CLI function with preview_mode=True"""
     try:
         # Import the EXACT CLI function that replicates the working CLI flow
-        from main import run_exact_cli_processing_for_account
+        from processing_controller import run_exact_cli_processing_for_account
         
         print(f"🔍 Calling EXACT CLI preview function for account {account_id}")
         
@@ -5395,7 +5395,7 @@ async def single_account_process_api(account_id: int):
     print("🍎🍎🍎 PROCESS ENDPOINT CALLED - USING EXACT CLI FLOW 🍎🍎🍎")
     try:
         # Import the EXACT CLI function that replicates the working CLI deletion flow
-        from main import run_exact_cli_processing_for_account
+        from processing_controller import run_exact_cli_processing_for_account
         
         print(f"🍎 Calling EXACT CLI processing function for account {account_id}")
         print("🍎 This uses the EXACT same flow as CLI: Main → Option 2 → Option 1 (iCloud) → Option 1 (delete)")

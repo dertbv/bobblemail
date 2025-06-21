@@ -13,10 +13,12 @@ This system will change email filtering forever!
 import re
 import json
 from typing import Dict, List, Tuple, Optional, Union
-from spam_classifier import (
+from classification_utils import (
     check_all_keywords, check_keywords_simple, is_legitimate_company_domain,
-    detect_provider_from_sender
+    get_all_keywords_for_category, is_community_email, is_transactional_email,
+    is_account_notification, is_subscription_management, classify_encoded_spam_content
 )
+from domain_validator import detect_provider_from_sender
 
 # Import revolutionary two-factor validation system
 try:
@@ -119,13 +121,19 @@ class KeywordProcessor:
             print("⚠️ KeywordProcessor: Using fallback classification without two-factor validation")
     
     def _load_category_thresholds(self) -> Dict[str, float]:
-        """Load category-specific confidence thresholds from ML settings."""
+        """Load category-specific confidence thresholds from centralized settings."""
         try:
-            with open('ml_settings.json', 'r') as f:
-                settings = json.load(f)
-            return settings.get('category_thresholds', {})
-        except (FileNotFoundError, json.JSONDecodeError):
-            return {}
+            from settings import Settings
+            return Settings.get_ml_settings().get('category_thresholds', {})
+        except ImportError:
+            # Fallback to JSON if settings.py not available
+            try:
+                import json
+                with open('ml_settings.json', 'r') as f:
+                    settings = json.load(f)
+                return settings.get('category_thresholds', {})
+            except (FileNotFoundError, json.JSONDecodeError):
+                return {}
     
     def get_category_threshold(self, category: str, default: float = 0.7) -> float:
         """Get confidence threshold for a specific category."""
@@ -221,7 +229,7 @@ class KeywordProcessor:
         subdomain = domain_parts[0]
         
         # Check for legitimate domains first - they can use complex subdomains
-        from spam_classifier import is_legitimate_company_domain
+        # is_legitimate_company_domain already imported from classification_utils
         if is_legitimate_company_domain(domain):
             # Exception: Even legitimate domains with obvious scam patterns should be flagged
             main_domain = domain_parts[1] if len(domain_parts) >= 2 else ""
@@ -711,7 +719,7 @@ class KeywordProcessor:
             Enhanced specificity score (0.0-10.0)
         """
         try:
-            from spam_classifier import get_all_keywords_for_category
+            # get_all_keywords_for_category already imported from classification_utils
             
             # Get all keywords for this category
             all_keywords = get_all_keywords_for_category(category)
@@ -1011,7 +1019,7 @@ class KeywordProcessor:
         
         # First check if it's already a known legitimate domain
         # For legitimate domains, be more lenient with company name matching
-        from spam_classifier import is_legitimate_company_domain
+        # is_legitimate_company_domain already imported from classification_utils
         if is_legitimate_company_domain(domain):
             # For legitimate domains, we trust them more - check for reasonable company connections
             domain_parts = domain.lower().split('.')
@@ -1399,22 +1407,22 @@ class KeywordProcessor:
             return protected_result
         
         # SECOND: Check for community emails (preserve neighborhood communications)
-        from spam_classifier import is_community_email
+        # is_community_email already imported from classification_utils
         if is_community_email(subject, sender, headers):
             return "Community Email"
         
         # THIRD: Check for transactional emails (receipts, confirmations, statements) - HIGH PRIORITY
-        from spam_classifier import is_transactional_email
+        # is_transactional_email already imported from classification_utils
         if is_transactional_email(subject, sender, headers):
             return "Transactional Email"
         
         # FOURTH: Check for account notifications (security alerts, password resets) - HIGH PRIORITY
-        from spam_classifier import is_account_notification
+        # is_account_notification already imported from classification_utils
         if is_account_notification(subject, sender, headers):
             return "Account Notification"
         
         # FIFTH: Check for subscription management (terms changes, service updates) - HIGH PRIORITY
-        from spam_classifier import is_subscription_management
+        # is_subscription_management already imported from classification_utils
         if is_subscription_management(subject, sender, headers):
             return "Subscription Management"
         
@@ -1546,7 +1554,7 @@ class KeywordProcessor:
         if self.check_encoded_spam(subject, sender):
             # NEW: Attempt to decode and classify the content
             try:
-                from spam_classifier import classify_encoded_spam_content
+                # classify_encoded_spam_content already imported from classification_utils
                 decoded_classification = classify_encoded_spam_content(headers, sender, subject)
                 print(f"🔍 KeywordProcessor: Encoded spam decoded as: {decoded_classification}")
                 return decoded_classification

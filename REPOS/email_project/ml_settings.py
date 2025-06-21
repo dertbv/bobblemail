@@ -21,15 +21,22 @@ class MLSettingsManager:
         self.settings = self.load_settings()
     
     def load_settings(self) -> Dict[str, Any]:
-        """Load ML settings from file or return defaults"""
-        settings = safe_json_load(self.settings_file, ML_DEFAULT_SETTINGS.copy())
-        
-        # Merge with defaults to handle new settings
-        for key, value in ML_DEFAULT_SETTINGS.items():
-            if key not in settings:
-                settings[key] = value
-                
-        return settings
+        """Load ML settings from centralized settings or file fallback"""
+        try:
+            from settings import Settings
+            # Load from centralized settings first
+            settings = Settings.get_ml_settings()
+            return settings
+        except ImportError:
+            # Fallback to JSON file if settings.py not available
+            settings = safe_json_load(self.settings_file, ML_DEFAULT_SETTINGS.copy())
+            
+            # Merge with defaults to handle new settings
+            for key, value in ML_DEFAULT_SETTINGS.items():
+                if key not in settings:
+                    settings[key] = value
+                    
+            return settings
     
     def save_settings(self) -> bool:
         """Save current settings to file"""

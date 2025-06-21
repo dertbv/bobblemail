@@ -557,7 +557,7 @@ class DomainValidator:
 
         # Use cached domain validation for performance
         try:
-            from domain_cache import cached_domain_validation
+            # Use local cached_domain_validation function
             validation_result, cache_reason, cache_is_suspicious = cached_domain_validation(
                 registered_domain, provider_hint=sender_provider
             )
@@ -594,7 +594,7 @@ class DomainValidator:
 
         # Use cached domain validation for performance
         try:
-            from domain_cache import cached_domain_validation
+            # Use local cached_domain_validation function
             validation_result, cache_reason, cache_is_suspicious = cached_domain_validation(
                 registered_domain, provider_hint=sender_provider
             )
@@ -750,6 +750,62 @@ def should_delete_email(headers, filters):
             return True, f"Matched: {term}"
     return False, ""
 
+def cached_domain_validation(domain: str, provider_hint: str = None, 
+                           force_refresh: bool = False):
+    """
+    High-performance cached domain validation
+    
+    Args:
+        domain: Domain to validate
+        provider_hint: Provider context for validation
+        force_refresh: Force fresh WHOIS lookup even if cached
+        
+    Returns:
+        Tuple of (validation_result, reason, is_suspicious)
+    """
+    from domain_cache import domain_cache
+    
+    # Check cache first unless force refresh
+    if not force_refresh:
+        cached_result = domain_cache.get_cached_validation(domain)
+        if cached_result:
+            return (
+                cached_result['validation_result'],
+                f"{cached_result['validation_reason']} (cached)",
+                cached_result['is_suspicious']
+            )
+    
+    # Cache miss - perform actual validation
+    
+    # Skip WHOIS for known major providers (immediate return)
+    if is_major_email_provider(domain):
+        result = ('SAFE', 'Major email provider', False)
+        domain_cache.cache_validation_result(
+            domain, result[0], result[1], result[2], provider_hint
+        )
+        return result
+    
+    # Perform WHOIS validation
+    validation_result = lightweight_domain_validation(domain, provider_hint)
+    
+    # Determine suspicion level and reason
+    if validation_result == 'SAFE':
+        is_suspicious = False
+        reason = "Domain age > 90 days"
+    elif validation_result == 'QUARANTINE':
+        is_suspicious = True
+        reason = "Domain age 30-90 days - manual review"
+    else:  # SUSPICIOUS
+        is_suspicious = True
+        reason = "Domain age < 30 days"
+    
+    # Cache the result
+    domain_cache.cache_validation_result(
+        domain, validation_result, reason, is_suspicious, provider_hint
+    )
+    
+    return (validation_result, reason, is_suspicious)
+
 # Export main classes and functions
 __all__ = [
     'DomainValidator',
@@ -767,5 +823,6 @@ __all__ = [
     'is_major_email_provider',
     'get_provider_reputation_score',
     'looks_like_gibberish',
-    'is_gibberish_email'
+    'is_gibberish_email',
+    'cached_domain_validation'
 ]
