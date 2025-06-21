@@ -1594,22 +1594,30 @@ async def fetch_emails_preview_api(account_id: int):
         session_id = cli_result["session_id"]
         recent_emails = db.execute_query("""
             SELECT 
-                datetime(timestamp) as formatted_time,
-                timestamp,
-                folder_name,
-                uid,
-                sender_email, 
-                sender_domain,
-                subject, 
-                action,
-                reason,
-                category,
-                confidence_score,
-                ml_validation_method,
-                raw_data
-            FROM processed_emails_bulletproof 
-            WHERE session_id = ?
-            ORDER BY datetime(timestamp) DESC
+                datetime(p.timestamp) as formatted_time,
+                p.timestamp,
+                p.folder_name,
+                p.uid,
+                p.sender_email, 
+                p.sender_domain,
+                p.subject, 
+                p.action,
+                p.reason,
+                p.category,
+                p.confidence_score,
+                p.ml_validation_method,
+                p.raw_data,
+                p.account_id,
+                CASE WHEN f.id IS NOT NULL THEN 1 ELSE 0 END as is_flagged
+            FROM processed_emails_bulletproof p
+            LEFT JOIN email_flags f ON (
+                p.uid = f.email_uid AND 
+                p.folder_name = f.folder_name AND 
+                p.account_id = f.account_id AND 
+                f.is_active = 1
+            )
+            WHERE p.session_id = ?
+            ORDER BY datetime(p.timestamp) DESC
             LIMIT 20
         """, (session_id,))
         
@@ -1636,7 +1644,9 @@ async def fetch_emails_preview_api(account_id: int):
                     "category": email['category'] or "Unknown",
                     "confidence": f"{email['confidence_score']:.1f}" if email['confidence_score'] else "",
                     "ml_method": email['ml_validation_method'] or "",
-                    "raw_data": (email['raw_data'] or '')[:30] if email['raw_data'] else ""
+                    "raw_data": (email['raw_data'] or '')[:30] if email['raw_data'] else "",
+                    "account_id": email['account_id'] or "",
+                    "is_flagged": bool(email['is_flagged'])
                 })
             except Exception as e:
                 print(f"Error formatting email result: {e}")
@@ -1804,6 +1814,235 @@ async def get_user_statistics():
             "badges": [],
             "milestones": {"next_email_milestone": 100, "next_feedback_milestone": 10, "next_deletion_milestone": 10}
         }
+
+# ============================================================================
+# EMAIL FLAGGING API ENDPOINTS
+# ============================================================================
+
+@app.post("/api/emails/flag")
+async def flag_email(request: Request):
+    """Flag an email for protection from deletion"""
+    print("🚩 FLAG EMAIL API called")
+    
+    try:
+        data = await request.json()
+        
+        # Extract required fields
+        email_uid = data.get('email_uid')
+        folder_name = data.get('folder_name')
+        account_id = data.get('account_id')
+        
+        # Extract optional fields
+        session_id = data.get('session_id')
+        sender_email = data.get('sender_email')
+        subject = data.get('subject')
+        flag_reason = data.get('flag_reason', 'User requested protection')
+        
+        # Validate required fields
+        if not all([email_uid, folder_name, account_id]):
+            return {
+                "success": False,
+                "message": "Missing required fields: email_uid, folder_name, account_id"
+            }
+        
+        # Flag the email
+        success = db.flag_email_for_protection(
+            email_uid=email_uid,
+            folder_name=folder_name,
+            account_id=int(account_id),
+            session_id=session_id,
+            sender_email=sender_email,
+            subject=subject,
+            flag_reason=flag_reason,
+            created_by='web_user'
+        )
+        
+        if success:
+            return {
+                "success": True,
+                "message": f"Email {email_uid} flagged for protection",
+                "email_uid": email_uid,
+                "folder_name": folder_name
+            }
+        else:
+            return {
+                "success": False,
+                "message": "Failed to flag email"
+            }
+            
+    except Exception as e:
+        print(f"❌ Flag email error: {e}")
+        import traceback
+        traceback.print_exc()
+        return {"success": False, "message": f"Error flagging email: {str(e)}"}
+
+@app.post("/api/emails/unflag")
+async def unflag_email(request: Request):
+    """Remove protection flag from an email"""
+    print("🚩 UNFLAG EMAIL API called")
+    
+    try:
+        data = await request.json()
+        
+        # Extract required fields
+        email_uid = data.get('email_uid')
+        folder_name = data.get('folder_name')
+        account_id = data.get('account_id')
+        
+        # Validate required fields
+        if not all([email_uid, folder_name, account_id]):
+            return {
+                "success": False,
+                "message": "Missing required fields: email_uid, folder_name, account_id"
+            }
+        
+        # Unflag the email
+        success = db.unflag_email(
+            email_uid=email_uid,
+            folder_name=folder_name,
+            account_id=int(account_id)
+        )
+        
+        if success:
+            return {
+                "success": True,
+                "message": f"Email {email_uid} unflagged",
+                "email_uid": email_uid,
+                "folder_name": folder_name
+            }
+        else:
+            return {
+                "success": False,
+                "message": "Failed to unflag email (may not have been flagged)"
+            }
+            
+    except Exception as e:
+        print(f"❌ Unflag email error: {e}")
+        import traceback
+        traceback.print_exc()
+        return {"success": False, "message": f"Error unflagging email: {str(e)}"}
+
+@app.get("/api/emails/flagged")
+async def get_flagged_emails(account_id: int = None, limit: int = 100):
+    """Get list of flagged emails"""
+    print(f"🚩 GET FLAGGED EMAILS API called (account_id={account_id})")
+    
+    try:
+        flagged_emails = db.get_flagged_emails(account_id=account_id, limit=limit)
+        flagged_count = db.get_flagged_count(account_id=account_id)
+        
+        return {
+            "success": True,
+            "flagged_emails": flagged_emails,
+            "total_count": flagged_count,
+            "returned_count": len(flagged_emails)
+        }
+        
+    except Exception as e:
+        print(f"❌ Get flagged emails error: {e}")
+        import traceback
+        traceback.print_exc()
+        return {"success": False, "message": f"Error getting flagged emails: {str(e)}"}
+
+@app.get("/api/emails/flag-status/{account_id}/{folder_name}/{email_uid}")
+async def check_flag_status(account_id: int, folder_name: str, email_uid: str):
+    """Check if a specific email is flagged"""
+    print(f"🚩 CHECK FLAG STATUS API called for UID {email_uid}")
+    
+    try:
+        is_flagged = db.is_email_flagged(
+            email_uid=email_uid,
+            folder_name=folder_name,
+            account_id=account_id
+        )
+        
+        return {
+            "success": True,
+            "is_flagged": is_flagged,
+            "email_uid": email_uid,
+            "folder_name": folder_name,
+            "account_id": account_id
+        }
+        
+    except Exception as e:
+        print(f"❌ Check flag status error: {e}")
+        return {"success": False, "message": f"Error checking flag status: {str(e)}"}
+
+@app.post("/api/emails/bulk-flag")
+async def bulk_flag_emails(request: Request):
+    """Flag multiple emails for protection"""
+    print("🚩 BULK FLAG EMAILS API called")
+    
+    try:
+        data = await request.json()
+        
+        emails = data.get('emails', [])
+        account_id = data.get('account_id')
+        flag_reason = data.get('flag_reason', 'Bulk user protection')
+        
+        if not emails or not account_id:
+            return {
+                "success": False,
+                "message": "Missing required fields: emails array and account_id"
+            }
+        
+        successful_flags = 0
+        failed_flags = 0
+        results = []
+        
+        for email_data in emails:
+            email_uid = email_data.get('email_uid')
+            folder_name = email_data.get('folder_name')
+            sender_email = email_data.get('sender_email')
+            subject = email_data.get('subject')
+            
+            if not all([email_uid, folder_name]):
+                failed_flags += 1
+                results.append({
+                    "email_uid": email_uid,
+                    "success": False,
+                    "message": "Missing email_uid or folder_name"
+                })
+                continue
+            
+            success = db.flag_email_for_protection(
+                email_uid=email_uid,
+                folder_name=folder_name,
+                account_id=int(account_id),
+                sender_email=sender_email,
+                subject=subject,
+                flag_reason=flag_reason,
+                created_by='web_bulk'
+            )
+            
+            if success:
+                successful_flags += 1
+                results.append({
+                    "email_uid": email_uid,
+                    "success": True,
+                    "message": "Flagged successfully"
+                })
+            else:
+                failed_flags += 1
+                results.append({
+                    "email_uid": email_uid,
+                    "success": False,
+                    "message": "Failed to flag"
+                })
+        
+        return {
+            "success": True,
+            "message": f"Bulk flagging completed: {successful_flags} successful, {failed_flags} failed",
+            "successful_flags": successful_flags,
+            "failed_flags": failed_flags,
+            "results": results
+        }
+        
+    except Exception as e:
+        print(f"❌ Bulk flag emails error: {e}")
+        import traceback
+        traceback.print_exc()
+        return {"success": False, "message": f"Error bulk flagging emails: {str(e)}"}
 
 @app.get("/testing", response_class=HTMLResponse)
 async def live_testing_page():
@@ -2030,14 +2269,66 @@ def build_testing_html(accounts):
                 color: #155724;
             }}
             
-            /* Table column widths for better layout - optimized for end user feedback */
-            .activity-table th:nth-child(1) {{ width: 10%; }} /* Date */
-            .activity-table th:nth-child(2) {{ width: 10%; }} /* Time */
-            .activity-table th:nth-child(3) {{ width: 12%; }} /* Action */
-            .activity-table th:nth-child(4) {{ width: 15%; }} /* Category */
-            .activity-table th:nth-child(5) {{ width: 25%; }} /* Sender */
-            .activity-table th:nth-child(6) {{ width: 40%; }} /* Subject - EXPANDED */
-            .activity-table th:nth-child(7) {{ width: 12%; }} /* Feedback */
+            /* Flag button styles */
+            .protection-column {{
+                text-align: center;
+                white-space: nowrap;
+                min-width: 120px;
+                padding: 8px 4px;
+            }}
+            .protection-status {{
+                font-size: 12px;
+                margin-bottom: 4px;
+                color: #6c757d;
+            }}
+            .btn-flag {{
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                padding: 4px 8px;
+                cursor: pointer;
+                font-size: 11px;
+                transition: all 0.2s ease;
+                background: #f8f9fa;
+                color: #333;
+                font-weight: 500;
+            }}
+            .btn-flag:hover {{
+                transform: scale(1.05);
+                box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            }}
+            .btn-flag-protect {{
+                border-color: #28a745;
+                color: #28a745;
+            }}
+            .btn-flag-protect:hover {{
+                background: #d4edda;
+                border-color: #1e7e34;
+                color: #1e7e34;
+            }}
+            .btn-flag-remove {{
+                border-color: #dc3545;
+                color: #dc3545;
+            }}
+            .btn-flag-remove:hover {{
+                background: #f8d7da;
+                border-color: #c82333;
+                color: #c82333;
+            }}
+            .btn-flag:disabled {{
+                opacity: 0.5;
+                cursor: not-allowed;
+                transform: none;
+            }}
+            
+            /* Table column widths for better layout - updated for Protection column */
+            .activity-table th:nth-child(1) {{ width: 8%; }} /* Date */
+            .activity-table th:nth-child(2) {{ width: 8%; }} /* Time */
+            .activity-table th:nth-child(3) {{ width: 10%; }} /* Action */
+            .activity-table th:nth-child(4) {{ width: 12%; }} /* Category */
+            .activity-table th:nth-child(5) {{ width: 22%; }} /* Sender */
+            .activity-table th:nth-child(6) {{ width: 25%; }} /* Subject */
+            .activity-table th:nth-child(7) {{ width: 12%; }} /* Protection */
+            .activity-table th:nth-child(8) {{ width: 12%; }} /* Feedback */
             
             /* Truncate long content with hover expansion for subject */
             .activity-table td:nth-child(5) {{
@@ -2295,6 +2586,7 @@ def build_testing_html(accounts):
                             <th>Category</th>
                             <th>Sender</th>
                             <th>Subject</th>
+                            <th>Protection</th>
                             <th>Feedback</th>
                         </tr>
                     </thead>
@@ -2422,6 +2714,11 @@ def build_testing_html(accounts):
                             // Keep full subject - hover will show complete text
                             const subject = email.subject;
                             
+                            // Flag status display
+                            const flagStatus = email.is_flagged ? '🛡️ Protected' : 'No Protection';
+                            const flagButtonText = email.is_flagged ? 'Remove' : 'Protect';
+                            const flagButtonClass = email.is_flagged ? 'btn-flag-remove' : 'btn-flag-protect';
+                            
                             const row = `
                                 <tr>
                                     <td>` + email.date + `</td>
@@ -2430,6 +2727,12 @@ def build_testing_html(accounts):
                                     <td>` + email.category + `</td>
                                     <td style="font-family: monospace; font-size: 0.9em;">` + sender + `</td>
                                     <td title="` + subject.replace(/"/g, '&quot;') + `">` + subject + `</td>
+                                    <td class="protection-column">
+                                        <div class="protection-status">` + flagStatus + `</div>
+                                        <button class="btn-flag ` + flagButtonClass + `" 
+                                                onclick="toggleEmailFlag(` + (email.account_id || 0) + `, '` + (email.folder || '') + `', '` + (email.uid || '') + `', ` + email.is_flagged + `, this)"
+                                                data-uid="` + (email.uid || '') + `">` + flagButtonText + `</button>
+                                    </td>
                                     <td class="feedback-buttons">
                                         <button class="btn-feedback btn-correct" 
                                                 data-uid="` + (email.uid || '') + `" 
@@ -2601,6 +2904,90 @@ def build_testing_html(accounts):
                 }}
             `;
             document.head.appendChild(style);
+            
+            // EMAIL FLAGGING FUNCTIONS
+            
+            async function toggleEmailFlag(accountId, folderName, emailUid, currentlyFlagged, buttonElement) {{
+                try {{
+                    // Disable button during operation
+                    buttonElement.disabled = true;
+                    const originalText = buttonElement.textContent;
+                    buttonElement.textContent = 'Working...';
+                    
+                    // Determine action and endpoint
+                    const action = currentlyFlagged ? 'unflag' : 'flag';
+                    const endpoint = '/api/emails/' + action;
+                    
+                    // Prepare request data
+                    const requestData = {{
+                        email_uid: emailUid,
+                        folder_name: folderName,
+                        account_id: accountId
+                    }};
+                    
+                    if (action === 'flag') {{
+                        requestData.flag_reason = 'User requested protection from web interface';
+                    }}
+                    
+                    // Make API call
+                    const response = await fetch(endpoint, {{
+                        method: 'POST',
+                        headers: {{
+                            'Content-Type': 'application/json'
+                        }},
+                        body: JSON.stringify(requestData)
+                    }});
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {{
+                        // Update UI to reflect new state
+                        updateProtectionDisplay(emailUid, !currentlyFlagged);
+                        
+                        // Show success message
+                        const message = currentlyFlagged ? 
+                            '🛡️ Email protection removed' : 
+                            '🛡️ Email protected from deletion';
+                        showTemporaryMessage(message, 'success');
+                        
+                    }} else {{
+                        throw new Error(result.message || 'Failed to update email protection');
+                    }}
+                    
+                }} catch (error) {{
+                    console.error('Flag toggle error:', error);
+                    showTemporaryMessage('❌ Error updating protection: ' + error.message, 'error');
+                    
+                    // Reset button on error
+                    buttonElement.disabled = false;
+                    buttonElement.textContent = originalText;
+                }}
+            }}
+            
+            function updateProtectionDisplay(emailUid, isFlagged) {{
+                // Find all elements for this email UID
+                const button = document.querySelector('button[data-uid="' + emailUid + '"].btn-flag');
+                const statusDiv = button ? button.parentElement.querySelector('.protection-status') : null;
+                
+                if (button && statusDiv) {{
+                    // Update status text
+                    statusDiv.textContent = isFlagged ? '🛡️ Protected' : 'No Protection';
+                    
+                    // Update button text and class
+                    button.textContent = isFlagged ? 'Remove' : 'Protect';
+                    button.className = 'btn-flag ' + (isFlagged ? 'btn-flag-remove' : 'btn-flag-protect');
+                    
+                    // Update onclick handler
+                    const accountId = button.onclick.toString().match(/toggleEmailFlag\((\d+),/)[1];
+                    const folderName = button.onclick.toString().match(/'([^']+)'/)[1];
+                    button.onclick = function() {{
+                        toggleEmailFlag(parseInt(accountId), folderName, emailUid, isFlagged, this);
+                    }};
+                    
+                    // Re-enable button
+                    button.disabled = false;
+                }}
+            }}
             
             // USER ANALYTICS AND STATS FUNCTIONS
             
@@ -5285,6 +5672,7 @@ async def single_account_page(account_id: int):
                                             <th style="padding: 12px; text-align: left; border-right: 1px solid #dee2e6; font-weight: 600;">Subject</th>
                                             <th style="padding: 12px; text-align: left; border-right: 1px solid #dee2e6; font-weight: 600;">Category</th>
                                             <th style="padding: 12px; text-align: center; border-right: 1px solid #dee2e6; font-weight: 600;">Confidence</th>
+                                            <th style="padding: 12px; text-align: center; border-right: 1px solid #dee2e6; font-weight: 600;">Protection</th>
                                             <th style="padding: 12px; text-align: center; border-right: 1px solid #dee2e6; font-weight: 600;">Action</th>
                                             <th style="padding: 12px; text-align: center; font-weight: 600;">Date</th>
                                         </tr>
@@ -5309,6 +5697,17 @@ async def single_account_page(account_id: int):
                                                     </span>
                                                 </td>
                                                 <td style="padding: 10px; border-right: 1px solid #eee; text-align: center;">
+                                                    <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                                                        <span style="font-size: 0.8em; color: #6c757d;">
+                                                            ${{email.is_flagged ? '🛡️ Protected' : 'No Protection'}}
+                                                        </span>
+                                                        <button onclick="toggleEmailFlagInTable('${{email.uid || ''}}', '${{email.folder_name || ''}}', ${{email.account_id || 0}}, ${{email.is_flagged}}, this)" 
+                                                                style="border: 1px solid ${{email.is_flagged ? '#dc3545' : '#28a745'}}; background: #f8f9fa; color: ${{email.is_flagged ? '#dc3545' : '#28a745'}}; padding: 2px 6px; border-radius: 3px; font-size: 0.75em; cursor: pointer; transition: all 0.2s;">
+                                                            ${{email.is_flagged ? 'Remove' : 'Protect'}}
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                                <td style="padding: 10px; border-right: 1px solid #eee; text-align: center;">
                                                     <span style="background: ${{email.action === 'DELETED' ? '#dc3545' : '#28a745'}}; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.85em; font-weight: 500;">
                                                         ${{email.action}}
                                                     </span>
@@ -5328,6 +5727,111 @@ async def single_account_page(account_id: int):
                             </div>
                         </div>
                     `;
+                }}
+                
+                // Toggle email flag function for table view
+                async function toggleEmailFlagInTable(emailUid, folderName, accountId, currentlyFlagged, buttonElement) {{
+                    try {{
+                        // Validate required parameters
+                        if (!emailUid || !folderName || !accountId || accountId === 0) {{
+                            throw new Error(`❌ Cannot flag this email: Missing email UID or folder information. This email may be from an older session before flagging was enabled.`);
+                        }}
+                        
+                        // Disable button during operation
+                        buttonElement.disabled = true;
+                        const originalText = buttonElement.textContent;
+                        buttonElement.textContent = 'Working...';
+                        
+                        // Determine action and endpoint
+                        const action = currentlyFlagged ? 'unflag' : 'flag';
+                        const endpoint = '/api/emails/' + action;
+                        
+                        // Prepare request data
+                        const requestData = {{
+                            email_uid: emailUid,
+                            folder_name: folderName,
+                            account_id: parseInt(accountId)
+                        }};
+                        
+                        if (action === 'flag') {{
+                            requestData.flag_reason = 'User requested protection from All Account Emails view';
+                        }}
+                        
+                        // Make API call
+                        const response = await fetch(endpoint, {{
+                            method: 'POST',
+                            headers: {{
+                                'Content-Type': 'application/json'
+                            }},
+                            body: JSON.stringify(requestData)
+                        }});
+                        
+                        const result = await response.json();
+                        
+                        if (result.success) {{
+                            // Update UI to reflect new state
+                            const newFlaggedState = !currentlyFlagged;
+                            
+                            // Update the status text
+                            const statusSpan = buttonElement.parentElement.querySelector('span');
+                            statusSpan.textContent = newFlaggedState ? '🛡️ Protected' : 'No Protection';
+                            
+                            // Update button text and styling
+                            buttonElement.textContent = newFlaggedState ? 'Remove' : 'Protect';
+                            buttonElement.style.borderColor = newFlaggedState ? '#dc3545' : '#28a745';
+                            buttonElement.style.color = newFlaggedState ? '#dc3545' : '#28a745';
+                            
+                            // Update onclick handler for new state
+                            buttonElement.onclick = function() {{
+                                toggleEmailFlagInTable(emailUid, folderName, accountId, newFlaggedState, this);
+                            }};
+                            
+                            // Show success message
+                            showSuccessMessage(currentlyFlagged ? 
+                                '🛡️ Email protection removed' : 
+                                '🛡️ Email protected from deletion');
+                            
+                        }} else {{
+                            throw new Error(result.message || 'Failed to update email protection');
+                        }}
+                        
+                    }} catch (error) {{
+                        console.error('Flag toggle error:', error);
+                        alert('❌ Error updating protection: ' + error.message);
+                        
+                        // Reset button on error
+                        buttonElement.disabled = false;
+                        buttonElement.textContent = originalText;
+                    }} finally {{
+                        // Re-enable button
+                        buttonElement.disabled = false;
+                    }}
+                }}
+                
+                function showSuccessMessage(message) {{
+                    // Create and show a temporary success message
+                    const messageDiv = document.createElement('div');
+                    messageDiv.style.cssText = `
+                        position: fixed;
+                        top: 20px;
+                        right: 20px;
+                        background: #28a745;
+                        color: white;
+                        padding: 10px 20px;
+                        border-radius: 5px;
+                        font-weight: bold;
+                        z-index: 1000;
+                        animation: slideIn 0.3s ease;
+                    `;
+                    messageDiv.textContent = message;
+                    
+                    document.body.appendChild(messageDiv);
+                    
+                    // Remove after 3 seconds
+                    setTimeout(() => {{
+                        messageDiv.style.animation = 'slideOut 0.3s ease';
+                        setTimeout(() => messageDiv.remove(), 300);
+                    }}, 3000);
                 }}
             </script>
         </body>
@@ -5459,18 +5963,28 @@ async def get_account_session_emails(account_id: int, session_id: str):
         # Query individual emails from the session
         emails = db.execute_query("""
             SELECT 
-                id,
-                sender_email,
-                subject,
-                category,
-                confidence_score,
-                action,
-                timestamp,
-                sender_domain,
-                uid
-            FROM processed_emails_bulletproof 
-            WHERE session_id = ?
-            ORDER BY timestamp DESC
+                pe.id,
+                pe.sender_email,
+                pe.subject,
+                pe.category,
+                pe.confidence_score,
+                pe.action,
+                pe.timestamp,
+                pe.sender_domain,
+                pe.uid,
+                pe.folder_name,
+                s.account_id,
+                CASE WHEN f.id IS NOT NULL THEN 1 ELSE 0 END as is_flagged
+            FROM processed_emails_bulletproof pe
+            JOIN sessions s ON pe.session_id = s.id
+            LEFT JOIN email_flags f ON (
+                pe.uid = f.email_uid AND 
+                pe.folder_name = f.folder_name AND 
+                s.account_id = f.account_id AND 
+                f.is_active = 1
+            )
+            WHERE pe.session_id = ?
+            ORDER BY pe.timestamp DESC
         """, (session_id_int,))
         
         # Format the results for frontend display
@@ -5485,7 +5999,10 @@ async def get_account_session_emails(account_id: int, session_id: str):
                 'action': email[5] or 'UNKNOWN',
                 'timestamp': email[6] or '',
                 'domain': email[7] or '',
-                'uid': email[8] or ''
+                'uid': email[8] or '',
+                'folder_name': email[9] or '',
+                'account_id': email[10] or account_id,
+                'is_flagged': bool(email[11])
             })
         
         return {
@@ -5529,9 +6046,18 @@ async def get_all_account_emails(account_id: int):
                 pe.timestamp,
                 pe.sender_domain,
                 pe.uid,
-                s.id as session_id
+                pe.folder_name,
+                s.account_id,
+                s.id as session_id,
+                CASE WHEN f.id IS NOT NULL THEN 1 ELSE 0 END as is_flagged
             FROM processed_emails_bulletproof pe
             JOIN sessions s ON pe.session_id = s.id
+            LEFT JOIN email_flags f ON (
+                pe.uid = f.email_uid AND 
+                pe.folder_name = f.folder_name AND 
+                s.account_id = f.account_id AND 
+                f.is_active = 1
+            )
             WHERE pe.timestamp > datetime('now', '-30 days')
             AND EXISTS (
                 SELECT 1 FROM sessions s2 
@@ -5557,7 +6083,10 @@ async def get_all_account_emails(account_id: int):
                 'timestamp': email[6] or '',
                 'domain': email[7] or '',
                 'uid': email[8] or '',
-                'session_id': email[9] or ''
+                'folder_name': email[9] or '',
+                'account_id': email[10] or account_id,
+                'session_id': email[11] or '',
+                'is_flagged': bool(email[12])
             })
         
         return {

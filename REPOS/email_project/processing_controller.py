@@ -60,7 +60,7 @@ def run_preview_for_account(account_id, debug_mode=False, preview_mode=True):
         
         try:
             # Initialize processors
-            processor = EmailProcessor(mail, account['email_address'])
+            processor = EmailProcessor(mail, account_email=account['email_address'], account_id=account['id'])
             domain_validator = DomainValidator()
             
             # Get filters (empty list is OK - system uses database spam detection)

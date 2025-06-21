@@ -12,7 +12,7 @@ import threading
 
 # Database configuration
 DB_FILE = "mail_filter.db"
-DB_VERSION = 3  # Incremented for user analytics and immediate deletions tables
+DB_VERSION = 4  # Incremented for email flagging system
 SCHEMA_VERSION_TABLE = "schema_version"
 
 class DatabaseManager:
@@ -367,6 +367,41 @@ class DatabaseManager:
             cursor.execute("CREATE INDEX idx_immediate_deletions_success ON immediate_deletions(success)")
             
             print("✅ User analytics and immediate deletions tables created successfully")
+        
+        if current_version < 4:
+            # Version 4: Add email flagging system
+            print("🔄 Adding email flagging table...")
+            
+            # Email flags table for protecting emails from deletion
+            cursor.execute("""
+                CREATE TABLE email_flags (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    email_uid TEXT NOT NULL,
+                    folder_name TEXT NOT NULL,
+                    account_id INTEGER NOT NULL,
+                    session_id INTEGER,
+                    sender_email TEXT,
+                    subject TEXT,
+                    flag_type TEXT DEFAULT 'PROTECT',
+                    flag_reason TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    created_by TEXT DEFAULT 'user',
+                    is_active BOOLEAN DEFAULT TRUE,
+                    FOREIGN KEY (account_id) REFERENCES accounts (id),
+                    FOREIGN KEY (session_id) REFERENCES sessions (id)
+                )
+            """)
+            
+            # Create indexes for efficient flagging queries
+            cursor.execute("CREATE INDEX idx_email_flags_uid_folder_account ON email_flags(email_uid, folder_name, account_id)")
+            cursor.execute("CREATE INDEX idx_email_flags_account ON email_flags(account_id)")
+            cursor.execute("CREATE INDEX idx_email_flags_active ON email_flags(is_active)")
+            cursor.execute("CREATE INDEX idx_email_flags_created ON email_flags(created_at)")
+            
+            # Create unique constraint to prevent duplicate flags
+            cursor.execute("CREATE UNIQUE INDEX idx_email_flags_unique ON email_flags(email_uid, folder_name, account_id) WHERE is_active = TRUE")
+            
+            print("✅ Email flagging table created successfully")
     
     @contextmanager
     def get_connection(self):
@@ -619,6 +654,200 @@ class DatabaseManager:
                 WHERE id IN ({placeholders})
             """, feedback_ids)
             conn.commit()
+    
+    # Email Flagging System Methods
+    
+    def flag_email_for_protection(self, email_uid: str, folder_name: str, account_id: int,
+                                 session_id: int = None, sender_email: str = None, 
+                                 subject: str = None, flag_reason: str = None,
+                                 created_by: str = 'user') -> bool:
+        """
+        Flag an email for protection from deletion.
+        
+        Args:
+            email_uid: IMAP UID of the email
+            folder_name: Folder containing the email
+            account_id: Account ID the email belongs to
+            session_id: Session ID when flag was created (optional)
+            sender_email: Email sender (optional, for display)
+            subject: Email subject (optional, for display)
+            flag_reason: Reason for flagging (optional)
+            created_by: Who created the flag (default: 'user')
+            
+        Returns:
+            True if flag was created successfully, False otherwise
+        """
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                
+                # Check if email is already flagged
+                cursor.execute("""
+                    SELECT id FROM email_flags 
+                    WHERE email_uid = ? AND folder_name = ? AND account_id = ? AND is_active = TRUE
+                """, (email_uid, folder_name, account_id))
+                
+                if cursor.fetchone():
+                    print(f"Email {email_uid} in {folder_name} is already flagged")
+                    return True  # Already flagged, consider success
+                
+                # Insert new flag
+                cursor.execute("""
+                    INSERT INTO email_flags (
+                        email_uid, folder_name, account_id, session_id, 
+                        sender_email, subject, flag_reason, created_by
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """, (email_uid, folder_name, account_id, session_id, 
+                     sender_email, subject, flag_reason, created_by))
+                
+                conn.commit()
+                print(f"✅ Flagged email {email_uid} in {folder_name} for protection")
+                return True
+                
+        except Exception as e:
+            print(f"❌ Failed to flag email {email_uid}: {e}")
+            return False
+    
+    def unflag_email(self, email_uid: str, folder_name: str, account_id: int) -> bool:
+        """
+        Remove protection flag from an email.
+        
+        Args:
+            email_uid: IMAP UID of the email
+            folder_name: Folder containing the email
+            account_id: Account ID the email belongs to
+            
+        Returns:
+            True if flag was removed successfully, False otherwise
+        """
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                
+                # Deactivate the flag (soft delete)
+                cursor.execute("""
+                    UPDATE email_flags 
+                    SET is_active = FALSE 
+                    WHERE email_uid = ? AND folder_name = ? AND account_id = ? AND is_active = TRUE
+                """, (email_uid, folder_name, account_id))
+                
+                if cursor.rowcount > 0:
+                    conn.commit()
+                    print(f"✅ Removed flag from email {email_uid} in {folder_name}")
+                    return True
+                else:
+                    print(f"No active flag found for email {email_uid} in {folder_name}")
+                    return False
+                    
+        except Exception as e:
+            print(f"❌ Failed to unflag email {email_uid}: {e}")
+            return False
+    
+    def is_email_flagged(self, email_uid: str, folder_name: str, account_id: int) -> bool:
+        """
+        Check if an email is flagged for protection.
+        
+        Args:
+            email_uid: IMAP UID of the email
+            folder_name: Folder containing the email
+            account_id: Account ID the email belongs to
+            
+        Returns:
+            True if email is flagged, False otherwise
+        """
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                
+                cursor.execute("""
+                    SELECT id FROM email_flags 
+                    WHERE email_uid = ? AND folder_name = ? AND account_id = ? AND is_active = TRUE
+                """, (email_uid, folder_name, account_id))
+                
+                return cursor.fetchone() is not None
+                
+        except Exception as e:
+            print(f"❌ Failed to check flag status for email {email_uid}: {e}")
+            return False
+    
+    def get_flagged_emails(self, account_id: int = None, limit: int = 100) -> List[Dict[str, Any]]:
+        """
+        Get list of flagged emails.
+        
+        Args:
+            account_id: Filter by account (optional)
+            limit: Maximum number of results
+            
+        Returns:
+            List of flagged email records
+        """
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                
+                if account_id:
+                    cursor.execute("""
+                        SELECT 
+                            f.id, f.email_uid, f.folder_name, f.account_id,
+                            f.sender_email, f.subject, f.flag_reason,
+                            f.created_at, f.created_by,
+                            a.email_address as account_email
+                        FROM email_flags f
+                        LEFT JOIN accounts a ON f.account_id = a.id
+                        WHERE f.account_id = ? AND f.is_active = TRUE
+                        ORDER BY f.created_at DESC
+                        LIMIT ?
+                    """, (account_id, limit))
+                else:
+                    cursor.execute("""
+                        SELECT 
+                            f.id, f.email_uid, f.folder_name, f.account_id,
+                            f.sender_email, f.subject, f.flag_reason,
+                            f.created_at, f.created_by,
+                            a.email_address as account_email
+                        FROM email_flags f
+                        LEFT JOIN accounts a ON f.account_id = a.id
+                        WHERE f.is_active = TRUE
+                        ORDER BY f.created_at DESC
+                        LIMIT ?
+                    """, (limit,))
+                
+                return [dict(row) for row in cursor.fetchall()]
+                
+        except Exception as e:
+            print(f"❌ Failed to get flagged emails: {e}")
+            return []
+    
+    def get_flagged_count(self, account_id: int = None) -> int:
+        """
+        Get count of flagged emails.
+        
+        Args:
+            account_id: Filter by account (optional)
+            
+        Returns:
+            Number of flagged emails
+        """
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                
+                if account_id:
+                    cursor.execute("""
+                        SELECT COUNT(*) FROM email_flags 
+                        WHERE account_id = ? AND is_active = TRUE
+                    """, (account_id,))
+                else:
+                    cursor.execute("""
+                        SELECT COUNT(*) FROM email_flags 
+                        WHERE is_active = TRUE
+                    """)
+                
+                return cursor.fetchone()[0]
+                
+        except Exception as e:
+            print(f"❌ Failed to get flagged email count: {e}")
+            return 0
 
 # Global database instance
 db = DatabaseManager()

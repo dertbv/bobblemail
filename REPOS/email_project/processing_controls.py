@@ -146,12 +146,21 @@ class ProcessingController:
                 LIMIT 50
             """, (session_id,))
             
-            # Format for display
+            # Format for display with flag status
             formatted_emails = []
             for email in preview_emails:
                 try:
                     dt = datetime.fromisoformat(email['timestamp'].replace('T', ' ').replace('Z', ''))
                     action = "WOULD DELETE" if email['action'] == 'DELETED' else "WOULD PRESERVE"
+                    
+                    # Check if email is flagged for protection
+                    is_flagged = False
+                    if email['uid'] and email['folder_name']:
+                        is_flagged = db.is_email_flagged(
+                            email_uid=email['uid'],
+                            folder_name=email['folder_name'],
+                            account_id=account_id
+                        )
                     
                     formatted_emails.append({
                         "date": dt.strftime("%m/%d"),
@@ -163,7 +172,9 @@ class ProcessingController:
                         "subject": email['subject'] or "",
                         "reason": email['reason'] or "",
                         "category": email['category'] or "Unknown",
-                        "confidence": f"{email['confidence_score']:.1f}" if email['confidence_score'] else ""
+                        "confidence": f"{email['confidence_score']:.1f}" if email['confidence_score'] else "",
+                        "is_flagged": is_flagged,
+                        "account_id": account_id  # Include for flagging operations
                     })
                 except Exception as e:
                     print(f"Error formatting email: {e}")
@@ -623,6 +634,66 @@ def build_processing_controls_html(accounts):
                 background: #f8f9fa;
             }}
             
+            .flag-btn {{
+                padding: 4px 8px;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 0.8em;
+                margin: 0 2px;
+                transition: all 0.2s ease;
+            }}
+            
+            .flag-btn:hover {{
+                transform: translateY(-1px);
+                box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            }}
+            
+            .flag-btn.flag {{
+                background: #28a745;
+                color: white;
+            }}
+            
+            .flag-btn.unflag {{
+                background: #dc3545;
+                color: white;
+            }}
+            
+            .flag-btn.flagged {{
+                background: #ffc107;
+                color: #333;
+            }}
+            
+            .flag-btn:disabled {{
+                opacity: 0.6;
+                cursor: not-allowed;
+                transform: none;
+            }}
+            
+            .protection-indicator {{
+                display: inline-flex;
+                align-items: center;
+                gap: 5px;
+            }}
+            
+            .flag-status {{
+                font-size: 0.9em;
+                padding: 2px 6px;
+                border-radius: 12px;
+            }}
+            
+            .flag-status.protected {{
+                background: #d4edda;
+                color: #155724;
+                border: 1px solid #c3e6cb;
+            }}
+            
+            .flag-status.not-protected {{
+                background: #f8f9fa;
+                color: #6c757d;
+                border: 1px solid #dee2e6;
+            }}
+            
             .status-indicator {{
                 position: fixed;
                 top: 20px;
@@ -790,6 +861,7 @@ def build_processing_controls_html(accounts):
                             <th>Time</th>
                             <th>Folder</th>
                             <th>Action</th>
+                            <th>Protection</th>
                             <th>Category</th>
                             <th>Sender</th>
                             <th>Subject</th>
@@ -1019,6 +1091,9 @@ def build_processing_controls_html(accounts):
             }}
             
             function displayResults(result) {{
+                // Store results for flagging operations
+                currentResults = result;
+                
                 const resultsSection = document.getElementById('results-section');
                 const resultsTitle = document.getElementById('results-title');
                 const resultsSummary = document.getElementById('results-summary');
@@ -1063,17 +1138,40 @@ def build_processing_controls_html(accounts):
                     `;
                 }}
                 
-                // Populate results table
+                // Populate results table with flagging functionality
                 resultsBody.innerHTML = '';
-                result.emails.forEach(email => {{
+                result.emails.forEach((email, index) => {{
                     const actionColor = email.action.includes('DELETE') ? '#dc3545' : '#28a745';
                     const actionEmoji = email.action.includes('DELETE') ? '🗑️' : '✅';
                     
+                    // Create protection column content
+                    let protectionContent = '';
+                    if (email.uid && email.folder && email.account_id) {{
+                        const isFlagged = email.is_flagged || false;
+                        const flagStatus = isFlagged ? 
+                            '<span class="flag-status protected">🛡️ Protected</span>' :
+                            '<span class="flag-status not-protected">No Protection</span>';
+                        
+                        const flagButton = isFlagged ?
+                            `<button class="flag-btn unflag" onclick="toggleEmailFlag('${{email.uid}}', '${{email.folder}}', ${{email.account_id}}, false, ${{index}})">Remove</button>` :
+                            `<button class="flag-btn flag" onclick="toggleEmailFlag('${{email.uid}}', '${{email.folder}}', ${{email.account_id}}, true, ${{index}})">Protect</button>`;
+                        
+                        protectionContent = `
+                            <div class="protection-indicator">
+                                ${{flagStatus}}
+                                ${{flagButton}}
+                            </div>
+                        `;
+                    }} else {{
+                        protectionContent = '<span style="color: #888;">N/A</span>';
+                    }}
+                    
                     const row = `
-                        <tr>
+                        <tr id="email-row-${{index}}">
                             <td>${{email.date}} ${{email.time}}</td>
                             <td>${{email.folder}}</td>
                             <td style="color: ${{actionColor}}; font-weight: bold;">${{actionEmoji}} ${{email.action}}</td>
+                            <td id="protection-cell-${{index}}">${{protectionContent}}</td>
                             <td>${{email.category}}</td>
                             <td style="font-family: monospace; font-size: 0.9em;">${{email.sender_email}}</td>
                             <td>${{email.subject}}</td>
@@ -1148,6 +1246,90 @@ def build_processing_controls_html(accounts):
                 statusIndicator.textContent = '🟢 Processing Controls Ready';
                 statusIndicator.style.background = '#28a745';
             }}
+            
+            // Email flagging functionality
+            async function toggleEmailFlag(emailUid, folderName, accountId, shouldFlag, rowIndex) {{
+                const protectionCell = document.getElementById(`protection-cell-${{rowIndex}}`);
+                const button = protectionCell.querySelector('.flag-btn');
+                
+                // Disable button during operation
+                if (button) {{
+                    button.disabled = true;
+                    button.textContent = shouldFlag ? 'Protecting...' : 'Removing...';
+                }}
+                
+                try {{
+                    const endpoint = shouldFlag ? '/api/emails/flag' : '/api/emails/unflag';
+                    const response = await fetch(endpoint, {{
+                        method: 'POST',
+                        headers: {{ 'Content-Type': 'application/json' }},
+                        body: JSON.stringify({{
+                            email_uid: emailUid,
+                            folder_name: folderName,
+                            account_id: accountId,
+                            sender_email: currentResults?.emails?.[rowIndex]?.sender_email,
+                            subject: currentResults?.emails?.[rowIndex]?.subject,
+                            flag_reason: shouldFlag ? 'User protected from web interface' : undefined
+                        }})
+                    }});
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {{
+                        // Update UI to reflect new flag status
+                        updateProtectionDisplay(protectionCell, !shouldFlag, emailUid, folderName, accountId, rowIndex);
+                        
+                        // Show success message
+                        const statusIndicator = document.getElementById('status-indicator');
+                        const originalText = statusIndicator.textContent;
+                        const originalColor = statusIndicator.style.background;
+                        
+                        statusIndicator.textContent = shouldFlag ? '🛡️ Email Protected' : '✅ Protection Removed';
+                        statusIndicator.style.background = '#28a745';
+                        
+                        setTimeout(() => {{
+                            statusIndicator.textContent = originalText;
+                            statusIndicator.style.background = originalColor;
+                        }}, 3000);
+                        
+                    }} else {{
+                        alert(`❌ ${{shouldFlag ? 'Flagging' : 'Unflagging'}} failed: ${{result.message}}`);
+                        // Restore button state
+                        if (button) {{
+                            button.disabled = false;
+                            button.textContent = shouldFlag ? 'Protect' : 'Remove';
+                        }}
+                    }}
+                    
+                }} catch (error) {{
+                    alert(`❌ Error: ${{error.message}}`);
+                    // Restore button state
+                    if (button) {{
+                        button.disabled = false;
+                        button.textContent = shouldFlag ? 'Protect' : 'Remove';
+                    }}
+                }}
+            }}
+            
+            function updateProtectionDisplay(protectionCell, isFlagged, emailUid, folderName, accountId, rowIndex) {{
+                const flagStatus = isFlagged ? 
+                    '<span class="flag-status protected">🛡️ Protected</span>' :
+                    '<span class="flag-status not-protected">No Protection</span>';
+                
+                const flagButton = isFlagged ?
+                    `<button class="flag-btn unflag" onclick="toggleEmailFlag('${{emailUid}}', '${{folderName}}', ${{accountId}}, false, ${{rowIndex}})">Remove</button>` :
+                    `<button class="flag-btn flag" onclick="toggleEmailFlag('${{emailUid}}', '${{folderName}}', ${{accountId}}, true, ${{rowIndex}})">Protect</button>`;
+                
+                protectionCell.innerHTML = `
+                    <div class="protection-indicator">
+                        ${{flagStatus}}
+                        ${{flagButton}}
+                    </div>
+                `;
+            }}
+            
+            // Store current results for flagging operations
+            let currentResults = null;
             
             // Initialize
             selectMode('preview');

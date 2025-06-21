@@ -529,11 +529,12 @@ class FolderManager:
 class EmailProcessor:
     """Main class for processing emails in folders with provider optimization"""
 
-    def __init__(self, mail_connection, domain_validator=None, account_email=None):
+    def __init__(self, mail_connection, domain_validator=None, account_email=None, account_id=None):
         self.mail = mail_connection
         # Initialize with new split architecture
         self.domain_validator = domain_validator or DomainValidator(logger=write_log)
         self.account_email = account_email
+        self.account_id = account_id
         
         # Initialize Unified Keyword Processor (content-first classification)
         self.keyword_processor = KeywordProcessor()
@@ -1040,6 +1041,54 @@ class EmailProcessor:
         if not quiet_mode:
             print(f"\n🗑️  DELETING {len(messages_to_delete):,} MESSAGES")
             print("=" * 50)
+        
+        # FLAGGING SYSTEM: Check for protected emails before deletion
+        flagged_emails = []
+        messages_to_actually_delete = []
+        
+        if hasattr(self, 'account_id') and self.account_id:
+            account_id = self.account_id
+        else:
+            # Try to get account_id from database using email address
+            try:
+                account_records = db.execute_query(
+                    "SELECT id FROM accounts WHERE email_address = ?", 
+                    (self.account_email,)
+                )
+                account_id = account_records[0]['id'] if account_records else None
+            except:
+                account_id = None
+        
+        if account_id:
+            for uid, sender, subject, reason, category, confidence in messages_to_delete:
+                if db.is_email_flagged(uid, folder_name, account_id):
+                    flagged_emails.append((uid, sender, subject, reason, category, confidence))
+                    # Log as preserved due to flag protection
+                    logger.log_email_action("PRESERVED", uid, sender, subject, folder_name, 
+                                           f"Protected by user flag [FLAG_PROTECTED]", category, 
+                                           confidence_score=confidence, print_to_screen=False)
+                    if not quiet_mode:
+                        print(f"🛡️  PROTECTED: UID {uid} '{subject}' from {sender} - User flagged for protection")
+                else:
+                    messages_to_actually_delete.append((uid, sender, subject, reason, category, confidence))
+        else:
+            # No account ID available, proceed with all deletions (safety fallback)
+            messages_to_actually_delete = messages_to_delete
+            if not quiet_mode and account_id is None:
+                print("⚠️  Warning: Could not verify flag protection (account ID not found)")
+        
+        # Update messages_to_delete to only include non-flagged emails
+        messages_to_delete = messages_to_actually_delete
+        
+        if flagged_emails:
+            if not quiet_mode:
+                print(f"🛡️  {len(flagged_emails)} emails protected by user flags (will not be deleted)")
+            write_log(f"Flag protection prevented deletion of {len(flagged_emails)} emails in {folder_name}", False)
+        
+        if not messages_to_delete:
+            if not quiet_mode:
+                print("✅ No emails to delete (all protected or none marked)")
+            return 0
         
         # Log provider optimization
         write_log(f"Using {self.provider_type} optimized deletion strategy", False)
