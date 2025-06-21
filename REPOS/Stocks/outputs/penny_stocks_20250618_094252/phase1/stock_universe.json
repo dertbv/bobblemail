@@ -1,0 +1,254 @@
+[
+  {
+    "ticker": "SNDL",
+    "price": 1.28,
+    "market_cap": 329336320,
+    "sector": "Consumer Defensive",
+    "industry": "Beverages - Wineries & Distilleries"
+  },
+  {
+    "ticker": "NOK",
+    "price": 5.145,
+    "market_cap": 28004902912,
+    "sector": "Technology",
+    "industry": "Communication Equipment"
+  },
+  {
+    "ticker": "BBD",
+    "price": 3.09,
+    "market_cap": 29551585280,
+    "sector": "Financial Services",
+    "industry": "Banks - Regional"
+  },
+  {
+    "ticker": "TLRY",
+    "price": 0.376,
+    "market_cap": 382591712,
+    "sector": "Healthcare",
+    "industry": "Drug Manufacturers - Specialty & Generic"
+  },
+  {
+    "ticker": "NIO",
+    "price": 3.4609,
+    "market_cap": 7872890368,
+    "sector": "Consumer Cyclical",
+    "industry": "Auto Manufacturers"
+  },
+  {
+    "ticker": "WKHS",
+    "price": 0.9898,
+    "market_cap": 9376435,
+    "sector": "Consumer Cyclical",
+    "industry": "Auto Manufacturers"
+  },
+  {
+    "ticker": "CLOV",
+    "price": 2.8233,
+    "market_cap": 1436825344,
+    "sector": "Healthcare",
+    "industry": "Healthcare Plans"
+  },
+  {
+    "ticker": "AMC",
+    "price": 3.0243,
+    "market_cap": 1309957504,
+    "sector": "Communication Services",
+    "industry": "Entertainment"
+  },
+  {
+    "ticker": "BB",
+    "price": 4.375,
+    "market_cap": 2622129920,
+    "sector": "Technology",
+    "industry": "Software - Infrastructure"
+  },
+  {
+    "ticker": "ATOS",
+    "price": 0.8208,
+    "market_cap": 106022736,
+    "sector": "Healthcare",
+    "industry": "Biotechnology"
+  },
+  {
+    "ticker": "CTXR",
+    "price": 0.8369,
+    "market_cap": 9063878,
+    "sector": "Healthcare",
+    "industry": "Biotechnology"
+  },
+  {
+    "ticker": "XELA",
+    "price": 0.0222,
+    "market_cap": 616074,
+    "sector": "Technology",
+    "industry": "Software - Application"
+  },
+  {
+    "ticker": "SENS",
+    "price": 0.5035,
+    "market_cap": 379785504,
+    "sector": "Healthcare",
+    "industry": "Medical Devices"
+  },
+  {
+    "ticker": "SAVA",
+    "price": 2.0703,
+    "market_cap": 100011848,
+    "sector": "Healthcare",
+    "industry": "Biotechnology"
+  },
+  {
+    "ticker": "ADTX",
+    "price": 1.4,
+    "market_cap": 2968070,
+    "sector": "Healthcare",
+    "industry": "Biotechnology"
+  },
+  {
+    "ticker": "BNGO",
+    "price": 3.28,
+    "market_cap": 11033920,
+    "sector": "Healthcare",
+    "industry": "Medical Instruments & Supplies"
+  },
+  {
+    "ticker": "OCGN",
+    "price": 1.0597,
+    "market_cap": 309465248,
+    "sector": "Healthcare",
+    "industry": "Biotechnology"
+  },
+  {
+    "ticker": "HYMC",
+    "price": 3.285,
+    "market_cap": 123132976,
+    "sector": "Basic Materials",
+    "industry": "Gold"
+  },
+  {
+    "ticker": "MULN",
+    "price": 1.441,
+    "market_cap": 1150854,
+    "sector": "Consumer Cyclical",
+    "industry": "Auto Manufacturers"
+  },
+  {
+    "ticker": "EEGI",
+    "price": 0.0003,
+    "market_cap": 2557359,
+    "sector": "Financial Services",
+    "industry": "Shell Companies"
+  },
+  {
+    "ticker": "OZSC",
+    "price": 0.0003,
+    "market_cap": 2535198,
+    "sector": "Industrials",
+    "industry": "Electrical Equipment & Parts"
+  },
+  {
+    "ticker": "OPTI",
+    "price": 0.0016,
+    "market_cap": 7363120,
+    "sector": "Consumer Cyclical",
+    "industry": "Auto Parts"
+  },
+  {
+    "ticker": "CRYBF",
+    "price": 0.03,
+    "market_cap": 4044149,
+    "sector": "Technology",
+    "industry": "Software - Infrastructure"
+  },
+  {
+    "ticker": "WDLF",
+    "price": 0.0003,
+    "market_cap": 2218437,
+    "sector": "Technology",
+    "industry": "Software - Application"
+  },
+  {
+    "ticker": "SIRC",
+    "price": 0.0001,
+    "market_cap": 1097550,
+    "sector": "Technology",
+    "industry": "Solar"
+  },
+  {
+    "ticker": "HMBL",
+    "price": 0.0002,
+    "market_cap": 8288600,
+    "sector": "Technology",
+    "industry": "Software - Application"
+  },
+  {
+    "ticker": "RGBP",
+    "price": 0.0614,
+    "market_cap": 1323458,
+    "sector": "Healthcare",
+    "industry": "Biotechnology"
+  },
+  {
+    "ticker": "DPLS",
+    "price": 0.0003,
+    "market_cap": 4077480,
+    "sector": "Technology",
+    "industry": "Scientific & Technical Instruments"
+  },
+  {
+    "ticker": "AITX",
+    "price": 0.0015,
+    "market_cap": 25496250,
+    "sector": "Industrials",
+    "industry": "Rental & Leasing Services"
+  },
+  {
+    "ticker": "ADTX",
+    "price": 1.4,
+    "market_cap": 2968070,
+    "sector": "Healthcare",
+    "industry": "Biotechnology"
+  },
+  {
+    "ticker": "IBIO",
+    "price": 0.9145,
+    "market_cap": 15106900,
+    "sector": "Healthcare",
+    "industry": "Biotechnology"
+  },
+  {
+    "ticker": "JAGX",
+    "price": 3.055,
+    "market_cap": 3863536,
+    "sector": "Healthcare",
+    "industry": "Biotechnology"
+  },
+  {
+    "ticker": "VISL",
+    "price": 2.25,
+    "market_cap": 5551830,
+    "sector": "Technology",
+    "industry": "Communication Equipment"
+  },
+  {
+    "ticker": "SKLZ",
+    "price": 6.23,
+    "market_cap": 99244520,
+    "sector": "Communication Services",
+    "industry": "Electronic Gaming & Multimedia"
+  },
+  {
+    "ticker": "MRIN",
+    "price": 0.8894,
+    "market_cap": 2835869,
+    "sector": "Technology",
+    "industry": "Software - Application"
+  },
+  {
+    "ticker": "RELI",
+    "price": 3.4096,
+    "market_cap": 10143253,
+    "sector": "Financial Services",
+    "industry": "Insurance Brokers"
+  }
+]

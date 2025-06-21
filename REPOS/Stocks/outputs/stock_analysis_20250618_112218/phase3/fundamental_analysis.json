@@ -1,0 +1,434 @@
+{
+  "SNDL": {
+    "score": 20,
+    "revenue_growth": 0.036,
+    "profit_margins": -0.11529,
+    "debt_to_equity": 13.447,
+    "current_ratio": 4.616,
+    "operating_margins": -0.04002
+  },
+  "NOK": {
+    "score": 40,
+    "revenue_growth": -0.012,
+    "profit_margins": 0.04091,
+    "debt_to_equity": 24.329,
+    "current_ratio": 1.361,
+    "operating_margins": 0.01344
+  },
+  "F": {
+    "score": 40,
+    "revenue_growth": -0.05,
+    "profit_margins": 0.02744,
+    "debt_to_equity": 353.298,
+    "current_ratio": 1.132,
+    "operating_margins": 0.00969
+  },
+  "BBD": {
+    "score": 80,
+    "revenue_growth": 0.265,
+    "profit_margins": 0.22405,
+    "debt_to_equity": 0.0,
+    "current_ratio": 0.0,
+    "operating_margins": 0.32076
+  },
+  "TLRY": {
+    "score": 20,
+    "revenue_growth": -0.014,
+    "profit_margins": -1.14399,
+    "debt_to_equity": 12.727,
+    "current_ratio": 2.618,
+    "operating_margins": -0.16761999
+  },
+  "NIO": {
+    "score": 20,
+    "revenue_growth": 0.215,
+    "profit_margins": -0.35797,
+    "debt_to_equity": 414.976,
+    "current_ratio": 0.837,
+    "operating_margins": -0.53330004
+  },
+  "WKHS": {
+    "score": 0,
+    "revenue_growth": -0.521,
+    "profit_margins": 0.0,
+    "debt_to_equity": 161.494,
+    "current_ratio": 0.965,
+    "operating_margins": -20.0286
+  },
+  "CLOV": {
+    "score": 60,
+    "revenue_growth": 0.334,
+    "profit_margins": -0.01689,
+    "debt_to_equity": 0.0,
+    "current_ratio": 1.537,
+    "operating_margins": -0.0027599998
+  },
+  "AMC": {
+    "score": 20,
+    "revenue_growth": -0.093,
+    "profit_margins": -0.08601,
+    "debt_to_equity": 0.0,
+    "current_ratio": 0.42,
+    "operating_margins": -0.16603
+  },
+  "BB": {
+    "score": 40,
+    "revenue_growth": -0.181,
+    "profit_margins": -0.14769,
+    "debt_to_equity": 33.199,
+    "current_ratio": 1.718,
+    "operating_margins": 0.07833
+  },
+  "ATOS": {
+    "score": 40,
+    "revenue_growth": 0.0,
+    "profit_margins": 0.0,
+    "debt_to_equity": 0.0,
+    "current_ratio": 12.672,
+    "operating_margins": 0.0
+  },
+  "CTXR": {
+    "score": 0,
+    "revenue_growth": 0.0,
+    "profit_margins": 0.0,
+    "debt_to_equity": 1.466,
+    "current_ratio": 0.368,
+    "operating_margins": 0.0
+  },
+  "SENS": {
+    "score": 40,
+    "revenue_growth": 0.24,
+    "profit_margins": 0.0,
+    "debt_to_equity": 116.7,
+    "current_ratio": 6.884,
+    "operating_margins": -2.15567
+  },
+  "SAVA": {
+    "score": 40,
+    "revenue_growth": 0.0,
+    "profit_margins": 0.0,
+    "debt_to_equity": 0.0,
+    "current_ratio": 9.077,
+    "operating_margins": 0.0
+  },
+  "ADTX": {
+    "score": 0,
+    "revenue_growth": -0.987,
+    "profit_margins": 0.0,
+    "debt_to_equity": 25.836,
+    "current_ratio": 0.08,
+    "operating_margins": -5508.9536
+  },
+  "BNGO": {
+    "score": 20,
+    "revenue_growth": -0.264,
+    "profit_margins": -2.9404502,
+    "debt_to_equity": 38.215,
+    "current_ratio": 1.701,
+    "operating_margins": -1.3109801
+  },
+  "OCGN": {
+    "score": 40,
+    "revenue_growth": 0.461,
+    "profit_margins": 0.0,
+    "debt_to_equity": 199.969,
+    "current_ratio": 2.604,
+    "operating_margins": -9.79136
+  },
+  "HYMC": {
+    "score": 40,
+    "revenue_growth": 0.0,
+    "profit_margins": 0.0,
+    "debt_to_equity": 0.0,
+    "current_ratio": 16.168,
+    "operating_margins": 0.0
+  },
+  "MULN": {
+    "score": 40,
+    "revenue_growth": 147.497,
+    "profit_margins": 0.0,
+    "debt_to_equity": 0.0,
+    "current_ratio": 0.253,
+    "operating_margins": -10.81451
+  },
+  "EEGI": {
+    "score": 20,
+    "revenue_growth": 0.0,
+    "profit_margins": 0.0,
+    "debt_to_equity": 0.0,
+    "current_ratio": 0.0,
+    "operating_margins": 0.0
+  },
+  "OZSC": {
+    "score": 20,
+    "revenue_growth": -0.832,
+    "profit_margins": 0.0,
+    "debt_to_equity": 0.0,
+    "current_ratio": 0.013,
+    "operating_margins": -22.02781
+  },
+  "OPTI": {
+    "score": 20,
+    "revenue_growth": 0.0,
+    "profit_margins": 0.0,
+    "debt_to_equity": 0.0,
+    "current_ratio": 0.018,
+    "operating_margins": -15.13194
+  },
+  "CRYBF": {
+    "score": 20,
+    "revenue_growth": 0.0,
+    "profit_margins": 0.0,
+    "debt_to_equity": 0.0,
+    "current_ratio": 0.005,
+    "operating_margins": -352.06116
+  },
+  "WDLF": {
+    "score": 40,
+    "revenue_growth": -0.662,
+    "profit_margins": 0.09323,
+    "debt_to_equity": 26.961,
+    "current_ratio": 7.148,
+    "operating_margins": -0.50136
+  },
+  "SIRC": {
+    "score": 80,
+    "revenue_growth": 3.33,
+    "profit_margins": 0.25002,
+    "debt_to_equity": 43.607,
+    "current_ratio": 1.541,
+    "operating_margins": 0.12871
+  },
+  "HMBL": {
+    "score": 0,
+    "revenue_growth": 0.0,
+    "profit_margins": 0.0,
+    "debt_to_equity": 22.726,
+    "current_ratio": 0.743,
+    "operating_margins": 0.0
+  },
+  "RGBP": {
+    "score": 20,
+    "revenue_growth": 0.0,
+    "profit_margins": 0.0,
+    "debt_to_equity": 0.0,
+    "current_ratio": 0.026,
+    "operating_margins": -1.9190601
+  },
+  "DPLS": {
+    "score": 40,
+    "revenue_growth": 11.997,
+    "profit_margins": 0.0,
+    "debt_to_equity": 0.0,
+    "current_ratio": 0.068,
+    "operating_margins": -2.99262
+  },
+  "AITX": {
+    "score": 40,
+    "revenue_growth": 1.157,
+    "profit_margins": 0.0,
+    "debt_to_equity": 0.0,
+    "current_ratio": 0.664,
+    "operating_margins": -3.3443398
+  },
+  "IBIO": {
+    "score": 0,
+    "revenue_growth": 0.0,
+    "profit_margins": 0.0,
+    "debt_to_equity": 37.958,
+    "current_ratio": 1.123,
+    "operating_margins": -44.834667
+  },
+  "JAGX": {
+    "score": 0,
+    "revenue_growth": -0.058,
+    "profit_margins": 0.0,
+    "debt_to_equity": 1156.44,
+    "current_ratio": 1.079,
+    "operating_margins": -4.25519
+  },
+  "VISL": {
+    "score": 20,
+    "revenue_growth": -0.583,
+    "profit_margins": -0.73933,
+    "debt_to_equity": 4.684,
+    "current_ratio": 2.575,
+    "operating_margins": -3.89503
+  },
+  "SKLZ": {
+    "score": 20,
+    "revenue_growth": -0.112,
+    "profit_margins": -0.39332,
+    "debt_to_equity": 86.899,
+    "current_ratio": 5.073,
+    "operating_margins": -0.92647004
+  },
+  "MRIN": {
+    "score": 20,
+    "revenue_growth": -0.035,
+    "profit_margins": -0.71930003,
+    "debt_to_equity": 10.667,
+    "current_ratio": 3.077,
+    "operating_margins": -0.4979
+  },
+  "RELI": {
+    "score": 0,
+    "revenue_growth": 0.038,
+    "profit_margins": -0.38441002,
+    "debt_to_equity": 494.0,
+    "current_ratio": 0.98,
+    "operating_margins": -0.33216998
+  },
+  "SOFI": {
+    "score": 60,
+    "revenue_growth": 0.201,
+    "profit_margins": 0.17382,
+    "debt_to_equity": 49.144,
+    "current_ratio": 1.142,
+    "operating_margins": 0.10414
+  },
+  "OPEN": {
+    "score": 20,
+    "revenue_growth": -0.024,
+    "profit_margins": -0.0718,
+    "debt_to_equity": 391.628,
+    "current_ratio": 2.993,
+    "operating_margins": -0.04597
+  },
+  "SPCE": {
+    "score": 20,
+    "revenue_growth": -0.768,
+    "profit_margins": 0.0,
+    "debt_to_equity": 181.056,
+    "current_ratio": 3.807,
+    "operating_margins": -191.86118
+  },
+  "LCID": {
+    "score": 40,
+    "revenue_growth": 0.361,
+    "profit_margins": -2.75732,
+    "debt_to_equity": 52.763,
+    "current_ratio": 3.322,
+    "operating_margins": -2.94379
+  },
+  "RIVN": {
+    "score": 20,
+    "revenue_growth": 0.03,
+    "profit_margins": -0.76828,
+    "debt_to_equity": 78.154,
+    "current_ratio": 3.728,
+    "operating_margins": -0.52823
+  },
+  "PATH": {
+    "score": 20,
+    "revenue_growth": 0.064,
+    "profit_margins": -0.04652,
+    "debt_to_equity": 4.648,
+    "current_ratio": 2.947,
+    "operating_margins": -0.03758
+  },
+  "SNAP": {
+    "score": 40,
+    "revenue_growth": 0.141,
+    "profit_margins": -0.096269995,
+    "debt_to_equity": 182.183,
+    "current_ratio": 4.3,
+    "operating_margins": -0.14220001
+  },
+  "LYFT": {
+    "score": 40,
+    "revenue_growth": 0.135,
+    "profit_margins": 0.00955,
+    "debt_to_equity": 146.642,
+    "current_ratio": 0.767,
+    "operating_margins": -0.01989
+  },
+  "TME": {
+    "score": 60,
+    "revenue_growth": 0.087,
+    "profit_margins": 0.32816002,
+    "debt_to_equity": 8.079,
+    "current_ratio": 1.834,
+    "operating_margins": 0.61705
+  },
+  "IQ": {
+    "score": 40,
+    "revenue_growth": -0.093,
+    "profit_margins": 0.01021,
+    "debt_to_equity": 110.185,
+    "current_ratio": 0.457,
+    "operating_margins": 0.04758
+  },
+  "VIPS": {
+    "score": 40,
+    "revenue_growth": -0.05,
+    "profit_margins": 0.06881,
+    "debt_to_equity": 12.164,
+    "current_ratio": 1.278,
+    "operating_margins": 0.08667
+  },
+  "WB": {
+    "score": 60,
+    "revenue_growth": 0.003,
+    "profit_margins": 0.20405,
+    "debt_to_equity": 53.096,
+    "current_ratio": 2.715,
+    "operating_margins": 0.27796
+  },
+  "GRAB": {
+    "score": 60,
+    "revenue_growth": 0.184,
+    "profit_margins": 0.0078799995,
+    "debt_to_equity": 5.952,
+    "current_ratio": 2.486,
+    "operating_margins": -0.02458
+  },
+  "BEKE": {
+    "score": 60,
+    "revenue_growth": 0.424,
+    "profit_margins": 0.044710003,
+    "debt_to_equity": 32.4,
+    "current_ratio": 1.33,
+    "operating_margins": 0.025320001
+  },
+  "TAL": {
+    "score": 60,
+    "revenue_growth": 0.421,
+    "profit_margins": 0.03759,
+    "debt_to_equity": 8.851,
+    "current_ratio": 2.863,
+    "operating_margins": -0.02624
+  },
+  "YMM": {
+    "score": 100,
+    "revenue_growth": 0.19,
+    "profit_margins": 0.32196,
+    "debt_to_equity": 0.146,
+    "current_ratio": 7.663,
+    "operating_margins": 0.44537
+  },
+  "DOYU": {
+    "score": 20,
+    "revenue_growth": -0.089,
+    "profit_margins": -0.071440004,
+    "debt_to_equity": 0.634,
+    "current_ratio": 1.875,
+    "operating_margins": -0.0276
+  },
+  "HUYA": {
+    "score": 20,
+    "revenue_growth": 0.003,
+    "profit_margins": -0.01941,
+    "debt_to_equity": 0.807,
+    "current_ratio": 1.56,
+    "operating_margins": -0.03954
+  },
+  "MOMO": {
+    "score": 60,
+    "revenue_growth": -0.015,
+    "profit_margins": 0.13231,
+    "debt_to_equity": 25.367,
+    "current_ratio": 2.061,
+    "operating_margins": 0.1188
+  }
+}

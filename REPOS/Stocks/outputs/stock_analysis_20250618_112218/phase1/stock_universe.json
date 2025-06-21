@@ -1,0 +1,562 @@
+[
+  {
+    "ticker": "SNDL",
+    "price": 1.285,
+    "market_cap": 330622784,
+    "sector": "Consumer Defensive",
+    "industry": "Beverages - Wineries & Distilleries",
+    "category": "under-5",
+    "category_name": "Ultra-Small Cap Stock",
+    "risk_level": 5
+  },
+  {
+    "ticker": "NOK",
+    "price": 5.175,
+    "market_cap": 28168198144,
+    "sector": "Technology",
+    "industry": "Communication Equipment",
+    "category": "5-to-10",
+    "category_name": "Small Cap Stock",
+    "risk_level": 3
+  },
+  {
+    "ticker": "F",
+    "price": 10.45,
+    "market_cap": 41554944000,
+    "sector": "Consumer Cyclical",
+    "industry": "Auto Manufacturers",
+    "category": "10-to-20",
+    "category_name": "Mid-Small Cap Stock",
+    "risk_level": 2
+  },
+  {
+    "ticker": "BBD",
+    "price": 3.095,
+    "market_cap": 29599406080,
+    "sector": "Financial Services",
+    "industry": "Banks - Regional",
+    "category": "under-5",
+    "category_name": "Ultra-Small Cap Stock",
+    "risk_level": 5
+  },
+  {
+    "ticker": "TLRY",
+    "price": 0.3805,
+    "market_cap": 386553760,
+    "sector": "Healthcare",
+    "industry": "Drug Manufacturers - Specialty & Generic",
+    "category": "under-5",
+    "category_name": "Ultra-Small Cap Stock",
+    "risk_level": 5
+  },
+  {
+    "ticker": "NIO",
+    "price": 3.445,
+    "market_cap": 7836720640,
+    "sector": "Consumer Cyclical",
+    "industry": "Auto Manufacturers",
+    "category": "under-5",
+    "category_name": "Ultra-Small Cap Stock",
+    "risk_level": 5
+  },
+  {
+    "ticker": "WKHS",
+    "price": 0.9802,
+    "market_cap": 9285493,
+    "sector": "Consumer Cyclical",
+    "industry": "Auto Manufacturers",
+    "category": "under-5",
+    "category_name": "Ultra-Small Cap Stock",
+    "risk_level": 5
+  },
+  {
+    "ticker": "CLOV",
+    "price": 2.885,
+    "market_cap": 1468225536,
+    "sector": "Healthcare",
+    "industry": "Healthcare Plans",
+    "category": "under-5",
+    "category_name": "Ultra-Small Cap Stock",
+    "risk_level": 5
+  },
+  {
+    "ticker": "AMC",
+    "price": 3.05,
+    "market_cap": 1321089152,
+    "sector": "Communication Services",
+    "industry": "Entertainment",
+    "category": "under-5",
+    "category_name": "Ultra-Small Cap Stock",
+    "risk_level": 5
+  },
+  {
+    "ticker": "BB",
+    "price": 4.355,
+    "market_cap": 2610143232,
+    "sector": "Technology",
+    "industry": "Software - Infrastructure",
+    "category": "under-5",
+    "category_name": "Ultra-Small Cap Stock",
+    "risk_level": 5
+  },
+  {
+    "ticker": "ATOS",
+    "price": 0.8294,
+    "market_cap": 107133600,
+    "sector": "Healthcare",
+    "industry": "Biotechnology",
+    "category": "under-5",
+    "category_name": "Ultra-Small Cap Stock",
+    "risk_level": 5
+  },
+  {
+    "ticker": "CTXR",
+    "price": 0.9,
+    "market_cap": 9747270,
+    "sector": "Healthcare",
+    "industry": "Biotechnology",
+    "category": "under-5",
+    "category_name": "Ultra-Small Cap Stock",
+    "risk_level": 5
+  },
+  {
+    "ticker": "SENS",
+    "price": 0.5106,
+    "market_cap": 385140960,
+    "sector": "Healthcare",
+    "industry": "Medical Devices",
+    "category": "under-5",
+    "category_name": "Ultra-Small Cap Stock",
+    "risk_level": 5
+  },
+  {
+    "ticker": "SAVA",
+    "price": 2.065,
+    "market_cap": 99755816,
+    "sector": "Healthcare",
+    "industry": "Biotechnology",
+    "category": "under-5",
+    "category_name": "Ultra-Small Cap Stock",
+    "risk_level": 5
+  },
+  {
+    "ticker": "ADTX",
+    "price": 1.39,
+    "market_cap": 2946869,
+    "sector": "Healthcare",
+    "industry": "Biotechnology",
+    "category": "under-5",
+    "category_name": "Ultra-Small Cap Stock",
+    "risk_level": 5
+  },
+  {
+    "ticker": "BNGO",
+    "price": 3.3846,
+    "market_cap": 11385794,
+    "sector": "Healthcare",
+    "industry": "Medical Instruments & Supplies",
+    "category": "under-5",
+    "category_name": "Ultra-Small Cap Stock",
+    "risk_level": 5
+  },
+  {
+    "ticker": "OCGN",
+    "price": 1.1161,
+    "market_cap": 325935808,
+    "sector": "Unknown",
+    "industry": "Unknown",
+    "category": "under-5",
+    "category_name": "Ultra-Small Cap Stock",
+    "risk_level": 5
+  },
+  {
+    "ticker": "HYMC",
+    "price": 3.25,
+    "market_cap": 121821048,
+    "sector": "Basic Materials",
+    "industry": "Gold",
+    "category": "under-5",
+    "category_name": "Ultra-Small Cap Stock",
+    "risk_level": 5
+  },
+  {
+    "ticker": "MULN",
+    "price": 1.435,
+    "market_cap": 1146062,
+    "sector": "Consumer Cyclical",
+    "industry": "Auto Manufacturers",
+    "category": "under-5",
+    "category_name": "Ultra-Small Cap Stock",
+    "risk_level": 5
+  },
+  {
+    "ticker": "EEGI",
+    "price": 0.0003,
+    "market_cap": 2557359,
+    "sector": "Financial Services",
+    "industry": "Shell Companies",
+    "category": "under-5",
+    "category_name": "Ultra-Small Cap Stock",
+    "risk_level": 5
+  },
+  {
+    "ticker": "OZSC",
+    "price": 0.0003,
+    "market_cap": 2535198,
+    "sector": "Industrials",
+    "industry": "Electrical Equipment & Parts",
+    "category": "under-5",
+    "category_name": "Ultra-Small Cap Stock",
+    "risk_level": 5
+  },
+  {
+    "ticker": "OPTI",
+    "price": 0.0016,
+    "market_cap": 7363120,
+    "sector": "Consumer Cyclical",
+    "industry": "Auto Parts",
+    "category": "under-5",
+    "category_name": "Ultra-Small Cap Stock",
+    "risk_level": 5
+  },
+  {
+    "ticker": "CRYBF",
+    "price": 0.03,
+    "market_cap": 4044149,
+    "sector": "Technology",
+    "industry": "Software - Infrastructure",
+    "category": "under-5",
+    "category_name": "Ultra-Small Cap Stock",
+    "risk_level": 5
+  },
+  {
+    "ticker": "WDLF",
+    "price": 0.0003,
+    "market_cap": 2218437,
+    "sector": "Technology",
+    "industry": "Software - Application",
+    "category": "under-5",
+    "category_name": "Ultra-Small Cap Stock",
+    "risk_level": 5
+  },
+  {
+    "ticker": "SIRC",
+    "price": 0.0001,
+    "market_cap": 1097550,
+    "sector": "Technology",
+    "industry": "Solar",
+    "category": "under-5",
+    "category_name": "Ultra-Small Cap Stock",
+    "risk_level": 5
+  },
+  {
+    "ticker": "HMBL",
+    "price": 0.0002,
+    "market_cap": 8288600,
+    "sector": "Technology",
+    "industry": "Software - Application",
+    "category": "under-5",
+    "category_name": "Ultra-Small Cap Stock",
+    "risk_level": 5
+  },
+  {
+    "ticker": "RGBP",
+    "price": 0.0614,
+    "market_cap": 1323458,
+    "sector": "Healthcare",
+    "industry": "Biotechnology",
+    "category": "under-5",
+    "category_name": "Ultra-Small Cap Stock",
+    "risk_level": 5
+  },
+  {
+    "ticker": "DPLS",
+    "price": 0.0003,
+    "market_cap": 4077480,
+    "sector": "Technology",
+    "industry": "Scientific & Technical Instruments",
+    "category": "under-5",
+    "category_name": "Ultra-Small Cap Stock",
+    "risk_level": 5
+  },
+  {
+    "ticker": "AITX",
+    "price": 0.0014,
+    "market_cap": 23796500,
+    "sector": "Industrials",
+    "industry": "Rental & Leasing Services",
+    "category": "under-5",
+    "category_name": "Ultra-Small Cap Stock",
+    "risk_level": 5
+  },
+  {
+    "ticker": "IBIO",
+    "price": 0.861,
+    "market_cap": 14223117,
+    "sector": "Healthcare",
+    "industry": "Biotechnology",
+    "category": "under-5",
+    "category_name": "Ultra-Small Cap Stock",
+    "risk_level": 5
+  },
+  {
+    "ticker": "JAGX",
+    "price": 2.8972,
+    "market_cap": 3663973,
+    "sector": "Healthcare",
+    "industry": "Biotechnology",
+    "category": "under-5",
+    "category_name": "Ultra-Small Cap Stock",
+    "risk_level": 5
+  },
+  {
+    "ticker": "VISL",
+    "price": 2.25,
+    "market_cap": 5551830,
+    "sector": "Technology",
+    "industry": "Communication Equipment",
+    "category": "under-5",
+    "category_name": "Ultra-Small Cap Stock",
+    "risk_level": 5
+  },
+  {
+    "ticker": "SKLZ",
+    "price": 6.31,
+    "market_cap": 100518928,
+    "sector": "Communication Services",
+    "industry": "Electronic Gaming & Multimedia",
+    "category": "5-to-10",
+    "category_name": "Small Cap Stock",
+    "risk_level": 3
+  },
+  {
+    "ticker": "MRIN",
+    "price": 1.26,
+    "market_cap": 3987244,
+    "sector": "Technology",
+    "industry": "Software - Application",
+    "category": "under-5",
+    "category_name": "Ultra-Small Cap Stock",
+    "risk_level": 5
+  },
+  {
+    "ticker": "RELI",
+    "price": 2.7633,
+    "market_cap": 8220568,
+    "sector": "Financial Services",
+    "industry": "Insurance Brokers",
+    "category": "under-5",
+    "category_name": "Ultra-Small Cap Stock",
+    "risk_level": 5
+  },
+  {
+    "ticker": "SOFI",
+    "price": 14.945,
+    "market_cap": 16519605248,
+    "sector": "Financial Services",
+    "industry": "Credit Services",
+    "category": "10-to-20",
+    "category_name": "Mid-Small Cap Stock",
+    "risk_level": 2
+  },
+  {
+    "ticker": "CLOV",
+    "price": 2.885,
+    "market_cap": 1468225536,
+    "sector": "Healthcare",
+    "industry": "Healthcare Plans",
+    "category": "under-5",
+    "category_name": "Ultra-Small Cap Stock",
+    "risk_level": 5
+  },
+  {
+    "ticker": "SKLZ",
+    "price": 6.31,
+    "market_cap": 100518928,
+    "sector": "Communication Services",
+    "industry": "Electronic Gaming & Multimedia",
+    "category": "5-to-10",
+    "category_name": "Small Cap Stock",
+    "risk_level": 3
+  },
+  {
+    "ticker": "OPEN",
+    "price": 0.5878,
+    "market_cap": 428581472,
+    "sector": "Real Estate",
+    "industry": "Real Estate Services",
+    "category": "under-5",
+    "category_name": "Ultra-Small Cap Stock",
+    "risk_level": 5
+  },
+  {
+    "ticker": "SPCE",
+    "price": 3.005,
+    "market_cap": 124932280,
+    "sector": "Industrials",
+    "industry": "Aerospace & Defense",
+    "category": "under-5",
+    "category_name": "Ultra-Small Cap Stock",
+    "risk_level": 5
+  },
+  {
+    "ticker": "LCID",
+    "price": 2.22,
+    "market_cap": 6756325376,
+    "sector": "Consumer Cyclical",
+    "industry": "Auto Manufacturers",
+    "category": "under-5",
+    "category_name": "Ultra-Small Cap Stock",
+    "risk_level": 5
+  },
+  {
+    "ticker": "RIVN",
+    "price": 13.73,
+    "market_cap": 15740345344,
+    "sector": "Consumer Cyclical",
+    "industry": "Auto Manufacturers",
+    "category": "10-to-20",
+    "category_name": "Mid-Small Cap Stock",
+    "risk_level": 2
+  },
+  {
+    "ticker": "PATH",
+    "price": 12.375,
+    "market_cap": 6623729152,
+    "sector": "Technology",
+    "industry": "Software - Infrastructure",
+    "category": "10-to-20",
+    "category_name": "Mid-Small Cap Stock",
+    "risk_level": 2
+  },
+  {
+    "ticker": "SNAP",
+    "price": 8.2382,
+    "market_cap": 13767516160,
+    "sector": "Communication Services",
+    "industry": "Internet Content & Information",
+    "category": "5-to-10",
+    "category_name": "Small Cap Stock",
+    "risk_level": 3
+  },
+  {
+    "ticker": "LYFT",
+    "price": 14.85,
+    "market_cap": 6246444544,
+    "sector": "Technology",
+    "industry": "Software - Application",
+    "category": "10-to-20",
+    "category_name": "Mid-Small Cap Stock",
+    "risk_level": 2
+  },
+  {
+    "ticker": "TME",
+    "price": 18.355,
+    "market_cap": 29062023168,
+    "sector": "Communication Services",
+    "industry": "Internet Content & Information",
+    "category": "10-to-20",
+    "category_name": "Mid-Small Cap Stock",
+    "risk_level": 2
+  },
+  {
+    "ticker": "IQ",
+    "price": 1.695,
+    "market_cap": 1632215552,
+    "sector": "Communication Services",
+    "industry": "Entertainment",
+    "category": "under-5",
+    "category_name": "Ultra-Small Cap Stock",
+    "risk_level": 5
+  },
+  {
+    "ticker": "VIPS",
+    "price": 14.94,
+    "market_cap": 7692352000,
+    "sector": "Consumer Cyclical",
+    "industry": "Internet Retail",
+    "category": "10-to-20",
+    "category_name": "Mid-Small Cap Stock",
+    "risk_level": 2
+  },
+  {
+    "ticker": "WB",
+    "price": 9.465,
+    "market_cap": 2362208512,
+    "sector": "Communication Services",
+    "industry": "Internet Content & Information",
+    "category": "5-to-10",
+    "category_name": "Small Cap Stock",
+    "risk_level": 3
+  },
+  {
+    "ticker": "GRAB",
+    "price": 4.755,
+    "market_cap": 19609620480,
+    "sector": "Technology",
+    "industry": "Software - Application",
+    "category": "under-5",
+    "category_name": "Ultra-Small Cap Stock",
+    "risk_level": 5
+  },
+  {
+    "ticker": "BEKE",
+    "price": 18.19,
+    "market_cap": 22125223936,
+    "sector": "Real Estate",
+    "industry": "Real Estate Services",
+    "category": "10-to-20",
+    "category_name": "Mid-Small Cap Stock",
+    "risk_level": 2
+  },
+  {
+    "ticker": "TAL",
+    "price": 10.35,
+    "market_cap": 6298202624,
+    "sector": "Consumer Defensive",
+    "industry": "Education & Training Services",
+    "category": "10-to-20",
+    "category_name": "Mid-Small Cap Stock",
+    "risk_level": 2
+  },
+  {
+    "ticker": "YMM",
+    "price": 11.8,
+    "market_cap": 12341501952,
+    "sector": "Technology",
+    "industry": "Software - Application",
+    "category": "10-to-20",
+    "category_name": "Mid-Small Cap Stock",
+    "risk_level": 2
+  },
+  {
+    "ticker": "DOYU",
+    "price": 6.5,
+    "market_cap": 196162848,
+    "sector": "Communication Services",
+    "industry": "Internet Content & Information",
+    "category": "5-to-10",
+    "category_name": "Small Cap Stock",
+    "risk_level": 3
+  },
+  {
+    "ticker": "HUYA",
+    "price": 4.015,
+    "market_cap": 897392640,
+    "sector": "Communication Services",
+    "industry": "Entertainment",
+    "category": "under-5",
+    "category_name": "Ultra-Small Cap Stock",
+    "risk_level": 5
+  },
+  {
+    "ticker": "MOMO",
+    "price": 8.605,
+    "market_cap": 1382556544,
+    "sector": "Communication Services",
+    "industry": "Internet Content & Information",
+    "category": "5-to-10",
+    "category_name": "Small Cap Stock",
+    "risk_level": 3
+  }
+]

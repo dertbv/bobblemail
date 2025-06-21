@@ -111,6 +111,73 @@ REPOS/email-filter/
 - Modular design with separate concerns for ML, keywords, validation
 - **Refactoring needed:** Several large files violate KISS/SRP principles
 
+---
+
+### Stocks - Penny Stock Analysis Tool
+
+**Location:** `REPOS/Stocks/`
+
+```
+REPOS/Stocks/
+├── app.py                    # Flask web application (main)
+├── app_real_data.py         # Real data variant
+├── app_simple.py            # Simplified version
+├── run_penny_stock_analysis.py # CLI analysis tool
+├── test_app.py              # Web app tests
+├── test_real_analysis.py    # Analysis engine tests
+├── requirements.txt         # Python dependencies
+├── README.md               # Project documentation
+├── CLAUDE.md               # Claude Code integration
+├── instructions.md         # Agentic system instructions
+├── agent.md                # Agent role definitions
+│
+├── docs/                   # Agent documentation
+│   └── penny_stocks/
+│       ├── context.md      # Shared context for agents
+│       ├── evaluator.md    # Apollo (Evaluator) role
+│       └── specialist.md   # Mercury (Specialist) role
+│
+├── templates/              # Flask templates
+│   ├── base.html
+│   ├── index.html
+│   ├── dashboard.html
+│   ├── category.html
+│   ├── stock_detail.html
+│   └── 30_day_picks.html
+│
+├── static/                 # Web assets
+│   ├── css/
+│   │   └── style.css
+│   └── js/
+│       └── app.js
+│
+├── outputs/                # Analysis results
+│   └── [timestamp_folders]/
+│       ├── phase1/ - stock_universe.json
+│       ├── phase2/ - technical_analysis.json
+│       ├── phase3/ - fundamental_analysis.json
+│       ├── phase4/ - sentiment_analysis.json
+│       └── phase5/ - final_rankings.json
+│
+└── venv/                   # Python virtual environment
+```
+
+**Key Files:**
+- `app.py` - Flask web application with dashboard
+- `run_penny_stock_analysis.py` - CLI analysis engine
+- `instructions.md` - Agentic Loop system architecture
+- `docs/penny_stocks/` - Agent role definitions and context
+- `templates/` - Web interface templates
+- `outputs/` - Generated analysis results
+
+**Architecture Notes:**
+- **Agentic Loop Pattern**: 3-agent system (Atlas/Orchestrator, Mercury/Specialist, Apollo/Evaluator)
+- **Multi-phase Analysis**: 5-phase pipeline from data collection to final rankings
+- **Web + CLI Interface**: Flask dashboard and command-line tool
+- **Quality Control**: Target score 90/100 with iterative feedback
+- **Technology Stack**: Python/Flask, yfinance, pandas, web scraping
+- **Analysis Focus**: Penny stocks (<$5, >$1M market cap) with 30-day upside potential
+
 **Last Updated: 2025-06-21
 
 ---

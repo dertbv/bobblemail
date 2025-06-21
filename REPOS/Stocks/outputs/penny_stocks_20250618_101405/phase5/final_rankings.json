@@ -1,0 +1,122 @@
+[
+  {
+    "ticker": "BBD",
+    "composite_score": 68.0,
+    "current_price": 3.09,
+    "target_price": 3.62,
+    "upside_potential": 17.0,
+    "technical_score": 50,
+    "fundamental_score": 80,
+    "sentiment_score": 80,
+    "rationale": "BBD is recommended based on our comprehensive analysis:\n\n\ud83d\udd39 POSITIVE TECHNICAL OUTLOOK: Good technical indicators suggest potential for upward price movement with some favorable signals.\n\n\ud83d\udcb0 SOLID FUNDAMENTALS: Strong financial position with good revenue growth, healthy profit margins, manageable debt levels, and adequate liquidity.\n\n\ud83d\udcc8 POSITIVE SENTIMENT: Analysts and market participants have a favorable view with buy recommendations supporting the bullish case.\n\n\ud83c\udfaf INVESTMENT THESIS: With a composite score of 68.0/100, this stock represents a compelling opportunity with 17.0% projected upside. The combination of technical momentum and fundamental strength creates an attractive risk-reward profile for penny stock investors.",
+    "exchange": "NYSE"
+  },
+  {
+    "ticker": "WDLF",
+    "composite_score": 66.0,
+    "current_price": 0.0,
+    "target_price": 0.0,
+    "upside_potential": 16.5,
+    "technical_score": 100,
+    "fundamental_score": 40,
+    "sentiment_score": 50,
+    "rationale": "WDLF is recommended based on our comprehensive analysis:\n\n\ud83d\udd39 STRONG TECHNICAL SIGNALS: Excellent technical setup with positive momentum, favorable volume patterns, and strong price trends above moving averages.\n\n\ud83d\udcbc ADEQUATE FUNDAMENTALS: Reasonable financial metrics with some positive factors supporting the investment thesis.\n\n\ud83d\udcca NEUTRAL SENTIMENT: Market sentiment is balanced, providing opportunity for positive surprise from good news or execution.\n\n\ud83c\udfaf INVESTMENT THESIS: With a composite score of 66.0/100, this stock represents a compelling opportunity with 16.5% projected upside. The combination of technical momentum and fundamental strength creates an attractive risk-reward profile for penny stock investors.",
+    "exchange": "NASDAQ"
+  },
+  {
+    "ticker": "BB",
+    "composite_score": 56.0,
+    "current_price": 4.35,
+    "target_price": 4.96,
+    "upside_potential": 14.0,
+    "technical_score": 75,
+    "fundamental_score": 40,
+    "sentiment_score": 50,
+    "rationale": "BB is recommended based on our comprehensive analysis:\n\n\ud83d\udd39 STRONG TECHNICAL SIGNALS: Excellent technical setup with positive momentum, favorable volume patterns, and strong price trends above moving averages.\n\n\ud83d\udcbc ADEQUATE FUNDAMENTALS: Reasonable financial metrics with some positive factors supporting the investment thesis.\n\n\ud83d\udcca NEUTRAL SENTIMENT: Market sentiment is balanced, providing opportunity for positive surprise from good news or execution.\n\n\ud83d\udca1 SPECULATIVE OPPORTUNITY: Composite score of 56.0/100 indicates moderate potential with 14.0% upside. This represents a higher-risk play that could benefit significantly from positive catalysts or improved execution.",
+    "exchange": "NYSE"
+  },
+  {
+    "ticker": "AITX",
+    "composite_score": 56.0,
+    "current_price": 0.0,
+    "target_price": 0.0,
+    "upside_potential": 14.0,
+    "technical_score": 75,
+    "fundamental_score": 40,
+    "sentiment_score": 50,
+    "rationale": "AITX is recommended based on our comprehensive analysis:\n\n\ud83d\udd39 STRONG TECHNICAL SIGNALS: Excellent technical setup with positive momentum, favorable volume patterns, and strong price trends above moving averages.\n\n\ud83d\udcbc ADEQUATE FUNDAMENTALS: Reasonable financial metrics with some positive factors supporting the investment thesis.\n\n\ud83d\udcca NEUTRAL SENTIMENT: Market sentiment is balanced, providing opportunity for positive surprise from good news or execution.\n\n\ud83d\udca1 SPECULATIVE OPPORTUNITY: Composite score of 56.0/100 indicates moderate potential with 14.0% upside. This represents a higher-risk play that could benefit significantly from positive catalysts or improved execution.",
+    "exchange": "NASDAQ"
+  },
+  {
+    "ticker": "WKHS",
+    "composite_score": 48.0,
+    "current_price": 0.98,
+    "target_price": 1.1,
+    "upside_potential": 12.0,
+    "technical_score": 75,
+    "fundamental_score": 20,
+    "sentiment_score": 50,
+    "rationale": "WKHS is recommended based on our comprehensive analysis:\n\n\ud83d\udd39 STRONG TECHNICAL SIGNALS: Excellent technical setup with positive momentum, favorable volume patterns, and strong price trends above moving averages.\n\n\u26a0\ufe0f SPECULATIVE PLAY: Lower fundamental score indicates higher risk, but potential for significant upside if company executes on growth plans.\n\n\ud83d\udcca NEUTRAL SENTIMENT: Market sentiment is balanced, providing opportunity for positive surprise from good news or execution.\n\n\ud83d\udca1 SPECULATIVE OPPORTUNITY: Composite score of 48.0/100 indicates moderate potential with 12.0% upside. This represents a higher-risk play that could benefit significantly from positive catalysts or improved execution.",
+    "exchange": "NASDAQ"
+  },
+  {
+    "ticker": "EEGI",
+    "composite_score": 48.0,
+    "current_price": 0.0,
+    "target_price": 0.0,
+    "upside_potential": 12.0,
+    "technical_score": 75,
+    "fundamental_score": 20,
+    "sentiment_score": 50,
+    "rationale": "EEGI is recommended based on our comprehensive analysis:\n\n\ud83d\udd39 STRONG TECHNICAL SIGNALS: Excellent technical setup with positive momentum, favorable volume patterns, and strong price trends above moving averages.\n\n\u26a0\ufe0f SPECULATIVE PLAY: Lower fundamental score indicates higher risk, but potential for significant upside if company executes on growth plans.\n\n\ud83d\udcca NEUTRAL SENTIMENT: Market sentiment is balanced, providing opportunity for positive surprise from good news or execution.\n\n\ud83d\udca1 SPECULATIVE OPPORTUNITY: Composite score of 48.0/100 indicates moderate potential with 12.0% upside. This represents a higher-risk play that could benefit significantly from positive catalysts or improved execution.",
+    "exchange": "NASDAQ"
+  },
+  {
+    "ticker": "OZSC",
+    "composite_score": 48.0,
+    "current_price": 0.0,
+    "target_price": 0.0,
+    "upside_potential": 12.0,
+    "technical_score": 75,
+    "fundamental_score": 20,
+    "sentiment_score": 50,
+    "rationale": "OZSC is recommended based on our comprehensive analysis:\n\n\ud83d\udd39 STRONG TECHNICAL SIGNALS: Excellent technical setup with positive momentum, favorable volume patterns, and strong price trends above moving averages.\n\n\u26a0\ufe0f SPECULATIVE PLAY: Lower fundamental score indicates higher risk, but potential for significant upside if company executes on growth plans.\n\n\ud83d\udcca NEUTRAL SENTIMENT: Market sentiment is balanced, providing opportunity for positive surprise from good news or execution.\n\n\ud83d\udca1 SPECULATIVE OPPORTUNITY: Composite score of 48.0/100 indicates moderate potential with 12.0% upside. This represents a higher-risk play that could benefit significantly from positive catalysts or improved execution.",
+    "exchange": "NASDAQ"
+  },
+  {
+    "ticker": "CRYBF",
+    "composite_score": 48.0,
+    "current_price": 0.03,
+    "target_price": 0.03,
+    "upside_potential": 12.0,
+    "technical_score": 75,
+    "fundamental_score": 20,
+    "sentiment_score": 50,
+    "rationale": "CRYBF is recommended based on our comprehensive analysis:\n\n\ud83d\udd39 STRONG TECHNICAL SIGNALS: Excellent technical setup with positive momentum, favorable volume patterns, and strong price trends above moving averages.\n\n\u26a0\ufe0f SPECULATIVE PLAY: Lower fundamental score indicates higher risk, but potential for significant upside if company executes on growth plans.\n\n\ud83d\udcca NEUTRAL SENTIMENT: Market sentiment is balanced, providing opportunity for positive surprise from good news or execution.\n\n\ud83d\udca1 SPECULATIVE OPPORTUNITY: Composite score of 48.0/100 indicates moderate potential with 12.0% upside. This represents a higher-risk play that could benefit significantly from positive catalysts or improved execution.",
+    "exchange": "NASDAQ"
+  },
+  {
+    "ticker": "RGBP",
+    "composite_score": 48.0,
+    "current_price": 0.06,
+    "target_price": 0.07,
+    "upside_potential": 12.0,
+    "technical_score": 75,
+    "fundamental_score": 20,
+    "sentiment_score": 50,
+    "rationale": "RGBP is recommended based on our comprehensive analysis:\n\n\ud83d\udd39 STRONG TECHNICAL SIGNALS: Excellent technical setup with positive momentum, favorable volume patterns, and strong price trends above moving averages.\n\n\u26a0\ufe0f SPECULATIVE PLAY: Lower fundamental score indicates higher risk, but potential for significant upside if company executes on growth plans.\n\n\ud83d\udcca NEUTRAL SENTIMENT: Market sentiment is balanced, providing opportunity for positive surprise from good news or execution.\n\n\ud83d\udca1 SPECULATIVE OPPORTUNITY: Composite score of 48.0/100 indicates moderate potential with 12.0% upside. This represents a higher-risk play that could benefit significantly from positive catalysts or improved execution.",
+    "exchange": "NASDAQ"
+  },
+  {
+    "ticker": "SKLZ",
+    "composite_score": 48.0,
+    "current_price": 6.34,
+    "target_price": 7.1,
+    "upside_potential": 12.0,
+    "technical_score": 75,
+    "fundamental_score": 20,
+    "sentiment_score": 50,
+    "rationale": "SKLZ is recommended based on our comprehensive analysis:\n\n\ud83d\udd39 STRONG TECHNICAL SIGNALS: Excellent technical setup with positive momentum, favorable volume patterns, and strong price trends above moving averages.\n\n\u26a0\ufe0f SPECULATIVE PLAY: Lower fundamental score indicates higher risk, but potential for significant upside if company executes on growth plans.\n\n\ud83d\udcca NEUTRAL SENTIMENT: Market sentiment is balanced, providing opportunity for positive surprise from good news or execution.\n\n\ud83d\udca1 SPECULATIVE OPPORTUNITY: Composite score of 48.0/100 indicates moderate potential with 12.0% upside. This represents a higher-risk play that could benefit significantly from positive catalysts or improved execution.",
+    "exchange": "NASDAQ"
+  }
+]
