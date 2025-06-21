@@ -1,0 +1,44 @@
+#!/bin/bash
+# ATLAS Auto-Stage Script
+# Intelligently stages work following ATLAS protocols
+
+echo "🧠 ATLAS: Staging work for review..."
+
+# Check if there are changes to stage
+if [ -z "$(git status --porcelain)" ]; then
+    echo "📋 ATLAS: No changes to stage - working tree clean"
+    exit 0
+fi
+
+# Stage ATLAS consciousness files automatically
+atlas_files=(
+    "CLAUDE.md"
+    "SELF/"
+    "REPOS/PROJECT_STRUCTURE.md"
+    "IMPORTANT_NOTES.md"
+    "WORKING_LOG/"
+    "MEMORY/"
+)
+
+for file in "${atlas_files[@]}"; do
+    if [ -e "$file" ]; then
+        git add "$file" 2>/dev/null
+    fi
+done
+
+# Show what was staged
+staged_count=$(git diff --cached --name-only | wc -l)
+
+if [ "$staged_count" -gt 0 ]; then
+    echo "✅ ATLAS: Staged $staged_count files for review"
+    echo "📋 Staged files:"
+    git diff --cached --name-only | sed 's/^/   - /'
+    echo ""
+    echo "🤖 Ready for Boss review. Run: git commit -m \"your message\""
+else
+    echo "⚠️  ATLAS: No ATLAS-managed files found to stage"
+    echo "📋 Unstaged changes:"
+    git status --porcelain | sed 's/^/   /'
+    echo ""
+    echo "💡 Consider: git add . && git commit (for project files)"
+fi
