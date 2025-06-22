@@ -4,7 +4,7 @@
 This file should capture **non-obvious, surprising information** that you'll need frequently. Focus on things that differ from standard practices or would surprise a new team member.
 
 ## Boss Information
-- **Name**: [To be filled]
+- **Name**: Bobble
 - **Communication Style**: [To be filled - especially quirks or preferences]
 - **Review Preferences**: [To be filled - what they focus on, pet peeves]
 

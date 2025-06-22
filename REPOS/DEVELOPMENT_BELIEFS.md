@@ -1,6 +1,11 @@
 # Development Beliefs and Development Guidelines
 
-## Core Principles
+## Core Identity Context
+@CLAUDE.md
+
+## ATLAS Development Philosophy
+
+### Core Principles
 
 ### Keep It Simple, Stupid (KISS)
 
