@@ -1,0 +1,754 @@
+{
+  "class_priors": {
+    "0": 0.12448979591836734,
+    "1": 0.8755102040816326
+  },
+  "feature_stats": {
+    "0": {
+      "suspicious_domain": {
+        "mean": 0.15846994535519127,
+        "variance": 0.13335722177431397,
+        "std": 0.3651810808000792
+      },
+      "legitimate_domain": {
+        "mean": 0.21311475409836064,
+        "variance": 0.1676968556839559,
+        "std": 0.4095080654687474
+      },
+      "domain_length": {
+        "mean": 18.2896174863388,
+        "variance": 97.18934575532265,
+        "std": 9.858465689716764
+      },
+      "domain_parts_count": {
+        "mean": 2.568306010928962,
+        "variance": 1.2890501358655082,
+        "std": 1.1353634377878778
+      },
+      "domain_has_numbers": {
+        "mean": 0.14207650273224043,
+        "variance": 0.12189077010361613,
+        "std": 0.34912858677515385
+      },
+      "domain_main_length": {
+        "mean": 6.39344262295082,
+        "variance": 18.604765743975634,
+        "std": 4.313324210394534
+      },
+      "tld_length": {
+        "mean": 2.7131147540983607,
+        "variance": 0.6690629759025352,
+        "std": 0.8179626983564319
+      },
+      "has_subdomain": {
+        "mean": 0.5245901639344263,
+        "variance": 0.24939532383767804,
+        "std": 0.4993949577615677
+      },
+      "suspicious_tld": {
+        "mean": 0.040983606557377046,
+        "variance": 0.03930395055092717,
+        "std": 0.19825223971225941
+      },
+      "provider_reputation": {
+        "mean": 0.292896174863388,
+        "variance": 0.060086147690286355,
+        "std": 0.24512475943952777
+      },
+      "subject_length": {
+        "mean": 72.67486338797814,
+        "variance": 7603.536362686255,
+        "std": 87.19825894297578
+      },
+      "text_length": {
+        "mean": 73.67486338797814,
+        "variance": 7603.536362686255,
+        "std": 87.19825894297578
+      },
+      "text_word_count": {
+        "mean": 5.273224043715847,
+        "variance": 14.6794469825913,
+        "std": 3.831376643269531
+      },
+      "subject_has_numbers": {
+        "mean": 0.5683060109289617,
+        "variance": 0.24533428887097256,
+        "std": 0.495312314475395
+      },
+      "subject_uppercase_ratio": {
+        "mean": 0.17897585752703454,
+        "variance": 0.010451427991765162,
+        "std": 0.10223222579874294
+      },
+      "subject_special_chars": {
+        "mean": 13.797814207650273,
+        "variance": 473.5001045119293,
+        "std": 21.760057548451687
+      },
+      "has_money_symbols": {
+        "mean": 0.06830601092896176,
+        "variance": 0.06364029979993431,
+        "std": 0.2522702911560026
+      },
+      "has_urgency_words": {
+        "mean": 0.0273224043715847,
+        "variance": 0.02657589059094031,
+        "std": 0.16302113541176283
+      },
+      "has_promotional_words": {
+        "mean": 0.06284153005464481,
+        "variance": 0.05889247215503599,
+        "std": 0.24267771252225862
+      },
+      "encoded_spam": {
+        "mean": 0.3797814207650273,
+        "variance": 0.2355474932067246,
+        "std": 0.4853323533484293
+      },
+      "category_financial_&_investment_spam_confidence": {
+        "mean": 0.05136612021857924,
+        "variance": 0.030913434261996477,
+        "std": 0.17582216658316002
+      },
+      "category_financial_&_investment_spam_match": {
+        "mean": 1.0,
+        "variance": 1e-06,
+        "std": 0.001
+      },
+      "category_gambling_spam_confidence": {
+        "mean": 0.012021857923497267,
+        "variance": 0.006467496789990743,
+        "std": 0.08042074850429298
+      },
+      "category_gambling_spam_match": {
+        "mean": 1.0,
+        "variance": 1e-06,
+        "std": 0.001
+      },
+      "category_health_&_medical_spam_confidence": {
+        "mean": 0.07008196721311476,
+        "variance": 0.04976747962017379,
+        "std": 0.2230862604917071
+      },
+      "category_health_&_medical_spam_match": {
+        "mean": 1.0,
+        "variance": 1e-06,
+        "std": 0.001
+      },
+      "category_adult_&_dating_spam_confidence": {
+        "mean": 0.10191256830601092,
+        "variance": 0.061444429514168834,
+        "std": 0.2478798691184277
+      },
+      "category_adult_&_dating_spam_match": {
+        "mean": 1.0,
+        "variance": 1e-06,
+        "std": 0.001
+      },
+      "category_business_opportunity_spam_confidence": {
+        "mean": 0.01721311475409836,
+        "variance": 0.011752889008331093,
+        "std": 0.10841074212609696
+      },
+      "category_business_opportunity_spam_match": {
+        "mean": 1.0,
+        "variance": 1e-06,
+        "std": 0.001
+      },
+      "category_brand_impersonation_confidence": {
+        "mean": 0.011475409836065575,
+        "variance": 0.009540446116635315,
+        "std": 0.09767520727715563
+      },
+      "category_brand_impersonation_match": {
+        "mean": 1.0,
+        "variance": 1e-06,
+        "std": 0.001
+      },
+      "category_payment_scam_confidence": {
+        "mean": 0.05983606557377049,
+        "variance": 0.04912456328943832,
+        "std": 0.2216406174180137
+      },
+      "category_payment_scam_match": {
+        "mean": 1.0,
+        "variance": 1e-06,
+        "std": 0.001
+      },
+      "category_phishing_confidence": {
+        "mean": 2.6639344262295084,
+        "variance": 230.81328943832304,
+        "std": 15.19254058537686
+      },
+      "category_phishing_match": {
+        "mean": 1.0,
+        "variance": 1e-06,
+        "std": 0.001
+      },
+      "category_education/training_spam_confidence": {
+        "mean": 0.00901639344262295,
+        "variance": 0.005902311206664874,
+        "std": 0.07682650067954985
+      },
+      "category_education/training_spam_match": {
+        "mean": 1.0,
+        "variance": 1e-06,
+        "std": 0.001
+      },
+      "category_real_estate_spam_confidence": {
+        "mean": 0.018306010928961745,
+        "variance": 0.011495491056764905,
+        "std": 0.10721702783030737
+      },
+      "category_real_estate_spam_match": {
+        "mean": 1.0,
+        "variance": 1e-06,
+        "std": 0.001
+      },
+      "category_legal_&_compensation_scams_confidence": {
+        "mean": 0.03224043715846994,
+        "variance": 0.02300427005882528,
+        "std": 0.15167158619472956
+      },
+      "category_legal_&_compensation_scams_match": {
+        "mean": 1.0,
+        "variance": 1e-06,
+        "std": 0.001
+      },
+      "domain_pattern_match": {
+        "mean": 0.14207650273224043,
+        "variance": 0.12189077010361613,
+        "std": 0.34912858677515385
+      },
+      "domain_pattern_type": {
+        "mean": 0.1448087431693989,
+        "variance": 0.1293036519454149,
+        "std": 0.3595881699186097
+      },
+      "brand_impersonation": {
+        "mean": 0.0,
+        "variance": 1e-06,
+        "std": 0.001
+      },
+      "subject_question_marks": {
+        "mean": 3.6366120218579234,
+        "variance": 49.90893278389919,
+        "std": 7.064625452485021
+      },
+      "subject_exclamation_marks": {
+        "mean": 0.17759562841530055,
+        "variance": 0.30998984741258323,
+        "std": 0.5567673189157057
+      },
+      "subject_all_caps_words": {
+        "mean": 0.273224043715847,
+        "variance": 0.4936546328645227,
+        "std": 0.7026056026424232
+      },
+      "sender_has_noreply": {
+        "mean": 0.05191256830601093,
+        "variance": 0.04921765355788468,
+        "std": 0.2218505207518898
+      },
+      "sender_has_numbers": {
+        "mean": 0.39344262295081966,
+        "variance": 0.2386455253963988,
+        "std": 0.4885135877295521
+      },
+      "provider_gmail": {
+        "mean": 0.04644808743169399,
+        "variance": 0.0442906626056317,
+        "std": 0.21045346897980013
+      },
+      "provider_icloud": {
+        "mean": 0.05191256830601093,
+        "variance": 0.04921765355788468,
+        "std": 0.2218505207518898
+      },
+      "provider_outlook": {
+        "mean": 0.0273224043715847,
+        "variance": 0.02657589059094031,
+        "std": 0.16302113541176283
+      },
+      "provider_yahoo": {
+        "mean": 0.0,
+        "variance": 1e-06,
+        "std": 0.001
+      },
+      "provider_aol": {
+        "mean": 0.0,
+        "variance": 1e-06,
+        "std": 0.001
+      },
+      "provider_unknown": {
+        "mean": 0.8743169398907104,
+        "variance": 0.10988682851085431,
+        "std": 0.33149182269077815
+      },
+      "provider_tier_1": {
+        "mean": 0.12568306010928962,
+        "variance": 0.10988682851085431,
+        "std": 0.33149182269077815
+      },
+      "provider_tier_2": {
+        "mean": 0.0,
+        "variance": 1e-06,
+        "std": 0.001
+      },
+      "subject_emoji_count": {
+        "mean": 0.05191256830601093,
+        "variance": 0.1311848666726388,
+        "std": 0.36219451496763283
+      },
+      "subject_scam_emoji_count": {
+        "mean": 0.00273224043715847,
+        "variance": 0.002724775299352026,
+        "std": 0.05219938025831366
+      },
+      "total_emoji_count": {
+        "mean": 0.05191256830601093,
+        "variance": 0.1311848666726388,
+        "std": 0.36219451496763283
+      },
+      "total_scam_emoji_count": {
+        "mean": 0.00273224043715847,
+        "variance": 0.002724775299352026,
+        "std": 0.05219938025831366
+      },
+      "emoji_density": {
+        "mean": 0.0006238607736731959,
+        "variance": 1.9401309439103172e-05,
+        "std": 0.004404691753017817
+      },
+      "scam_emoji_ratio": {
+        "mean": 0.00273224043715847,
+        "variance": 0.002724775299352026,
+        "std": 0.05219938025831366
+      },
+      "emoji_spam_detected": {
+        "mean": 0.0,
+        "variance": 1e-06,
+        "std": 0.001
+      },
+      "confidence_score": {
+        "mean": 0.0,
+        "variance": 1e-06,
+        "std": 0.001
+      },
+      "has_confidence": {
+        "mean": 0.0,
+        "variance": 1e-06,
+        "std": 0.001
+      }
+    },
+    "1": {
+      "suspicious_domain": {
+        "mean": 0.26728826728826727,
+        "variance": 0.19584524945830306,
+        "std": 0.4425440649904855
+      },
+      "legitimate_domain": {
+        "mean": 0.05672105672105672,
+        "variance": 0.05350377844550338,
+        "std": 0.23130883780241382
+      },
+      "domain_length": {
+        "mean": 21.065268065268064,
+        "variance": 106.37025445417055,
+        "std": 10.31359561230566
+      },
+      "domain_parts_count": {
+        "mean": 2.6565656565656566,
+        "variance": 1.811345781042751,
+        "std": 1.345862467357921
+      },
+      "domain_has_numbers": {
+        "mean": 0.22882672882672883,
+        "variance": 0.17646505700118756,
+        "std": 0.42007744167139893
+      },
+      "domain_main_length": {
+        "mean": 7.348484848484849,
+        "variance": 29.527742459560645,
+        "std": 5.433943545856972
+      },
+      "tld_length": {
+        "mean": 2.5835275835275837,
+        "variance": 1.1155950153619152,
+        "std": 1.056217314458495
+      },
+      "has_subdomain": {
+        "mean": 0.5878010878010878,
+        "variance": 0.24229096898094568,
+        "std": 0.492230605489892
+      },
+      "suspicious_tld": {
+        "mean": 0.07226107226107226,
+        "variance": 0.06703940969675236,
+        "std": 0.25891969739043097
+      },
+      "provider_reputation": {
+        "mean": 0.20233100233100235,
+        "variance": 0.00174281817638461,
+        "std": 0.041747073866135936
+      },
+      "subject_length": {
+        "mean": 92.18997668997669,
+        "variance": 12946.997708391065,
+        "std": 113.78487469075608
+      },
+      "text_length": {
+        "mean": 93.18997668997669,
+        "variance": 12946.997708391065,
+        "std": 113.78487469075608
+      },
+      "text_word_count": {
+        "mean": 5.803807303807304,
+        "variance": 16.46228542673764,
+        "std": 4.057374203439663
+      },
+      "subject_has_numbers": {
+        "mean": 0.6445221445221445,
+        "variance": 0.22911334974272038,
+        "std": 0.4786578629279168
+      },
+      "subject_uppercase_ratio": {
+        "mean": 0.17537478686819116,
+        "variance": 0.011130540210920456,
+        "std": 0.10550137539824045
+      },
+      "subject_special_chars": {
+        "mean": 18.017094017094017,
+        "variance": 691.0447738396456,
+        "std": 26.28773048096099
+      },
+      "has_money_symbols": {
+        "mean": 0.0707070707070707,
+        "variance": 0.06570758085909602,
+        "std": 0.25633489980706103
+      },
+      "has_urgency_words": {
+        "mean": 0.04856254856254856,
+        "variance": 0.04620422743965867,
+        "std": 0.21495168629173084
+      },
+      "has_promotional_words": {
+        "mean": 0.09634809634809635,
+        "variance": 0.08706514067819429,
+        "std": 0.29506802720422676
+      },
+      "encoded_spam": {
+        "mean": 0.426961926961927,
+        "variance": 0.24466543988688516,
+        "std": 0.4946366746278375
+      },
+      "category_financial_&_investment_spam_confidence": {
+        "mean": 0.07999222999222998,
+        "variance": 0.0469306914703185,
+        "std": 0.21663492670924164
+      },
+      "category_financial_&_investment_spam_match": {
+        "mean": 1.0,
+        "variance": 1e-06,
+        "std": 0.001
+      },
+      "category_gambling_spam_confidence": {
+        "mean": 0.029623154623154624,
+        "variance": 0.01975086808857205,
+        "std": 0.14053778171215045
+      },
+      "category_gambling_spam_match": {
+        "mean": 1.0,
+        "variance": 1e-06,
+        "std": 0.001
+      },
+      "category_health_&_medical_spam_confidence": {
+        "mean": 0.10986790986790987,
+        "variance": 0.07283191728413174,
+        "std": 0.2698738914458598
+      },
+      "category_health_&_medical_spam_match": {
+        "mean": 1.0,
+        "variance": 1e-06,
+        "std": 0.001
+      },
+      "category_adult_&_dating_spam_confidence": {
+        "mean": 0.09545454545454544,
+        "variance": 0.05759006145369781,
+        "std": 0.23997929380198163
+      },
+      "category_adult_&_dating_spam_match": {
+        "mean": 1.0,
+        "variance": 1e-06,
+        "std": 0.001
+      },
+      "category_business_opportunity_spam_confidence": {
+        "mean": 0.019696969696969695,
+        "variance": 0.013236738009465282,
+        "std": 0.11505102350464025
+      },
+      "category_business_opportunity_spam_match": {
+        "mean": 1.0,
+        "variance": 1e-06,
+        "std": 0.001
+      },
+      "category_brand_impersonation_confidence": {
+        "mean": 0.012315462315462317,
+        "variance": 0.00989883443846148,
+        "std": 0.09949288637114455
+      },
+      "category_brand_impersonation_match": {
+        "mean": 1.0,
+        "variance": 1e-06,
+        "std": 0.001
+      },
+      "category_payment_scam_confidence": {
+        "mean": 0.10345765345765347,
+        "variance": 0.08066792031244246,
+        "std": 0.28402098569021705
+      },
+      "category_payment_scam_match": {
+        "mean": 1.0,
+        "variance": 1e-06,
+        "std": 0.001
+      },
+      "category_phishing_confidence": {
+        "mean": 3.207070707070707,
+        "variance": 273.42681869197014,
+        "std": 16.535622718602713
+      },
+      "category_phishing_match": {
+        "mean": 1.0,
+        "variance": 1e-06,
+        "std": 0.001
+      },
+      "category_education/training_spam_confidence": {
+        "mean": 0.012665112665112666,
+        "variance": 0.008145733227318309,
+        "std": 0.090253715864325
+      },
+      "category_education/training_spam_match": {
+        "mean": 1.0,
+        "variance": 1e-06,
+        "std": 0.001
+      },
+      "category_real_estate_spam_confidence": {
+        "mean": 0.031818181818181815,
+        "variance": 0.02039785971604153,
+        "std": 0.1428210758818233
+      },
+      "category_real_estate_spam_match": {
+        "mean": 1.0,
+        "variance": 1e-06,
+        "std": 0.001
+      },
+      "category_legal_&_compensation_scams_confidence": {
+        "mean": 0.05404040404040404,
+        "variance": 0.036306518958034106,
+        "std": 0.19054269589263742
+      },
+      "category_legal_&_compensation_scams_match": {
+        "mean": 1.0,
+        "variance": 1e-06,
+        "std": 0.001
+      },
+      "domain_pattern_match": {
+        "mean": 0.16744366744366745,
+        "variance": 0.13940628567668195,
+        "std": 0.37337151160296356
+      },
+      "domain_pattern_type": {
+        "mean": 0.17327117327117328,
+        "variance": 0.15490328543941598,
+        "std": 0.39357754691981095
+      },
+      "brand_impersonation": {
+        "mean": 0.0,
+        "variance": 1e-06,
+        "std": 0.001
+      },
+      "subject_question_marks": {
+        "mean": 4.735819735819736,
+        "variance": 80.40728726509613,
+        "std": 8.967011055256714
+      },
+      "subject_exclamation_marks": {
+        "mean": 0.2540792540792541,
+        "variance": 0.36124015844295565,
+        "std": 0.601032576856659
+      },
+      "subject_all_caps_words": {
+        "mean": 0.32634032634032634,
+        "variance": 0.8064779043800022,
+        "std": 0.8980411484893118
+      },
+      "sender_has_noreply": {
+        "mean": 0.025252525252525252,
+        "variance": 0.024614835220895824,
+        "std": 0.15689115724251582
+      },
+      "sender_has_numbers": {
+        "mean": 0.4864024864024864,
+        "variance": 0.24981510762396544,
+        "std": 0.49981507342612774
+      },
+      "provider_gmail": {
+        "mean": 0.0,
+        "variance": 1e-06,
+        "std": 0.001
+      },
+      "provider_icloud": {
+        "mean": 0.003108003108003108,
+        "variance": 0.003098343424683751,
+        "std": 0.055662765154847915
+      },
+      "provider_outlook": {
+        "mean": 0.0,
+        "variance": 1e-06,
+        "std": 0.001
+      },
+      "provider_yahoo": {
+        "mean": 0.0,
+        "variance": 1e-06,
+        "std": 0.001
+      },
+      "provider_aol": {
+        "mean": 0.0,
+        "variance": 1e-06,
+        "std": 0.001
+      },
+      "provider_unknown": {
+        "mean": 0.9968919968919969,
+        "variance": 0.003098343424683751,
+        "std": 0.055662765154847915
+      },
+      "provider_tier_1": {
+        "mean": 0.003108003108003108,
+        "variance": 0.003098343424683751,
+        "std": 0.055662765154847915
+      },
+      "provider_tier_2": {
+        "mean": 0.0,
+        "variance": 1e-06,
+        "std": 0.001
+      },
+      "subject_emoji_count": {
+        "mean": 0.008547008547008548,
+        "variance": 0.01080495952290824,
+        "std": 0.10394690723108717
+      },
+      "subject_scam_emoji_count": {
+        "mean": 0.002331002331002331,
+        "variance": 0.0023255687591351927,
+        "std": 0.04822415120181166
+      },
+      "total_emoji_count": {
+        "mean": 0.008547008547008548,
+        "variance": 0.01080495952290824,
+        "std": 0.10394690723108717
+      },
+      "total_scam_emoji_count": {
+        "mean": 0.002331002331002331,
+        "variance": 0.0023255687591351927,
+        "std": 0.04822415120181166
+      },
+      "emoji_density": {
+        "mean": 0.00018490798332975166,
+        "variance": 5.764788546740043e-06,
+        "std": 0.002400997406650004
+      },
+      "scam_emoji_ratio": {
+        "mean": 0.002136752136752137,
+        "variance": 0.0020350613299331246,
+        "std": 0.04511165403676887
+      },
+      "emoji_spam_detected": {
+        "mean": 0.0,
+        "variance": 1e-06,
+        "std": 0.001
+      },
+      "confidence_score": {
+        "mean": 0.1593385211773388,
+        "variance": 0.1236886609393201,
+        "std": 0.35169398763601306
+      },
+      "has_confidence": {
+        "mean": 0.17132867132867133,
+        "variance": 0.14197515770942343,
+        "std": 0.3767959098894565
+      }
+    }
+  },
+  "feature_names": [
+    "suspicious_domain",
+    "legitimate_domain",
+    "domain_length",
+    "domain_parts_count",
+    "domain_has_numbers",
+    "domain_main_length",
+    "tld_length",
+    "has_subdomain",
+    "suspicious_tld",
+    "provider_reputation",
+    "subject_length",
+    "text_length",
+    "text_word_count",
+    "subject_has_numbers",
+    "subject_uppercase_ratio",
+    "subject_special_chars",
+    "has_money_symbols",
+    "has_urgency_words",
+    "has_promotional_words",
+    "encoded_spam",
+    "category_financial_&_investment_spam_confidence",
+    "category_financial_&_investment_spam_match",
+    "category_gambling_spam_confidence",
+    "category_gambling_spam_match",
+    "category_health_&_medical_spam_confidence",
+    "category_health_&_medical_spam_match",
+    "category_adult_&_dating_spam_confidence",
+    "category_adult_&_dating_spam_match",
+    "category_business_opportunity_spam_confidence",
+    "category_business_opportunity_spam_match",
+    "category_brand_impersonation_confidence",
+    "category_brand_impersonation_match",
+    "category_payment_scam_confidence",
+    "category_payment_scam_match",
+    "category_phishing_confidence",
+    "category_phishing_match",
+    "category_education/training_spam_confidence",
+    "category_education/training_spam_match",
+    "category_real_estate_spam_confidence",
+    "category_real_estate_spam_match",
+    "category_legal_&_compensation_scams_confidence",
+    "category_legal_&_compensation_scams_match",
+    "domain_pattern_match",
+    "domain_pattern_type",
+    "brand_impersonation",
+    "subject_question_marks",
+    "subject_exclamation_marks",
+    "subject_all_caps_words",
+    "sender_has_noreply",
+    "sender_has_numbers",
+    "provider_gmail",
+    "provider_icloud",
+    "provider_outlook",
+    "provider_yahoo",
+    "provider_aol",
+    "provider_unknown",
+    "provider_tier_1",
+    "provider_tier_2",
+    "subject_emoji_count",
+    "subject_scam_emoji_count",
+    "total_emoji_count",
+    "total_scam_emoji_count",
+    "emoji_density",
+    "scam_emoji_ratio",
+    "emoji_spam_detected",
+    "confidence_score",
+    "has_confidence"
+  ],
+  "training_size": 2940,
+  "feature_count": 67,
+  "is_trained": true
+}
