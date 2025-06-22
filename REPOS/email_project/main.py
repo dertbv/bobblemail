@@ -60,6 +60,12 @@ def main():
                 clear_screen()
                 help_documentation()
                 clear_screen()
+            elif choice == 6:
+                clear_screen()
+                # Import and run web app management
+                from web_app_manager import web_app_management_menu
+                web_app_management_menu()
+                clear_screen()
             elif choice == 0:
                 clear_screen()
                 print("\n👋 Thank you for using Advanced IMAP Mail Filter - Database Edition!")

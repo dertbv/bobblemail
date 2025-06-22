@@ -17,13 +17,14 @@ def display_main_menu():
     print("3. 🤖 Batch Processing (All Accounts)")
     print("4. 📧 Email Action Viewer & Export")
     print("5. ❓ Help & Documentation")
+    print("6. 🌐 Web App Management")
     print("0. 🚪 Exit")
     print()
 
 
 def get_menu_choice():
     """Get user's menu choice with input fallback"""
-    choice = get_single_choice("Press a key (0-5, or Enter/Escape to exit):", ['0', '1', '2', '3', '4', '5'], allow_enter=True)
+    choice = get_single_choice("Press a key (0-6, or Enter/Escape to exit):", ['0', '1', '2', '3', '4', '5', '6'], allow_enter=True)
     
     if choice is None:
         print("\n👋 Goodbye!")
