@@ -413,6 +413,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         picks.forEach((pick, index) => {
             const row = document.createElement('tr');
+            row.id = `stock-${pick.ticker}`;  // Add anchor for direct linking
             
             row.innerHTML = `
                 <td><span class="badge bg-primary">${index + 1}</span></td>
@@ -440,7 +441,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 </td>
                 <td>
                     <a href="/stock/${pick.ticker}" class="btn btn-outline-primary btn-sm">
-                        <i class="fas fa-chart-area"></i> View
+                        <i class="fas fa-chart-area"></i> Analysis
                     </a>
                 </td>
             `;

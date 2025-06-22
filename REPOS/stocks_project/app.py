@@ -20,7 +20,7 @@ from datetime import datetime
 from enum import Enum
 from dataclasses import dataclass, field
 from typing import Optional, Dict, List, Any
-from flask import Flask, render_template, jsonify, request
+from flask import Flask, render_template, jsonify, request, redirect
 from queue import Queue, Empty
 import threading
 
@@ -31,6 +31,14 @@ try:
 except ImportError:
     PENNY_ANALYZER_AVAILABLE = False
     print("Warning: PennyStockAnalyzer not available")
+
+# Import live research system
+try:
+    from live_research_system import LiveStockResearcher
+    LIVE_RESEARCH_AVAILABLE = True
+except ImportError:
+    LIVE_RESEARCH_AVAILABLE = False
+    print("Warning: LiveStockResearcher not available")
 
 
 @dataclass
@@ -163,9 +171,9 @@ class StockAnalysisApp:
             })
             
         @self.app.route('/stock/<ticker>')
-        def stock_detail(ticker):
-            """Individual stock detail page"""
-            return render_template('stock_detail.html', ticker=ticker.upper())
+        def stock_analysis(ticker):
+            """Redirect to dashboard with stock highlighted"""
+            return redirect(f'/#stock-{ticker.upper()}')
             
         @self.app.route('/category/<category>')
         def category_view(category):
@@ -200,23 +208,137 @@ class StockAnalysisApp:
             
         @self.app.route('/api/30-day-picks')
         def get_thirty_day_picks():
-            """Get 30-day optimized picks"""
+            """Get 30-day optimized picks with live 20%+ growth research"""
+            use_live_research = request.args.get('live', 'true').lower() == 'true'
+            
+            # Try live research first if available and requested
+            if use_live_research and LIVE_RESEARCH_AVAILABLE:
+                try:
+                    researcher = LiveStockResearcher()
+                    live_results = researcher.live_research_scan()
+                    
+                    # Format for consistent API response
+                    formatted_picks = []
+                    for pick in live_results.get('picks', []):
+                        formatted_pick = {
+                            'ticker': pick['ticker'],
+                            'current_price': pick['current_price'],
+                            'target_price': pick['target_price'],
+                            'upside_potential': pick['upside_potential'],
+                            'days_to_hold': pick.get('days_to_hold', 20),
+                            'technical_score': pick.get('technical_score', 75),
+                            'risk_level': pick.get('risk_level', 3),
+                            'category_name': pick.get('category_name', 'Growth Opportunity'),
+                            'reasons': pick.get('reasons', []),
+                            'confidence': pick.get('confidence', 70),
+                            'volume_ratio': pick.get('volume_ratio', 1.0),
+                            'momentum_30d': pick.get('momentum_30d', 0.0),
+                            'rsi': pick.get('rsi', 50),
+                            'last_updated': pick.get('last_updated'),
+                            'data_source': 'Live Research'
+                        }
+                        formatted_picks.append(formatted_pick)
+                    
+                    return jsonify({
+                        'status': 'success',
+                        'data': {
+                            'picks': formatted_picks,
+                            'metadata': {
+                                'total_screened': live_results.get('total_screened', 0),
+                                'qualified_count': live_results.get('qualified_count', 0),
+                                'scan_duration': live_results.get('scan_duration_seconds', 0),
+                                'scan_timestamp': live_results.get('scan_timestamp'),
+                                'criteria': live_results.get('criteria', {}),
+                                'data_sources': live_results.get('data_sources', []),
+                                'source_type': 'live_research'
+                            }
+                        }
+                    })
+                    
+                except Exception as e:
+                    # Log error and fall back to static analysis
+                    print(f"Live research failed: {e}")
+                    # Continue to fallback logic below
+            
+            # Fallback to existing static analysis
             if self.state.current_analysis is None:
                 return jsonify({
                     'status': 'error',
-                    'message': 'No analysis data available'
+                    'message': 'No analysis data available. Try running an analysis first.',
+                    'suggestion': 'Use the dashboard to start a new analysis or enable live research.'
                 }), 404
                 
-            # Filter for 30-day optimized picks
+            # Filter existing analysis for 30-day optimized picks
             thirty_day_picks = []
             for stock in self.state.current_analysis.get('top_10_picks', []):
                 if stock.get('optimal_holding_days', 30) <= 30:
-                    thirty_day_picks.append(stock)
+                    # Ensure consistent data structure
+                    formatted_stock = {
+                        'ticker': stock.get('ticker', ''),
+                        'current_price': stock.get('current_price', 0),
+                        'target_price': stock.get('target_price', stock.get('current_price', 0)),
+                        'upside_potential': stock.get('upside_potential', 0),
+                        'days_to_hold': stock.get('optimal_holding_days', 20),
+                        'technical_score': stock.get('technical_score', 70),
+                        'risk_level': stock.get('risk_level', 3),
+                        'category_name': stock.get('category_name', 'Analysis Pick'),
+                        'data_source': 'Static Analysis'
+                    }
+                    thirty_day_picks.append(formatted_stock)
                     
             return jsonify({
                 'status': 'success',
-                'data': thirty_day_picks
+                'data': {
+                    'picks': thirty_day_picks,
+                    'metadata': {
+                        'source_type': 'static_analysis',
+                        'analysis_timestamp': self.state.current_analysis.get('timestamp'),
+                        'total_picks': len(thirty_day_picks)
+                    }
+                }
             })
+            
+        @self.app.route('/api/live-research', methods=['POST'])
+        def trigger_live_research():
+            """Trigger on-demand live research for 20%+ growth stocks"""
+            if not LIVE_RESEARCH_AVAILABLE:
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Live research system not available'
+                }), 503
+            
+            try:
+                # Get parameters from request
+                data = request.get_json() or {}
+                min_growth = data.get('min_growth_potential', 20.0)
+                max_price = data.get('max_price', 50.0)
+                max_results = data.get('max_results', 20)
+                
+                # Initialize researcher with custom criteria
+                config = {
+                    'min_growth_potential': min_growth,
+                    'max_price': max_price
+                }
+                researcher = LiveStockResearcher(config)
+                
+                # Perform live research scan
+                results = researcher.live_research_scan()
+                
+                # Limit results if requested
+                if max_results:
+                    results['picks'] = results['picks'][:max_results]
+                
+                return jsonify({
+                    'status': 'success',
+                    'message': f'Found {len(results["picks"])} stocks with {min_growth}%+ growth potential',
+                    'data': results
+                })
+                
+            except Exception as e:
+                return jsonify({
+                    'status': 'error',
+                    'message': f'Live research failed: {str(e)}'
+                }), 500
             
         @self.app.route('/debug')
         def debug():

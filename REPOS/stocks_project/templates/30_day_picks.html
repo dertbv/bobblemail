@@ -21,10 +21,18 @@
                             <div class="col-md-8">
                                 <h1 class="display-5 mb-2">
                                     <i class="fas fa-bolt me-3"></i>30-Day Trading Picks
-                                    <span class="badge bg-warning text-dark ms-2">LIVE DATA</span>
+                                    <span class="badge bg-warning text-dark ms-2" id="data-source-badge">LIVE DATA</span>
                                 </h1>
+                                <div class="d-flex gap-2 mt-2">
+                                    <button id="refresh-live-data" class="btn btn-success btn-sm">
+                                        <i class="fas fa-sync-alt me-1"></i>Start Live Research
+                                    </button>
+                                    <button id="toggle-data-source" class="btn btn-outline-light btn-sm">
+                                        <i class="fas fa-exchange-alt me-1"></i>Switch to Static
+                                    </button>
+                                </div>
                                 <p class="lead mb-2">
-                                    Stocks under $10 with the highest potential return for short-term trading (buy today, sell within 30 days)
+                                    <span id="description-text">Real-time research for stocks with 20%+ growth potential in the next 30 days</span>
                                 </p>
                                 <div class="row">
                                     <div class="col-md-6">
@@ -217,28 +225,185 @@
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    loadTradingData();
+    let useLiveData = true;
+    let isLoadingLiveData = false;
+    let hasInitialData = false;
+    
+    // Event listeners
+    document.getElementById('refresh-live-data').addEventListener('click', performLiveResearch);
+    document.getElementById('toggle-data-source').addEventListener('click', toggleDataSource);
+    
+    // Load cached/previous data first (don't trigger live research on page load)
+    loadCachedData();
+    
+    function loadCachedData() {
+        // Try to load static/cached data without triggering live research
+        showLoading();
+        updateUIForDataSource();
+        
+        fetch('/api/30-day-picks?live=false')
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success' && data.data.picks && data.data.picks.length > 0) {
+                populateTradingData(data.data);
+                updateMetadata(data.data.metadata);
+                hideLoading();
+                showTradingContent();
+                hasInitialData = true;
+                
+                // Update refresh button to show data is available
+                updateRefreshButtonState('ready');
+            } else {
+                hideLoading();
+                showNoDataMessage();
+            }
+        })
+        .catch(error => {
+            console.error('Error loading cached data:', error);
+            hideLoading();
+            showNoDataMessage();
+        });
+    }
     
     function loadTradingData() {
         showLoading();
+        updateUIForDataSource();
         
-        fetch('/api/30-day-picks')
+        const apiUrl = useLiveData ? '/api/30-day-picks?live=true' : '/api/30-day-picks?live=false';
+        
+        fetch(apiUrl)
         .then(response => response.json())
         .then(data => {
             if (data.status === 'success') {
                 populateTradingData(data.data);
+                updateMetadata(data.data.metadata);
                 hideLoading();
                 showTradingContent();
+                hasInitialData = true;
             } else {
                 hideLoading();
-                showNoData();
+                showNoDataMessage();
             }
         })
         .catch(error => {
             console.error('Error loading trading data:', error);
             hideLoading();
-            showNoData();
+            showNoDataMessage();
         });
+    }
+    
+    function performLiveResearch() {
+        if (isLoadingLiveData) return;
+        
+        isLoadingLiveData = true;
+        updateRefreshButtonState('scanning');
+        
+        // Show progress modal similar to dashboard
+        showResearchProgressModal();
+        
+        fetch('/api/live-research', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                min_growth_potential: 20.0,
+                max_price: 50.0,
+                max_results: 25
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // Format the data for display
+                const formattedData = {
+                    picks: data.data.picks,
+                    metadata: {
+                        ...data.data,
+                        source_type: 'live_research'
+                    }
+                };
+                populateTradingData(formattedData);
+                updateMetadata(formattedData.metadata);
+                showTradingContent();
+                hasInitialData = true;
+                
+                // Update UI to show live data is being used
+                useLiveData = true;
+                updateUIForDataSource();
+                updateRefreshButtonState('ready');
+                
+                hideResearchProgressModal();
+            } else {
+                throw new Error(data.message || 'Live research failed');
+            }
+        })
+        .catch(error => {
+            console.error('Error performing live research:', error);
+            hideResearchProgressModal();
+            showNoDataMessage();
+            alert('Live research failed: ' + error.message);
+            updateRefreshButtonState('ready');
+        })
+        .finally(() => {
+            isLoadingLiveData = false;
+        });
+    }
+    
+    function toggleDataSource() {
+        useLiveData = !useLiveData;
+        updateUIForDataSource();
+        
+        if (useLiveData) {
+            // If switching to live data, don't auto-load - let user click refresh
+            updateRefreshButtonState('ready');
+        } else {
+            // If switching to static data, load it immediately
+            loadTradingData();
+        }
+    }
+    
+    function updateUIForDataSource() {
+        const badge = document.getElementById('data-source-badge');
+        const toggleButton = document.getElementById('toggle-data-source');
+        const description = document.getElementById('description-text');
+        
+        if (useLiveData) {
+            badge.textContent = 'LIVE DATA';
+            badge.className = 'badge bg-warning text-dark ms-2';
+            toggleButton.innerHTML = '<i class="fas fa-exchange-alt me-1"></i>Switch to Static';
+            description.textContent = 'Real-time research for stocks with 20%+ growth potential in the next 30 days';
+        } else {
+            badge.textContent = 'STATIC DATA';
+            badge.className = 'badge bg-secondary text-white ms-2';
+            toggleButton.innerHTML = '<i class="fas fa-exchange-alt me-1"></i>Switch to Live';
+            description.textContent = 'Pre-analyzed stocks optimized for 30-day trading windows';
+        }
+    }
+    
+    function updateMetadata(metadata) {
+        if (!metadata) return;
+        
+        // Update scan information if available
+        if (metadata.scan_duration_seconds) {
+            const scanInfo = document.createElement('div');
+            scanInfo.className = 'alert alert-info mt-3';
+            scanInfo.innerHTML = `
+                <div class="d-flex justify-content-between">
+                    <span><i class="fas fa-info-circle me-2"></i>Live scan completed in ${metadata.scan_duration_seconds}s</span>
+                    <small>Screened ${metadata.total_screened || 0} stocks • Found ${metadata.qualified_count || 0} opportunities</small>
+                </div>
+            `;
+            
+            // Add to header if not already there
+            const headerCard = document.querySelector('.card.bg-gradient .card-body');
+            const existingInfo = headerCard.querySelector('.alert-info');
+            if (existingInfo) {
+                existingInfo.replaceWith(scanInfo);
+            } else {
+                headerCard.appendChild(scanInfo);
+            }
+        }
     }
     
     function populateTradingData(data) {
@@ -340,9 +505,13 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function showLoading() {
-        document.getElementById('loading-spinner').classList.remove('d-none');
-        document.getElementById('trading-content').classList.add('d-none');
-        document.getElementById('no-data').classList.add('d-none');
+        if (!hasInitialData) {
+            // Only show the main loading spinner if we don't have any data yet
+            document.getElementById('loading-spinner').classList.remove('d-none');
+            document.getElementById('trading-content').classList.add('d-none');
+            document.getElementById('no-data').classList.add('d-none');
+        }
+        // If we have data, the progress modal will handle loading indication
     }
     
     function hideLoading() {
@@ -353,8 +522,93 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('trading-content').classList.remove('d-none');
     }
     
-    function showNoData() {
+    function showNoDataMessage() {
         document.getElementById('no-data').classList.remove('d-none');
+        document.getElementById('trading-content').classList.add('d-none');
+    }
+    
+    function updateRefreshButtonState(state) {
+        const button = document.getElementById('refresh-live-data');
+        
+        switch(state) {
+            case 'ready':
+                if (hasInitialData) {
+                    button.innerHTML = '<i class="fas fa-sync-alt me-1"></i>Refresh Live Data';
+                } else {
+                    button.innerHTML = '<i class="fas fa-play me-1"></i>Start Live Research';
+                }
+                button.disabled = false;
+                button.className = 'btn btn-success btn-sm';
+                break;
+            case 'scanning':
+                button.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Scanning Market...';
+                button.disabled = true;
+                button.className = 'btn btn-warning btn-sm';
+                break;
+        }
+    }
+    
+    function showResearchProgressModal() {
+        // Create or show progress modal
+        let modal = document.getElementById('researchProgressModal');
+        if (!modal) {
+            // Create the modal if it doesn't exist
+            const modalHtml = `
+                <div class="modal fade" id="researchProgressModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content">
+                            <div class="modal-header bg-success text-white">
+                                <h5 class="modal-title">
+                                    <i class="fas fa-search me-2"></i>Live Market Research in Progress
+                                </h5>
+                            </div>
+                            <div class="modal-body text-center py-4">
+                                <div class="mb-4">
+                                    <i class="fas fa-chart-line fa-3x text-success mb-3"></i>
+                                    <h6 id="research-phase-text" class="text-muted">Scanning market for 20%+ growth opportunities...</h6>
+                                </div>
+                                
+                                <div class="progress mb-3" style="height: 25px;">
+                                    <div id="research-progress-bar" 
+                                         class="progress-bar progress-bar-striped progress-bar-animated bg-success" 
+                                         role="progressbar" 
+                                         style="width: 100%"
+                                         aria-valuenow="100" 
+                                         aria-valuemin="0" 
+                                         aria-valuemax="100">
+                                    </div>
+                                </div>
+                                
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <span class="fw-bold text-success">Analyzing multiple data sources...</span>
+                                    <small class="text-muted">Estimated time: 30-60 seconds</small>
+                                </div>
+                                
+                                <div class="alert alert-info">
+                                    <small><i class="fas fa-info-circle me-1"></i>
+                                    Screening stocks from Yahoo Finance, analyzing technical indicators, and identifying high-potential opportunities.
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+            modal = document.getElementById('researchProgressModal');
+        }
+        
+        // Show modal using Bootstrap 5 modal API
+        const bootstrapModal = new bootstrap.Modal(modal);
+        bootstrapModal.show();
+    }
+    
+    function hideResearchProgressModal() {
+        // Hide modal using Bootstrap 5 modal API
+        const modal = bootstrap.Modal.getInstance(document.getElementById('researchProgressModal'));
+        if (modal) {
+            modal.hide();
+        }
     }
 });
 </script>

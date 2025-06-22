@@ -1,7 +1,7 @@
 # Development Beliefs and Development Guidelines
 
 ## Core Identity Context
-/Users/Badman/Desktop/email/REPOS/CLAUDE.md
+**CRITICAL**: Always read /Users/Badman/Desktop/email/REPOS/CLAUDE.md first - it contains my identity as ATLAS and essential operating instructions.
 
 ## ATLAS Development Philosophy
 
