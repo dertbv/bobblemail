@@ -19,11 +19,21 @@ app = Flask(__name__)
 current_analysis = None
 analysis_in_progress = False
 analysis_thread = None
+current_phase = 0
+analysis_start_time = None
+phase_times = []  # Track actual phase durations
+phase_names = [
+    "Discovering stocks...",
+    "Analyzing technical indicators...", 
+    "Evaluating financials...",
+    "Processing market sentiment...",
+    "Generating recommendations..."
+]
 
 @app.route('/')
 def index():
-    """Main page with analysis dashboard"""
-    return render_template('index.html')
+    """Main dashboard page"""
+    return render_template('dashboard.html')
 
 @app.route('/api/start-analysis', methods=['POST'])
 def start_analysis():
@@ -50,11 +60,22 @@ def start_analysis():
 @app.route('/api/analysis-status')
 def analysis_status():
     """Get current analysis status"""
-    global analysis_in_progress, current_analysis
+    global analysis_in_progress, current_analysis, current_phase, phase_names, analysis_start_time
+    
+    # KISS: 35 second analysis divided by 10 = 3.5 second intervals
+    if analysis_start_time and analysis_in_progress:
+        elapsed_time = time.time() - analysis_start_time
+        # Update progress every 3.5 seconds by 10%
+        progress_percentage = min((elapsed_time / 3.5) * 10, 100)
+    else:
+        progress_percentage = 0
     
     return jsonify({
         'in_progress': analysis_in_progress,
         'has_results': current_analysis is not None,
+        'current_phase': current_phase,
+        'phase_name': phase_names[current_phase] if current_phase < len(phase_names) else "Completing...",
+        'progress_percentage': round(progress_percentage),
         'timestamp': datetime.now().isoformat()
     })
 
@@ -117,10 +138,6 @@ def get_stock_details(ticker):
         'data': stock_data
     })
 
-@app.route('/dashboard')
-def dashboard():
-    """Analysis dashboard page"""
-    return render_template('dashboard.html')
 
 @app.route('/stock/<ticker>')
 def stock_detail(ticker):
@@ -159,19 +176,50 @@ def test():
     with open('test_display.html', 'r') as f:
         return f.read()
 
+def update_phase_callback(phase):
+    """Update current phase for progress tracking"""
+    global current_phase, phase_times
+    
+    # Record time when phase changes
+    current_time = time.time()
+    if len(phase_times) <= phase:
+        phase_times.append(current_time)
+    else:
+        phase_times[phase] = current_time
+    
+    current_phase = phase
+    print(f"Phase {phase + 1}/5: {phase_names[phase]} (at {current_time:.2f}s)")
+
 def run_background_analysis():
     """Run analysis in background thread"""
-    global analysis_in_progress, current_analysis
+    global analysis_in_progress, current_analysis, current_phase, analysis_start_time, phase_times
     
     try:
         analysis_in_progress = True
-        print("Starting background analysis...")
+        current_phase = 0
+        analysis_start_time = time.time()
+        phase_times = [analysis_start_time]  # Initialize with start time
+        print(f"Starting background analysis at {analysis_start_time:.2f}s...")
         
         # Create analyzer instance
         analyzer = PennyStockAnalyzer()
         
-        # Run analysis
-        top_10_picks = analyzer.run_analysis()
+        # Run analysis with manual phase tracking
+        update_phase_callback(0)  # Phase 1: Stock discovery
+        tickers = analyzer.get_penny_stock_universe()
+        
+        update_phase_callback(1)  # Phase 2: Technical analysis
+        technical_scores = analyzer.perform_technical_analysis(tickers)
+        
+        update_phase_callback(2)  # Phase 3: Fundamental analysis  
+        fundamental_scores = analyzer.perform_fundamental_analysis(tickers)
+        
+        update_phase_callback(3)  # Phase 4: Sentiment analysis
+        sentiment_scores = analyzer.analyze_sentiment(tickers)
+        
+        update_phase_callback(4)  # Phase 5: Final rankings
+        top_10_picks = analyzer.generate_final_rankings(tickers, technical_scores, 
+                                                       fundamental_scores, sentiment_scores)
         
         # Load additional data from phase files
         output_dir = analyzer.output_dir
@@ -210,6 +258,30 @@ def run_background_analysis():
             'output_directory': output_dir
         }
         
+        # Record completion time and calculate phase durations
+        completion_time = time.time()
+        phase_times.append(completion_time)
+        
+        # Calculate and log phase durations
+        total_duration = completion_time - analysis_start_time
+        print(f"Background analysis completed successfully in {total_duration:.2f}s")
+        print("Phase durations:")
+        
+        phase_durations = []
+        for i in range(len(phase_times) - 1):
+            duration = phase_times[i + 1] - phase_times[i]
+            percentage = (duration / total_duration) * 100
+            phase_durations.append(duration)
+            print(f"  Phase {i + 1}: {duration:.2f}s ({percentage:.1f}%)")
+        
+        # Calculate cumulative percentages for progress ranges
+        cumulative_percentages = [0]
+        for duration in phase_durations:
+            next_percentage = cumulative_percentages[-1] + (duration / total_duration) * 100
+            cumulative_percentages.append(round(next_percentage))
+        
+        print(f"Suggested progress ranges: {list(zip(cumulative_percentages[:-1], cumulative_percentages[1:]))}")
+        
         print("Background analysis completed successfully")
         
     except Exception as e:
@@ -221,6 +293,9 @@ def run_background_analysis():
     
     finally:
         analysis_in_progress = False
+        current_phase = 0  # Reset phase when done
+        analysis_start_time = None  # Reset start time
+        # Keep phase_times for reference until next analysis
 
 def load_previous_analysis():
     """Load the most recent analysis from disk"""

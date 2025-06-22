@@ -18,6 +18,7 @@
             </button>
         </div>
         
+        
         <div id="loading-spinner" class="text-center py-5">
             <div class="spinner-border text-primary" role="status">
                 <span class="visually-hidden">Loading...</span>
@@ -29,9 +30,9 @@
             <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
             <h4>No Analysis Data Available</h4>
             <p class="text-muted">Please run an analysis first to view results.</p>
-            <a href="{{ url_for('index') }}" class="btn btn-primary">
+            <button id="start-analysis-btn" class="btn btn-primary" onclick="startNewAnalysis()">
                 <i class="fas fa-play me-2"></i>Start Analysis
-            </a>
+            </button>
         </div>
         
         <div id="dashboard-content" class="d-none">
@@ -601,11 +602,16 @@ document.addEventListener('DOMContentLoaded', function() {
     
     function startNewAnalysis() {
         const refreshBtn = document.getElementById('refresh-data');
+        const startBtn = document.getElementById('start-analysis-btn');
         const originalText = refreshBtn.innerHTML;
         
         // Update button to show loading state
         refreshBtn.disabled = true;
+        if (startBtn) startBtn.disabled = true;
         refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Starting Analysis...';
+        
+        // Show progress modal
+        showAnalysisProgressModal();
         
         // Start the analysis
         fetch('/api/start-analysis', {
@@ -618,16 +624,20 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(data => {
             if (data.status === 'success') {
                 refreshBtn.innerHTML = '<i class="fas fa-clock me-2"></i>Analysis Running...';
-                // Poll for completion
+                // Poll for completion with progress updates
                 pollAnalysisStatus();
             } else {
+                hideAnalysisProgressModal();
                 refreshBtn.disabled = false;
+                if (startBtn) startBtn.disabled = false;
                 refreshBtn.innerHTML = originalText;
                 alert('Error starting analysis: ' + data.message);
             }
         })
         .catch(error => {
+            hideAnalysisProgressModal();
             refreshBtn.disabled = false;
+            if (startBtn) startBtn.disabled = false;
             refreshBtn.innerHTML = originalText;
             alert('Error starting analysis');
         });
@@ -635,25 +645,65 @@ document.addEventListener('DOMContentLoaded', function() {
     
     function pollAnalysisStatus() {
         const refreshBtn = document.getElementById('refresh-data');
+        const startBtn = document.getElementById('start-analysis-btn');
         
         fetch('/api/analysis-status')
         .then(response => response.json())
         .then(data => {
             if (data.in_progress) {
+                // Update progress bar and phase text
+                updateAnalysisProgress(data.progress_percentage, data.phase_name);
                 // Still running, check again in 3 seconds
                 setTimeout(pollAnalysisStatus, 3000);
             } else {
-                // Analysis complete, reload data and reset button
+                // Analysis complete, hide progress modal and reload data
+                hideAnalysisProgressModal();
                 refreshBtn.disabled = false;
+                if (startBtn) startBtn.disabled = false;
                 refreshBtn.innerHTML = '<i class="fas fa-sync-alt me-2"></i>Refresh Analysis';
                 loadDashboardData();
             }
         })
         .catch(error => {
-            // Error checking status, reset button
+            // Error checking status, reset everything
+            hideAnalysisProgressModal();
             refreshBtn.disabled = false;
+            if (startBtn) startBtn.disabled = false;
             refreshBtn.innerHTML = '<i class="fas fa-sync-alt me-2"></i>Refresh Analysis';
         });
+    }
+    
+    function showAnalysisProgressModal() {
+        // Reset progress
+        updateAnalysisProgress(0, 'Starting analysis...');
+        // Show modal using Bootstrap 5 modal API
+        const modal = new bootstrap.Modal(document.getElementById('analysisProgressModal'));
+        modal.show();
+    }
+    
+    function hideAnalysisProgressModal() {
+        // Hide modal using Bootstrap 5 modal API
+        const modal = bootstrap.Modal.getInstance(document.getElementById('analysisProgressModal'));
+        if (modal) {
+            modal.hide();
+        }
+    }
+    
+    function updateAnalysisProgress(percentage, phaseText) {
+        const progressBar = document.getElementById('analysis-progress-bar');
+        const progressPercent = document.getElementById('analysis-progress-percent');
+        const phaseTextEl = document.getElementById('analysis-phase-text');
+        
+        if (progressBar) {
+            progressBar.style.width = percentage + '%';
+            progressBar.setAttribute('aria-valuenow', percentage);
+        }
+        if (progressPercent) {
+            progressPercent.textContent = percentage + '%';
+        }
+        if (phaseTextEl) {
+            phaseTextEl.textContent = phaseText;
+        }
     }
 });
 </script>
@@ -737,6 +787,47 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Analysis Progress Modal -->
+<div class="modal fade" id="analysisProgressModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-cogs me-2"></i>Analysis in Progress
+                </h5>
+            </div>
+            <div class="modal-body text-center py-4">
+                <div class="mb-4">
+                    <i class="fas fa-chart-line fa-3x text-primary mb-3"></i>
+                    <h6 id="analysis-phase-text" class="text-muted">Starting analysis...</h6>
+                </div>
+                
+                <div class="progress mb-3" style="height: 25px;">
+                    <div id="analysis-progress-bar" 
+                         class="progress-bar progress-bar-striped progress-bar-animated bg-primary" 
+                         role="progressbar" 
+                         style="width: 0%"
+                         aria-valuenow="0" 
+                         aria-valuemin="0" 
+                         aria-valuemax="100">
+                    </div>
+                </div>
+                
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span class="fw-bold text-primary" id="analysis-progress-percent">0%</span>
+                    <small class="text-muted">Estimated time: 2-3 minutes</small>
+                </div>
+                
+                <div class="alert alert-info">
+                    <small><i class="fas fa-info-circle me-1"></i>
+                    Please keep this window open while analysis runs. The dashboard will automatically update when complete.
+                    </small>
+                </div>
             </div>
         </div>
     </div>

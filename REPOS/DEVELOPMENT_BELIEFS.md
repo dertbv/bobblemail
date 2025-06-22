@@ -1,7 +1,7 @@
 # Development Beliefs and Development Guidelines
 
 ## Core Identity Context
-@CLAUDE.md
+/Users/Badman/Desktop/email/REPOS/CLAUDE.md
 
 ## ATLAS Development Philosophy
 
