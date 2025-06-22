@@ -1,255 +1,334 @@
 #!/usr/bin/env python3
 """
-Penny Stock Analysis Web Application
-Flask web app that provides penny stock analysis through a web interface
+Production-Ready Stock Analysis Web Application
+Consolidated, async-enhanced Flask app with proper architecture
+
+This replaces the original app.py with:
+- No duplicate code (consolidated from 3 apps)
+- Proper state management (no global variables) 
+- Non-blocking async operations
+- Security improvements (debug=False, localhost-only)
+- Better error handling and data integrity
 """
 
-from flask import Flask, render_template, jsonify, request
-import json
 import os
-from datetime import datetime
-import threading
+import json
 import time
 import math
-from run_penny_stock_analysis import PennyStockAnalyzer
+import concurrent.futures
+from datetime import datetime
+from enum import Enum
+from dataclasses import dataclass, field
+from typing import Optional, Dict, List, Any
+from flask import Flask, render_template, jsonify, request
+from queue import Queue, Empty
+import threading
 
-app = Flask(__name__)
+# Import analysis engines
+try:
+    from run_penny_stock_analysis import PennyStockAnalyzer
+    PENNY_ANALYZER_AVAILABLE = True
+except ImportError:
+    PENNY_ANALYZER_AVAILABLE = False
+    print("Warning: PennyStockAnalyzer not available")
 
-# Global variables to store analysis results
-current_analysis = None
-analysis_in_progress = False
-analysis_thread = None
-current_phase = 0
-analysis_start_time = None
-phase_times = []  # Track actual phase durations
-phase_names = [
-    "Discovering stocks...",
-    "Analyzing technical indicators...", 
-    "Evaluating financials...",
-    "Processing market sentiment...",
-    "Generating recommendations..."
-]
 
-@app.route('/')
-def index():
-    """Main dashboard page"""
-    return render_template('dashboard.html')
+@dataclass
+class AnalysisState:
+    """Application state management - no more global variables"""
+    current_analysis: Optional[Dict[str, Any]] = None
+    analysis_in_progress: bool = False
+    current_phase: int = 0
+    analysis_start_time: Optional[float] = None
+    phase_times: List[float] = field(default_factory=list)
+    executor: concurrent.futures.ThreadPoolExecutor = field(
+        default_factory=lambda: concurrent.futures.ThreadPoolExecutor(max_workers=4)
+    )
+    analysis_task: Optional[concurrent.futures.Future] = None
 
-@app.route('/api/start-analysis', methods=['POST'])
-def start_analysis():
-    """Start a new penny stock analysis"""
-    global analysis_in_progress, analysis_thread
+
+class StockAnalysisApp:
+    """Production-ready Stock Analysis Application"""
     
-    if analysis_in_progress:
-        return jsonify({
-            'status': 'error',
-            'message': 'Analysis already in progress'
-        }), 400
-    
-    # Start analysis in background thread
-    analysis_thread = threading.Thread(target=run_background_analysis)
-    analysis_thread.daemon = True
-    analysis_thread.start()
-    
-    return jsonify({
-        'status': 'success',
-        'message': 'Analysis started',
-        'timestamp': datetime.now().isoformat()
-    })
-
-@app.route('/api/analysis-status')
-def analysis_status():
-    """Get current analysis status"""
-    global analysis_in_progress, current_analysis, current_phase, phase_names, analysis_start_time
-    
-    # KISS: 35 second analysis divided by 10 = 3.5 second intervals
-    if analysis_start_time and analysis_in_progress:
-        elapsed_time = time.time() - analysis_start_time
-        # Update progress every 3.5 seconds by 10%
-        progress_percentage = min((elapsed_time / 3.5) * 10, 100)
-    else:
-        progress_percentage = 0
-    
-    return jsonify({
-        'in_progress': analysis_in_progress,
-        'has_results': current_analysis is not None,
-        'current_phase': current_phase,
-        'phase_name': phase_names[current_phase] if current_phase < len(phase_names) else "Completing...",
-        'progress_percentage': round(progress_percentage),
-        'timestamp': datetime.now().isoformat()
-    })
-
-def clean_nan_values(obj):
-    """Recursively clean NaN values from nested dictionaries/lists"""
-    if isinstance(obj, dict):
-        return {k: clean_nan_values(v) for k, v in obj.items()}
-    elif isinstance(obj, list):
-        return [clean_nan_values(item) for item in obj]
-    elif isinstance(obj, float) and math.isnan(obj):
-        return 0  # Replace NaN with 0
-    return obj
-
-@app.route('/api/results')
-def get_results():
-    """Get analysis results"""
-    global current_analysis
-    
-    if current_analysis is None:
-        return jsonify({
-            'status': 'error',
-            'message': 'No analysis results available'
-        }), 404
-    
-    # Clean NaN values before returning
-    cleaned_data = clean_nan_values(current_analysis)
-    
-    return jsonify({
-        'status': 'success',
-        'data': cleaned_data,
-        'timestamp': datetime.now().isoformat()
-    })
-
-@app.route('/api/stock/<ticker>')
-def get_stock_details(ticker):
-    """Get detailed information for a specific stock"""
-    global current_analysis
-    
-    if current_analysis is None:
-        return jsonify({
-            'status': 'error',
-            'message': 'No analysis data available'
-        }), 404
-    
-    # Find stock in results
-    stock_data = None
-    for stock in current_analysis.get('top_10_picks', []):
-        if stock['ticker'].upper() == ticker.upper():
-            stock_data = stock
-            break
-    
-    if stock_data is None:
-        return jsonify({
-            'status': 'error',
-            'message': f'Stock {ticker} not found in analysis'
-        }), 404
-    
-    return jsonify({
-        'status': 'success',
-        'data': stock_data
-    })
-
-
-@app.route('/stock/<ticker>')
-def stock_detail(ticker):
-    """Individual stock detail page"""
-    return render_template('stock_detail.html', ticker=ticker.upper())
-
-@app.route('/category/<category>')
-def category_view(category):
-    """Category-specific stock listing page"""
-    category_names = {
-        'under-5': 'Under $5 Stocks',
-        '5-to-10': '$5 - $10 Stocks', 
-        '10-to-20': '$10 - $20 Stocks'
-    }
-    category_name = category_names.get(category, 'Stock Category')
-    return render_template('category.html', category=category, category_name=category_name)
-
-@app.route('/api/health')
-def health_check():
-    """Health check endpoint"""
-    return jsonify({
-        'status': 'healthy',
-        'timestamp': datetime.now().isoformat(),
-        'service': 'Penny Stock Analysis API'
-    })
-
-@app.route('/debug')
-def debug():
-    """Debug page"""
-    with open('debug_dashboard.html', 'r') as f:
-        return f.read()
-
-@app.route('/test')
-def test():
-    """Test display page"""
-    with open('test_display.html', 'r') as f:
-        return f.read()
-
-def update_phase_callback(phase):
-    """Update current phase for progress tracking"""
-    global current_phase, phase_times
-    
-    # Record time when phase changes
-    current_time = time.time()
-    if len(phase_times) <= phase:
-        phase_times.append(current_time)
-    else:
-        phase_times[phase] = current_time
-    
-    current_phase = phase
-    print(f"Phase {phase + 1}/5: {phase_names[phase]} (at {current_time:.2f}s)")
-
-def run_background_analysis():
-    """Run analysis in background thread"""
-    global analysis_in_progress, current_analysis, current_phase, analysis_start_time, phase_times
-    
-    try:
-        analysis_in_progress = True
-        current_phase = 0
-        analysis_start_time = time.time()
-        phase_times = [analysis_start_time]  # Initialize with start time
-        print(f"Starting background analysis at {analysis_start_time:.2f}s...")
+    def __init__(self):
+        self.state = AnalysisState()
+        self.app = Flask(__name__)
+        self.phase_names = [
+            "Discovering stocks...",
+            "Analyzing technical indicators...", 
+            "Evaluating financials...",
+            "Processing market sentiment...",
+            "Generating recommendations..."
+        ]
+        self._setup_routes()
         
-        # Create analyzer instance
-        analyzer = PennyStockAnalyzer()
+    def _setup_routes(self):
+        """Setup Flask routes"""
         
-        # Run analysis with manual phase tracking
-        update_phase_callback(0)  # Phase 1: Stock discovery
-        tickers = analyzer.get_penny_stock_universe()
+        @self.app.route('/')
+        def index():
+            """Main dashboard page"""
+            return render_template('dashboard.html')
+            
+        @self.app.route('/api/start-analysis', methods=['POST'])
+        def start_analysis():
+            """Start a new stock analysis (non-blocking)"""
+            if self.state.analysis_in_progress:
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Analysis already in progress'
+                }), 400
+            
+            # Reset state for new analysis
+            self.state.analysis_in_progress = True
+            self.state.analysis_start_time = time.time()
+            self.state.phase_times = [self.state.analysis_start_time]
+            self.state.current_phase = 0
+            
+            # Submit analysis task to executor (non-blocking)
+            self.state.analysis_task = self.state.executor.submit(self._run_background_analysis)
+            
+            return jsonify({
+                'status': 'success',
+                'message': 'Analysis started',
+                'timestamp': datetime.now().isoformat()
+            })
+            
+        @self.app.route('/api/analysis-status')
+        def analysis_status():
+            """Get current analysis status"""
+            progress_percentage = 0
+            
+            if self.state.analysis_start_time and self.state.analysis_in_progress:
+                elapsed_time = time.time() - self.state.analysis_start_time
+                # Simple progress calculation
+                progress_percentage = min((elapsed_time / 3.5) * 10, 100)
+                    
+            elif self.state.current_analysis is not None and not self.state.analysis_in_progress:
+                progress_percentage = 100
+            
+            return jsonify({
+                'in_progress': self.state.analysis_in_progress,
+                'has_results': self.state.current_analysis is not None,
+                'current_phase': self.state.current_phase,
+                'phase_name': self.phase_names[self.state.current_phase] if self.state.current_phase < len(self.phase_names) else "Completing...",
+                'progress_percentage': round(progress_percentage),
+                'timestamp': datetime.now().isoformat()
+            })
+            
+        @self.app.route('/api/results')
+        def get_results():
+            """Get analysis results"""
+            if self.state.current_analysis is None:
+                return jsonify({
+                    'status': 'error',
+                    'message': 'No analysis results available'
+                }), 404
+            
+            # Clean NaN values before returning
+            cleaned_data = self._clean_nan_values(self.state.current_analysis)
+            
+            return jsonify({
+                'status': 'success',
+                'data': cleaned_data,
+                'timestamp': datetime.now().isoformat()
+            })
+            
+        @self.app.route('/api/stock/<ticker>')
+        def get_stock_details(ticker):
+            """Get detailed information for a specific stock"""
+            if self.state.current_analysis is None:
+                return jsonify({
+                    'status': 'error',
+                    'message': 'No analysis data available'
+                }), 404
+            
+            # Find stock in results
+            stock_data = None
+            ticker_upper = ticker.upper()
+            for stock in self.state.current_analysis.get('top_10_picks', []):
+                if stock['ticker'].upper() == ticker_upper:
+                    stock_data = stock
+                    break
+            
+            if stock_data is None:
+                return jsonify({
+                    'status': 'error',
+                    'message': f'Stock {ticker} not found in analysis'
+                }), 404
+            
+            return jsonify({
+                'status': 'success',
+                'data': stock_data
+            })
+            
+        @self.app.route('/stock/<ticker>')
+        def stock_detail(ticker):
+            """Individual stock detail page"""
+            return render_template('stock_detail.html', ticker=ticker.upper())
+            
+        @self.app.route('/category/<category>')
+        def category_view(category):
+            """Category-specific stock listing page"""
+            category_names = {
+                'under-5': 'Under $5 Stocks',
+                '5-to-10': '$5 - $10 Stocks', 
+                '10-to-20': '$10 - $20 Stocks'
+            }
+            category_name = category_names.get(category, 'Stock Category')
+            return render_template('category.html', category=category, category_name=category_name)
+            
+        @self.app.route('/api/health')
+        def health_check():
+            """Health check endpoint"""
+            return jsonify({
+                'status': 'healthy',
+                'timestamp': datetime.now().isoformat(),
+                'service': 'Penny Stock Analysis API',
+                'version': '2.0',  # New consolidated version
+                'features': {
+                    'async_enabled': True,
+                    'state_management': 'dataclass',
+                    'executor_threads': 4
+                }
+            })
+            
+        @self.app.route('/30-day-picks')
+        def thirty_day_picks():
+            """30-day picks page"""
+            return render_template('30_day_picks.html')
+            
+        @self.app.route('/api/30-day-picks')
+        def get_thirty_day_picks():
+            """Get 30-day optimized picks"""
+            if self.state.current_analysis is None:
+                return jsonify({
+                    'status': 'error',
+                    'message': 'No analysis data available'
+                }), 404
+                
+            # Filter for 30-day optimized picks
+            thirty_day_picks = []
+            for stock in self.state.current_analysis.get('top_10_picks', []):
+                if stock.get('optimal_holding_days', 30) <= 30:
+                    thirty_day_picks.append(stock)
+                    
+            return jsonify({
+                'status': 'success',
+                'data': thirty_day_picks
+            })
+            
+        @self.app.route('/debug')
+        def debug():
+            """Debug page (only available in debug mode)"""
+            if not self.app.debug:
+                return jsonify({'error': 'Debug mode is disabled'}), 403
+                
+            with open('debug_dashboard.html', 'r') as f:
+                return f.read()
+                
+        @self.app.route('/test')
+        def test():
+            """Test display page"""
+            with open('test_display.html', 'r') as f:
+                return f.read()
+    
+    def _clean_nan_values(self, obj):
+        """Recursively clean NaN values from nested dictionaries/lists"""
+        if isinstance(obj, dict):
+            return {k: self._clean_nan_values(v) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [self._clean_nan_values(item) for item in obj]
+        elif isinstance(obj, float) and math.isnan(obj):
+            return None  # Use None instead of 0 to preserve data integrity
+        return obj
+    
+    def _update_phase_callback(self, phase: int):
+        """Update current phase for progress tracking"""
+        current_time = time.time()
+        if len(self.state.phase_times) <= phase:
+            self.state.phase_times.append(current_time)
+        else:
+            self.state.phase_times[phase] = current_time
         
-        update_phase_callback(1)  # Phase 2: Technical analysis
-        technical_scores = analyzer.perform_technical_analysis(tickers)
-        
-        update_phase_callback(2)  # Phase 3: Fundamental analysis  
-        fundamental_scores = analyzer.perform_fundamental_analysis(tickers)
-        
-        update_phase_callback(3)  # Phase 4: Sentiment analysis
-        sentiment_scores = analyzer.analyze_sentiment(tickers)
-        
-        update_phase_callback(4)  # Phase 5: Final rankings
-        top_10_picks = analyzer.generate_final_rankings(tickers, technical_scores, 
-                                                       fundamental_scores, sentiment_scores)
-        
-        # Load additional data from phase files
-        output_dir = analyzer.output_dir
-        
-        # Load technical analysis data
+        self.state.current_phase = phase
+        print(f"Phase {phase + 1}/5: {self.phase_names[phase]} (at {current_time:.2f}s)")
+    
+    def _run_background_analysis(self):
+        """Run analysis in background thread (non-blocking)"""
+        try:
+            print(f"Starting background analysis at {self.state.analysis_start_time:.2f}s...")
+            
+            if not PENNY_ANALYZER_AVAILABLE:
+                raise Exception("Penny stock analyzer not available")
+                
+            # Create analyzer instance
+            analyzer = PennyStockAnalyzer()
+            
+            # Run analysis with phase tracking
+            self._update_phase_callback(0)  # Phase 1: Stock discovery
+            tickers = analyzer.get_penny_stock_universe()
+            
+            self._update_phase_callback(1)  # Phase 2: Technical analysis
+            technical_scores = analyzer.perform_technical_analysis(tickers)
+            
+            self._update_phase_callback(2)  # Phase 3: Fundamental analysis  
+            fundamental_scores = analyzer.perform_fundamental_analysis(tickers)
+            
+            self._update_phase_callback(3)  # Phase 4: Sentiment analysis
+            sentiment_scores = analyzer.analyze_sentiment(tickers)
+            
+            self._update_phase_callback(4)  # Phase 5: Final rankings
+            top_10_picks = analyzer.generate_final_rankings(
+                tickers, technical_scores, fundamental_scores, sentiment_scores
+            )
+            
+            # Load additional data from phase files
+            self.state.current_analysis = self._load_analysis_data(analyzer.output_dir, top_10_picks)
+            
+            # Calculate completion time
+            completion_time = time.time()
+            self.state.phase_times.append(completion_time)
+            total_duration = completion_time - self.state.analysis_start_time
+            print(f"Background analysis completed successfully in {total_duration:.2f}s")
+            
+        except Exception as e:
+            print(f"Error in background analysis: {e}")
+            self.state.current_analysis = {
+                'error': str(e),
+                'timestamp': datetime.now().isoformat()
+            }
+        finally:
+            self.state.analysis_in_progress = False
+            self.state.current_phase = 0
+            self.state.analysis_start_time = None
+    
+    def _load_analysis_data(self, output_dir: str, top_10_picks: List[Dict]) -> Dict:
+        """Load additional analysis data from phase files"""
         technical_data = {}
+        fundamental_data = {}
+        sentiment_data = {}
+        
+        # Load data files if they exist
         try:
             with open(f"{output_dir}/phase2/technical_analysis.json", 'r') as f:
                 technical_data = json.load(f)
         except FileNotFoundError:
             pass
         
-        # Load fundamental analysis data
-        fundamental_data = {}
         try:
             with open(f"{output_dir}/phase3/fundamental_analysis.json", 'r') as f:
                 fundamental_data = json.load(f)
         except FileNotFoundError:
             pass
         
-        # Load sentiment analysis data
-        sentiment_data = {}
         try:
             with open(f"{output_dir}/phase4/sentiment_analysis.json", 'r') as f:
                 sentiment_data = json.load(f)
         except FileNotFoundError:
             pass
         
-        # Combine all data
-        current_analysis = {
+        return {
             'timestamp': datetime.now().isoformat(),
             'top_10_picks': top_10_picks,
             'technical_data': technical_data,
@@ -257,98 +336,68 @@ def run_background_analysis():
             'sentiment_data': sentiment_data,
             'output_directory': output_dir
         }
-        
-        # Record completion time and calculate phase durations
-        completion_time = time.time()
-        phase_times.append(completion_time)
-        
-        # Calculate and log phase durations
-        total_duration = completion_time - analysis_start_time
-        print(f"Background analysis completed successfully in {total_duration:.2f}s")
-        print("Phase durations:")
-        
-        phase_durations = []
-        for i in range(len(phase_times) - 1):
-            duration = phase_times[i + 1] - phase_times[i]
-            percentage = (duration / total_duration) * 100
-            phase_durations.append(duration)
-            print(f"  Phase {i + 1}: {duration:.2f}s ({percentage:.1f}%)")
-        
-        # Calculate cumulative percentages for progress ranges
-        cumulative_percentages = [0]
-        for duration in phase_durations:
-            next_percentage = cumulative_percentages[-1] + (duration / total_duration) * 100
-            cumulative_percentages.append(round(next_percentage))
-        
-        print(f"Suggested progress ranges: {list(zip(cumulative_percentages[:-1], cumulative_percentages[1:]))}")
-        
-        print("Background analysis completed successfully")
-        
-    except Exception as e:
-        print(f"Error in background analysis: {e}")
-        current_analysis = {
-            'error': str(e),
-            'timestamp': datetime.now().isoformat()
-        }
     
-    finally:
-        analysis_in_progress = False
-        current_phase = 0  # Reset phase when done
-        analysis_start_time = None  # Reset start time
-        # Keep phase_times for reference until next analysis
+    def load_previous_analysis(self):
+        """Load the most recent analysis from disk"""
+        try:
+            import glob
+            output_dirs = sorted(glob.glob("outputs/penny_stocks_*"))
+            if output_dirs:
+                latest_dir = output_dirs[-1]
+                print(f"Loading previous analysis from: {latest_dir}")
+                
+                # Try to load rankings
+                try:
+                    with open(f"{latest_dir}/phase5/final_rankings_with_holding.json", 'r') as f:
+                        top_picks = json.load(f)
+                        print("Loaded rankings with holding period data")
+                except FileNotFoundError:
+                    with open(f"{latest_dir}/phase5/final_rankings.json", 'r') as f:
+                        top_picks = json.load(f)
+                        print("Loaded rankings without holding period data")
+                
+                self.state.current_analysis = self._load_analysis_data(latest_dir, top_picks)
+                print(f"Loaded {len(top_picks)} picks from previous analysis")
+                return True
+        except Exception as e:
+            print(f"Error loading previous analysis: {e}")
+        return False
+    
+    def cleanup(self):
+        """Cleanup resources on shutdown"""
+        if self.state.executor:
+            self.state.executor.shutdown(wait=True)
+            print("Executor shutdown complete")
+    
+    def run(self, debug=False, host='127.0.0.1', port=8080):
+        """Run the Flask application"""
+        print("Starting Penny Stock Analysis Web Application...")
+        print(f"Access the application at: http://{host}:{port}")
+        
+        # Try to load previous analysis on startup
+        if self.load_previous_analysis():
+            print("Previous analysis loaded successfully")
+        else:
+            print("No previous analysis found")
+        
+        try:
+            self.app.run(
+                debug=debug,
+                host=host,
+                port=port,
+                threaded=True  # Enable threading for better performance
+            )
+        finally:
+            self.cleanup()
 
-def load_previous_analysis():
-    """Load the most recent analysis from disk"""
-    global current_analysis
-    try:
-        # Find the most recent output directory
-        import glob
-        output_dirs = sorted(glob.glob("outputs/penny_stocks_*"))
-        if output_dirs:
-            latest_dir = output_dirs[-1]
-            print(f"Loading previous analysis from: {latest_dir}")
-            
-            # Try to load rankings with holding data first
-            try:
-                with open(f"{latest_dir}/phase5/final_rankings_with_holding.json", 'r') as f:
-                    top_picks = json.load(f)
-                    print("Loaded rankings with holding period data")
-            except FileNotFoundError:
-                # Fall back to regular rankings
-                with open(f"{latest_dir}/phase5/final_rankings.json", 'r') as f:
-                    top_picks = json.load(f)
-                    print("Loaded rankings without holding period data")
-            
-            # Load other phase data
-            with open(f"{latest_dir}/phase2/technical_analysis.json", 'r') as f:
-                technical_data = json.load(f)
-            with open(f"{latest_dir}/phase3/fundamental_analysis.json", 'r') as f:
-                fundamental_data = json.load(f)
-            with open(f"{latest_dir}/phase4/sentiment_analysis.json", 'r') as f:
-                sentiment_data = json.load(f)
-            
-            current_analysis = {
-                'timestamp': datetime.now().isoformat(),
-                'top_10_picks': top_picks,
-                'technical_data': technical_data,
-                'fundamental_data': fundamental_data,
-                'sentiment_data': sentiment_data,
-                'output_directory': latest_dir
-            }
-            print(f"Loaded {len(top_picks)} picks from previous analysis")
-            return True
-    except Exception as e:
-        print(f"Error loading previous analysis: {e}")
-    return False
+
+# Create global app instance (for compatibility with existing code)
+app = StockAnalysisApp()
 
 if __name__ == '__main__':
-    print("Starting Penny Stock Analysis Web Application...")
-    print("Access the application at: http://localhost:8080")
+    # Production configuration (secure defaults)
+    DEBUG = os.getenv('DEBUG_MODE', 'false').lower() == 'true'
+    HOST = os.getenv('APP_HOST', '127.0.0.1')  # Localhost only by default
+    PORT = int(os.getenv('APP_PORT', '8080'))
     
-    # Try to load previous analysis on startup
-    if load_previous_analysis():
-        print("Previous analysis loaded successfully")
-    else:
-        print("No previous analysis found")
-    
-    app.run(debug=True, host='0.0.0.0', port=8080)
+    app.run(debug=DEBUG, host=HOST, port=PORT)

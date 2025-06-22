@@ -7,7 +7,6 @@
     <div class="col-12">
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
                 <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Dashboard</a></li>
                 <li class="breadcrumb-item active">{{ ticker }}</li>
             </ol>
@@ -36,13 +35,13 @@
                     <h1 id="stock-ticker" class="display-4">{{ ticker }}</h1>
                     <p class="lead text-muted" id="stock-price">Loading...</p>
                     <div class="btn-group mt-2">
-                        <a id="google-finance-link" href="#" target="_blank" class="btn btn-outline-primary">
+                        <a id="google-finance-link" href="https://www.google.com/finance/quote/{{ ticker }}:NASDAQ" target="_blank" class="btn btn-outline-primary">
                             <i class="fab fa-google me-1"></i> Google Finance
                         </a>
                         <a id="yahoo-finance-link" href="https://finance.yahoo.com/quote/{{ ticker }}" target="_blank" class="btn btn-outline-info">
                             <i class="fas fa-chart-line me-1"></i> Yahoo Finance
                         </a>
-                        <a id="sec-filings-link" href="#" target="_blank" class="btn btn-outline-secondary">
+                        <a id="sec-filings-link" href="https://www.sec.gov/edgar/search/#/entityName={{ ticker }}" target="_blank" class="btn btn-outline-secondary">
                             <i class="fas fa-file-alt me-1"></i> SEC Filings
                         </a>
                     </div>
@@ -296,10 +295,10 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('target-price').textContent = `Target: $${stock.target_price.toFixed(2)}`;
         document.getElementById('upside-badge').textContent = `+${stock.upside_potential.toFixed(1)}% Upside`;
         
-        // External links
+        // External links - Update to more accurate URLs
         const exchange = getExchange(stock.ticker);
         document.getElementById('google-finance-link').href = `https://www.google.com/finance/quote/${stock.ticker}:${exchange}`;
-        document.getElementById('sec-filings-link').href = `https://www.sec.gov/edgar/search/#/q=${stock.ticker}&dateRange=all`;
+        document.getElementById('sec-filings-link').href = `https://www.sec.gov/edgar/search/#/entityName=${stock.ticker}`;
         
         // Scores
         document.getElementById('composite-score').textContent = stock.composite_score.toFixed(1);
@@ -331,8 +330,21 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function getExchange(ticker) {
-        const nasdaqTickers = ['SNDL', 'TLRY', 'NIO', 'WKHS', 'CLOV', 'AMC', 'ATOS', 'CTXR', 'SENS', 'SAVA', 'BNGO', 'OCGN'];
-        return nasdaqTickers.includes(ticker) ? 'NASDAQ' : 'NYSE';
+        // More comprehensive NASDAQ ticker list for penny stocks
+        const nasdaqTickers = [
+            'SNDL', 'TLRY', 'NIO', 'WKHS', 'CLOV', 'AMC', 'ATOS', 'CTXR', 'SENS', 'SAVA', 'BNGO', 'OCGN',
+            'SOFI', 'PLTR', 'HOOD', 'WISH', 'ROOT', 'SKLZ', 'OPEN', 'DKNG', 'SPCE', 'RIOT', 'MARA', 'COIN',
+            'EXPR', 'GNUS', 'NAKD', 'ZSAN', 'IDEX', 'XELA', 'PROG', 'MULN', 'CEI', 'BBIG', 'HYMC'
+        ];
+        
+        // Check if ticker is likely NASDAQ (tech companies, biotech, etc.)
+        if (nasdaqTickers.includes(ticker.toUpperCase()) || 
+            ticker.length === 4 || // Most 4-letter tickers are NASDAQ
+            /^[A-Z]{3,4}$/.test(ticker)) { // 3-4 letter pattern
+            return 'NASDAQ';
+        }
+        
+        return 'NYSE'; // Default to NYSE for traditional stocks
     }
     
     function formatRationale(rationale) {
