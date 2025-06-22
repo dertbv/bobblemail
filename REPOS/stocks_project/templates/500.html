@@ -1,0 +1,231 @@
+{% extends "base.html" %}
+
+{% block title %}Server Error - Stock Analysis{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8 col-md-10">
+        <div class="text-center">
+            <!-- Error Icon -->
+            <div class="mb-4">
+                <i class="fas fa-server fa-6x text-danger"></i>
+            </div>
+
+            <!-- Error Message -->
+            <h1 class="display-1 fw-bold text-danger">500</h1>
+            <h2 class="h3 mb-3">Internal Server Error</h2>
+            <p class="lead text-muted mb-4">
+                Oops! Something went wrong on our end. Our servers are experiencing technical difficulties.
+                Don't worry, our team has been notified and is working to fix this issue.
+            </p>
+
+            <!-- Status Alert -->
+            <div class="alert alert-warning" role="alert">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong>Service Temporarily Unavailable</strong><br>
+                We're working hard to restore normal service. Please try again in a few minutes.
+            </div>
+
+            <!-- Helpful Actions -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="fas fa-tools text-primary me-2"></i>
+                        What can you try?
+                    </h5>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="d-grid">
+                                <button onclick="location.reload()" class="btn btn-outline-primary">
+                                    <i class="fas fa-redo me-2"></i>
+                                    Refresh Page
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="d-grid">
+                                <a href="{{ url_for('index') }}" class="btn btn-primary">
+                                    <i class="fas fa-home me-2"></i>
+                                    Go to Home
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- API Status Check -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0">
+                        <i class="fas fa-heartbeat me-2"></i>
+                        System Status
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div id="status-check">
+                        <div class="d-flex align-items-center">
+                            <div class="spinner-border spinner-border-sm text-primary me-2" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <span>Checking system status...</span>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <small class="text-muted">
+                            <i class="fas fa-clock me-1"></i>
+                            Last checked: <span id="last-check">Just now</span>
+                        </small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Alternative Actions -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0">
+                        <i class="fas fa-route me-2"></i>
+                        Try These Pages
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row g-2">
+                        <div class="col-6 col-md-4">
+                            <a href="{{ url_for('index') }}" class="btn btn-outline-success btn-sm w-100">
+                                <i class="fas fa-home me-1"></i>
+                                Home
+                            </a>
+                        </div>
+                        <div class="col-6 col-md-4">
+                            <a href="/api/health" class="btn btn-outline-info btn-sm w-100" target="_blank">
+                                <i class="fas fa-heartbeat me-1"></i>
+                                Health Check
+                            </a>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <button onclick="checkStatus()" class="btn btn-outline-warning btn-sm w-100">
+                                <i class="fas fa-sync me-1"></i>
+                                Retry Connection
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Error Details (for development) -->
+            {% if config.DEBUG %}
+            <div class="card shadow-sm mt-4 text-start">
+                <div class="card-header bg-danger text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-bug me-2"></i>
+                        Debug Information (Development Mode)
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <pre class="small text-muted">{{ error_details|default('No additional error details available.') }}</pre>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Help Text -->
+            <div class="mt-4">
+                <p class="text-muted small">
+                    <i class="fas fa-info-circle me-1"></i>
+                    If this problem persists, please wait a few minutes and try again. 
+                    The error has been automatically logged for investigation.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Status Toast -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
+    <div class="toast hide" id="statusToast" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="toast-header">
+            <i class="fas fa-server text-primary me-2"></i>
+            <strong class="me-auto">Server Status</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+        </div>
+        <div class="toast-body" id="statusToastBody">
+            Checking server status...
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    checkStatus();
+    
+    // Auto-retry every 30 seconds
+    setInterval(checkStatus, 30000);
+});
+
+function checkStatus() {
+    const statusDiv = document.getElementById('status-check');
+    const lastCheckSpan = document.getElementById('last-check');
+    
+    // Show loading state
+    statusDiv.innerHTML = `
+        <div class="d-flex align-items-center">
+            <div class="spinner-border spinner-border-sm text-primary me-2" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <span>Checking system status...</span>
+        </div>
+    `;
+    
+    fetch('/api/health')
+        .then(response => {
+            if (response.ok) {
+                return response.json();
+            }
+            throw new Error(`HTTP ${response.status}`);
+        })
+        .then(data => {
+            // Server is responding
+            statusDiv.innerHTML = `
+                <div class="d-flex align-items-center text-success">
+                    <i class="fas fa-check-circle me-2"></i>
+                    <span>Server is responding normally</span>
+                </div>
+                <div class="mt-2">
+                    <small class="text-muted">You can try refreshing the page now.</small>
+                </div>
+            `;
+            
+            // Show success toast
+            showStatusToast('Server is back online! You can refresh the page now.', 'success');
+            
+        })
+        .catch(error => {
+            // Server still having issues
+            statusDiv.innerHTML = `
+                <div class="d-flex align-items-center text-danger">
+                    <i class="fas fa-times-circle me-2"></i>
+                    <span>Server is still experiencing issues</span>
+                </div>
+                <div class="mt-2">
+                    <small class="text-muted">Error: ${error.message}</small>
+                </div>
+            `;
+        })
+        .finally(() => {
+            // Update last check time
+            lastCheckSpan.textContent = new Date().toLocaleTimeString();
+        });
+}
+
+function showStatusToast(message, type = 'info') {
+    const toastBody = document.getElementById('statusToastBody');
+    const toast = new bootstrap.Toast(document.getElementById('statusToast'));
+    
+    const icon = type === 'success' ? 'check-circle text-success' : 'info-circle text-info';
+    toastBody.innerHTML = `<i class="fas fa-${icon} me-2"></i>${message}`;
+    
+    toast.show();
+}
+</script>
+{% endblock %}
