@@ -12,7 +12,7 @@ import threading
 
 # Database configuration
 DB_FILE = "mail_filter.db"
-DB_VERSION = 4  # Incremented for email flagging system
+DB_VERSION = 5  # Added processed_emails_bulletproof table to core schema
 SCHEMA_VERSION_TABLE = "schema_version"
 
 class DatabaseManager:
@@ -99,6 +99,27 @@ class DatabaseManager:
             )
         """)
         
+        # Processed emails bulletproof table (main email tracking)
+        cursor.execute("""
+            CREATE TABLE processed_emails_bulletproof (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
+                session_id INTEGER,
+                folder_name TEXT,
+                uid TEXT,
+                sender_email TEXT NOT NULL,
+                sender_domain TEXT,
+                subject TEXT NOT NULL,
+                action TEXT NOT NULL CHECK (action IN ('DELETED', 'PRESERVED')),
+                reason TEXT,
+                category TEXT,
+                confidence_score REAL,
+                ml_validation_method TEXT,
+                raw_data TEXT,
+                created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
+                FOREIGN KEY (session_id) REFERENCES sessions (id)
+            )
+        """)
         
         # Domain analysis table
         cursor.execute("""
@@ -158,6 +179,10 @@ class DatabaseManager:
         cursor.execute("CREATE INDEX idx_accounts_email ON accounts(email_address)")
         cursor.execute("CREATE INDEX idx_sessions_account ON sessions(account_id)")
         cursor.execute("CREATE INDEX idx_sessions_time ON sessions(start_time)")
+        cursor.execute("CREATE INDEX idx_processed_emails_bulletproof_timestamp ON processed_emails_bulletproof(timestamp)")
+        cursor.execute("CREATE INDEX idx_processed_emails_bulletproof_action ON processed_emails_bulletproof(action)")
+        cursor.execute("CREATE INDEX idx_processed_emails_bulletproof_session ON processed_emails_bulletproof(session_id)")
+        cursor.execute("CREATE INDEX idx_processed_emails_bulletproof_sender ON processed_emails_bulletproof(sender_email)")
         cursor.execute("CREATE INDEX idx_domains_domain ON domains(domain)")
         cursor.execute("CREATE INDEX idx_spam_categories_category ON spam_categories(category)")
         cursor.execute("CREATE INDEX idx_user_feedback_uid ON user_feedback(email_uid)")
