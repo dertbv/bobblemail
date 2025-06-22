@@ -39,12 +39,34 @@ class MLSettingsManager:
             return settings
     
     def save_settings(self) -> bool:
-        """Save current settings to file"""
-        if safe_json_save(self.settings_file, self.settings):
-            print("✅ Settings saved successfully!")
+        """Save current settings to centralized settings.py"""
+        try:
+            from settings import Settings
+            
+            # Update the whitelist in settings.py
+            if 'custom_whitelist' in self.settings:
+                # Update the Settings class whitelist
+                Settings.WHITELIST['custom_whitelist'] = self.settings['custom_whitelist']
+            
+            if 'custom_keyword_whitelist' in self.settings:
+                Settings.WHITELIST['custom_keyword_whitelist'] = self.settings['custom_keyword_whitelist']
+            
+            # Update ML settings if needed
+            for key, value in self.settings.items():
+                if key in Settings.ML_SETTINGS:
+                    Settings.ML_SETTINGS[key] = value
+            
+            # Also save to JSON for backward compatibility
+            safe_json_save(self.settings_file, self.settings)
+            
+            print("✅ Settings saved to centralized configuration!")
             return True
-        else:
-            print("❌ Error saving settings")
+        except Exception as e:
+            print(f"❌ Error saving settings: {e}")
+            # Fallback to JSON only
+            if safe_json_save(self.settings_file, self.settings):
+                print("✅ Settings saved to JSON file (fallback)")
+                return True
             return False
     
     def reset_to_defaults(self) -> bool:

@@ -114,7 +114,8 @@ class Settings:
             "inova.org", 
             "aetna.com",
             "dertbv@gmail.com",
-            "genesismotorsamerica.comm"
+            "genesismotorsamerica.comm",
+            "statements.myaccountviewonline@lplfinancial.com"
         ],
         "custom_keyword_whitelist": []
     }

@@ -13,7 +13,7 @@ LOG_FILE = os.path.join(BASE_DIR, "mail_filter_imap_log.txt")
 CREDS_FILE = os.path.join(BASE_DIR, ".mail_filter_creds.json")
 ANALYTICS_OUTPUT = os.path.join(BASE_DIR, "mail_filter_analytics_report.txt")
 JSON_OUTPUT = os.path.join(BASE_DIR, "mail_filter_analytics_data.json")
-ML_SETTINGS_FILE = "ml_settings.json"
+ML_SETTINGS_FILE = "settings.py"  # Now using centralized settings
 
 # Provider configurations
 PROVIDER_CONFIGS = {
