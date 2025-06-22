@@ -14,7 +14,7 @@
                 <p class="text-muted mb-0">Real-time market data from Yahoo Finance</p>
             </div>
             <button id="refresh-data" class="btn btn-outline-primary">
-                <i class="fas fa-sync-alt me-2"></i>Refresh
+                <i class="fas fa-sync-alt me-2"></i>Refresh Analysis
             </button>
         </div>
         
@@ -263,28 +263,29 @@
                 </div>
             </div>
             
-            <!-- Top 10 Picks Table -->
+            <!-- Top Picks Table -->
             <div class="card mt-4">
                 <div class="card-header">
                     <h5 class="mb-0">
-                        <i class="fas fa-list-ol me-2"></i>Top 10 Stock Picks
-                        <span class="badge bg-success ms-2">Live Analysis</span>
+                        <i class="fas fa-star me-2"></i>Top Stock Picks
                     </h5>
                 </div>
-                <div class="card-body">
+                <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-hover">
+                        <table class="table table-hover mb-0">
                             <thead class="table-dark">
                                 <tr>
-                                    <th>#</th>
-                                    <th>Ticker</th>
-                                    <th>Tier</th>
+                                    <th>Rank</th>
+                                    <th>Stock</th>
                                     <th>Current Price</th>
                                     <th>Target Price</th>
                                     <th>Upside</th>
-                                    <th>Hold Period</th>
                                     <th>Score</th>
-                                    <th>Strategy</th>
+                                    <th>Technical</th>
+                                    <th>Fundamental</th>
+                                    <th>Sentiment</th>
+                                    <th>Hold Days</th>
+                                    <th>Exit Date</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
@@ -333,7 +334,7 @@ document.addEventListener('DOMContentLoaded', function() {
     loadDashboardData();
     
     document.getElementById('refresh-data').addEventListener('click', function() {
-        loadDashboardData();
+        startNewAnalysis();
     });
     
     function loadDashboardData() {
@@ -342,12 +343,15 @@ document.addEventListener('DOMContentLoaded', function() {
         fetch('/api/results')
         .then(response => response.json())
         .then(data => {
+            console.log('API response:', data);
             if (data.status === 'success') {
                 analysisData = data.data;
+                console.log('Analysis data:', analysisData);
                 populateDashboard(analysisData);
                 hideLoading();
                 showDashboard();
             } else {
+                console.log('No success status');
                 hideLoading();
                 showNoData();
             }
@@ -360,7 +364,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function populateDashboard(data) {
+        console.log('populateDashboard called with:', data);
         const picks = data.top_10_picks || [];
+        console.log('Number of picks:', picks.length);
         
         // Update summary cards
         if (picks.length > 0) {
@@ -373,8 +379,32 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('total-analyzed').textContent = picks.length;
         document.getElementById('last-updated').textContent = new Date(data.timestamp).toLocaleString();
         
-        // Populate category cards
-        populateCategoryCards(picks);
+        // Update category counts
+        const under5 = picks.filter(p => p.current_price < 5);
+        const between5and10 = picks.filter(p => p.current_price >= 5 && p.current_price < 10);
+        const between10and20 = picks.filter(p => p.current_price >= 10 && p.current_price <= 20);
+        
+        document.getElementById('under-5-count').textContent = under5.length;
+        document.getElementById('5-to-10-count').textContent = between5and10.length;
+        document.getElementById('10-to-20-count').textContent = between10and20.length;
+        
+        if (under5.length > 0) {
+            const avgUpside = under5.reduce((sum, p) => sum + p.upside_potential, 0) / under5.length;
+            document.getElementById('under-5-avg-upside').textContent = avgUpside.toFixed(1) + '%';
+            document.getElementById('under-5-top-pick').textContent = under5[0].ticker;
+        }
+        
+        if (between5and10.length > 0) {
+            const avgUpside = between5and10.reduce((sum, p) => sum + p.upside_potential, 0) / between5and10.length;
+            document.getElementById('5-to-10-avg-upside').textContent = avgUpside.toFixed(1) + '%';
+            document.getElementById('5-to-10-top-pick').textContent = between5and10[0].ticker;
+        }
+        
+        if (between10and20.length > 0) {
+            const avgUpside = between10and20.reduce((sum, p) => sum + p.upside_potential, 0) / between10and20.length;
+            document.getElementById('10-to-20-avg-upside').textContent = avgUpside.toFixed(1) + '%';
+            document.getElementById('10-to-20-top-pick').textContent = between10and20[0].ticker;
+        }
         
         // Populate table
         const tableBody = document.getElementById('picks-table-body');
@@ -383,112 +413,45 @@ document.addEventListener('DOMContentLoaded', function() {
         picks.forEach((pick, index) => {
             const row = document.createElement('tr');
             
-            // Generate prediction rationale
-            const rationale = generatePredictionRationale(pick);
-            
-            // Map category to tier for display
-            const categoryToTier = {
-                'under-5': 1,
-                '5-to-10': 2, 
-                '10-to-20': 3
-            };
-            const tier = categoryToTier[pick.category] || 1;
-            const tierName = pick.category_name || 'Unknown';
-            
-            // Tier badge colors
-            const tierColors = {1: 'danger', 2: 'warning', 3: 'info'};
-            const tierColor = tierColors[tier] || 'secondary';
-            
-            // Risk stars
-            const riskStars = '★'.repeat(pick.risk_level) + '☆'.repeat(5 - pick.risk_level);
-            
             row.innerHTML = `
                 <td><span class="badge bg-primary">${index + 1}</span></td>
                 <td>
                     <strong>${pick.ticker}</strong>
                     <br><small class="text-muted">${getExchange(pick.ticker)}</small>
                 </td>
-                <td>
-                    <span class="badge bg-${tierColor}" data-bs-toggle="tooltip" title="${tierName} - ${pick.risk_level}/5 Risk">
-                        T${tier}
-                    </span>
-                    <br><small class="text-muted" style="font-size: 0.7rem;">${riskStars}</small>
-                </td>
                 <td>$${pick.current_price.toFixed(2)}</td>
                 <td>$${pick.target_price.toFixed(2)}</td>
                 <td><span class="badge bg-success">+${pick.upside_potential.toFixed(1)}%</span></td>
                 <td>
-                    <strong>${pick.optimal_hold || '30-60 days'}</strong>
-                    <br><small class="text-muted">${pick.exit_window || 'Day 30-60'}</small>
-                </td>
-                <td>
                     <strong>${pick.composite_score.toFixed(1)}</strong>
                     <div class="progress progress-sm mt-1">
-                        <div class="progress-bar bg-${tierColor}" style="width: ${pick.composite_score}%"></div>
+                        <div class="progress-bar bg-primary" style="width: ${pick.composite_score}%"></div>
                     </div>
                 </td>
+                <td>${pick.technical_score.toFixed(1)}</td>
+                <td>${pick.fundamental_score.toFixed(1)}</td>
+                <td>${pick.sentiment_score.toFixed(1)}</td>
                 <td>
-                    <span class="badge bg-outline-${tierColor}">${pick.strategy || 'Growth Play'}</span>
-                    <br><small class="text-muted">Max ${pick.position_size || '5%'} portfolio</small>
+                    <span class="badge bg-info">${pick.optimal_holding_days || 'N/A'}</span>
                 </td>
                 <td>
-                    <div class="btn-group-vertical btn-group-sm">
-                        <a href="/stock/${pick.ticker}" class="btn btn-outline-primary btn-sm">
-                            <i class="fas fa-chart-area"></i> Analysis
-                        </a>
-                        <a href="https://www.google.com/finance/quote/${pick.ticker}:${getExchange(pick.ticker)}" 
-                           target="_blank" class="btn btn-outline-info btn-sm">
-                            <i class="fab fa-google"></i> Google Finance
-                        </a>
-                        <button class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" 
-                                data-bs-target="#rationaleModal" onclick="showRationale('${pick.ticker}', \`${rationale}\`)">
-                            <i class="fas fa-lightbulb"></i> Why?
-                        </button>
-                        <button class="btn btn-outline-warning btn-sm" data-bs-toggle="modal" 
-                                data-bs-target="#holdingModal" onclick="showHoldingPeriod('${pick.ticker}', '${pick.optimal_hold}', '${pick.exit_window}', ${pick.hold_confidence || 75})">
-                            <i class="fas fa-clock"></i> Timing
-                        </button>
-                    </div>
+                    <small>${pick.exit_date || 'N/A'}</small>
+                </td>
+                <td>
+                    <a href="/stock/${pick.ticker}" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-chart-area"></i> View
+                    </a>
                 </td>
             `;
             tableBody.appendChild(row);
         });
         
         // Create charts
-        createCharts(picks);
-    }
-    
-    function populateCategoryCards(picks) {
-        // Categorize picks by price
-        const categories = {
-            'under-5': picks.filter(pick => pick.current_price < 5),
-            '5-to-10': picks.filter(pick => pick.current_price >= 5 && pick.current_price < 10),
-            '10-to-20': picks.filter(pick => pick.current_price >= 10 && pick.current_price <= 20)
-        };
-        
-        // Populate each category card
-        Object.keys(categories).forEach(categoryKey => {
-            const categoryPicks = categories[categoryKey];
-            const count = categoryPicks.length;
-            
-            // Update count
-            document.getElementById(categoryKey + '-count').textContent = count;
-            
-            if (count > 0) {
-                // Calculate average upside
-                const avgUpside = categoryPicks.reduce((sum, pick) => sum + pick.upside_potential, 0) / count;
-                document.getElementById(categoryKey + '-avg-upside').textContent = avgUpside.toFixed(1) + '%';
-                
-                // Set top pick (highest composite score in category)
-                const topPick = categoryPicks.reduce((top, pick) => 
-                    pick.composite_score > top.composite_score ? pick : top
-                );
-                document.getElementById(categoryKey + '-top-pick').textContent = topPick.ticker;
-            } else {
-                document.getElementById(categoryKey + '-avg-upside').textContent = 'N/A';
-                document.getElementById(categoryKey + '-top-pick').textContent = 'None';
-            }
-        });
+        try {
+            createCharts(picks);
+        } catch (chartError) {
+            console.error('Chart creation error:', chartError);
+        }
     }
     
     function createCharts(picks) {
@@ -634,6 +597,63 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
             confidenceBar.className = 'progress-bar bg-danger';
         }
+    }
+    
+    function startNewAnalysis() {
+        const refreshBtn = document.getElementById('refresh-data');
+        const originalText = refreshBtn.innerHTML;
+        
+        // Update button to show loading state
+        refreshBtn.disabled = true;
+        refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Starting Analysis...';
+        
+        // Start the analysis
+        fetch('/api/start-analysis', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                refreshBtn.innerHTML = '<i class="fas fa-clock me-2"></i>Analysis Running...';
+                // Poll for completion
+                pollAnalysisStatus();
+            } else {
+                refreshBtn.disabled = false;
+                refreshBtn.innerHTML = originalText;
+                alert('Error starting analysis: ' + data.message);
+            }
+        })
+        .catch(error => {
+            refreshBtn.disabled = false;
+            refreshBtn.innerHTML = originalText;
+            alert('Error starting analysis');
+        });
+    }
+    
+    function pollAnalysisStatus() {
+        const refreshBtn = document.getElementById('refresh-data');
+        
+        fetch('/api/analysis-status')
+        .then(response => response.json())
+        .then(data => {
+            if (data.in_progress) {
+                // Still running, check again in 3 seconds
+                setTimeout(pollAnalysisStatus, 3000);
+            } else {
+                // Analysis complete, reload data and reset button
+                refreshBtn.disabled = false;
+                refreshBtn.innerHTML = '<i class="fas fa-sync-alt me-2"></i>Refresh Analysis';
+                loadDashboardData();
+            }
+        })
+        .catch(error => {
+            // Error checking status, reset button
+            refreshBtn.disabled = false;
+            refreshBtn.innerHTML = '<i class="fas fa-sync-alt me-2"></i>Refresh Analysis';
+        });
     }
 });
 </script>

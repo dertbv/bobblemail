@@ -11,7 +11,6 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Any
 import yfinance as yf
 import pandas as pd
-from file_locking import safe_write_json, save_analysis_phase_safe, safe_append_file
 
 class PennyStockAnalyzer:
     def __init__(self):
@@ -24,79 +23,80 @@ class PennyStockAnalyzer:
         for phase_dir in self.phase_dirs:
             os.makedirs(phase_dir, exist_ok=True)
     
-    def get_penny_stock_universe(self) -> Dict[str, List[str]]:
+    def get_penny_stock_universe(self) -> List[str]:
         """
-        Phase 1: Collect stock universe across all price categories
-        Returns dict with categorized ticker symbols for stocks under $20 with market cap > $1M
+        Phase 1: Collect penny stock universe
+        Dynamically discovers stocks instead of using hardcoded list
         """
-        print("Phase 1: Collecting stock universe across price categories...")
+        print("Phase 1: Dynamically discovering stocks...")
         
-        # Expanded sample list to ensure enough stocks in each category
-        sample_tickers = [
-            # Under $5 candidates
-            'SNDL', 'BBD', 'NIO', 'WKHS', 'CLOV', 'BB', 'ATOS', 'CTXR', 'OBSV', 'GNUS',
-            'NAKD', 'WISH', 'RIDE', 'SENS', 'BNGO', 'OCGN', 'SAVA', 'PROG', 'XELA', 'CEI',
-            'FAMI', 'MULX', 'BIOR', 'CYCC', 'MRIN', 'APRN', 'BFRI', 'CARV', 'DLPN', 'ENDP',
+        # Try to use dynamic discovery first
+        try:
+            from stock_discovery_api import StockDiscoveryAPI
+            print("Using dynamic stock discovery...")
             
-            # $5-$10 candidates  
-            'NOK', 'TLRY', 'AMC', 'GME', 'PLTR', 'MVIS', 'CLNE', 'SPCE', 'HYMC', 'RDBX',
-            'ROOT', 'SOFI', 'LCID', 'RIVN', 'GOEV', 'NKLA', 'FSLY', 'PINS', 'SNAP', 'UBER',
-            'LYFT', 'ROKU', 'SQ', 'PYPL', 'SHOP', 'SPOT', 'ZM', 'DOCU', 'CRWD', 'OKTA',
+            discoverer = StockDiscoveryAPI()
+            results = discoverer.discover_stocks()
             
-            # $10-$20 candidates
-            'F', 'T', 'VZ', 'BAC', 'C', 'WFC', 'GE', 'PFE', 'XOM', 'CVX',
-            'KO', 'PEP', 'WMT', 'TGT', 'HD', 'LOW', 'NKE', 'DIS', 'NFLX', 'AMD',
-            'INTC', 'CSCO', 'ORCL', 'CRM', 'ADBE', 'NVDA', 'TSLA', 'AMZN', 'GOOGL', 'AAPL'
-        ]
+            # Get all tickers from discovered stocks
+            sample_tickers = [stock['ticker'] for stock in results['all_stocks']]
+            
+            if len(sample_tickers) < 30:
+                print(f"Warning: Only found {len(sample_tickers)} stocks dynamically")
+                # Fall back to hardcoded list if not enough stocks found
+                raise Exception("Not enough stocks found")
+                
+        except Exception as e:
+            print(f"Dynamic screening failed: {e}")
+            print("Falling back to hardcoded list...")
+            
+            # Fallback: Expanded stock universe
+            sample_tickers = [
+                # Under $5 stocks
+                'SNDL', 'BBD', 'NAKD', 'GNUS', 'OBSV', 'CTXR', 'ATOS', 'SENS', 'XELA', 'OCGN',
+                'BNGO', 'SAVA', 'PROG', 'AYTU', 'NOVN', 'ITRM', 'HTBX', 'MVIS', 'WKHS', 'WISH',
+                
+                # $5-$10 stocks  
+                'NOK', 'F', 'TLRY', 'NIO', 'RIDE', 'CLOV', 'BB', 'SIRI', 'PLUG', 'NKLA',
+                'LCID', 'RIVN', 'SPCE', 'HYLN', 'CHPT', 'BLNK', 'ENVX', 'QS', 'FCEL', 'BABA',
+                
+                # $10-$20 stocks
+                'SOFI', 'PLTR', 'AMC', 'GME', 'UPST', 'HOOD', 'COIN', 'RBLX', 'PATH', 'SNOW',
+                'CRWD', 'NET', 'DDOG', 'ZM', 'PTON', 'ROKU', 'SQ', 'PYPL', 'UBER', 'LYFT'
+            ]
         
-        # Categorize stocks by price range
-        categorized_stocks = {
-            'under_5': [],
-            '5_to_10': [],
-            '10_to_20': []
-        }
-        
+        # Filter stocks by price and market cap (up to $20)
+        stocks = []
         for ticker in sample_tickers:
             try:
                 stock = yf.Ticker(ticker)
                 info = stock.info
-                current_price = info.get('currentPrice', 0)
+                current_price = info.get('currentPrice', info.get('regularMarketPrice', 0))
                 market_cap = info.get('marketCap', 0)
                 
-                # Require minimum market cap
-                if market_cap > 1000000:
-                    stock_data = {
+                # Include stocks up to $20 with market cap > $1M
+                if current_price > 0 and current_price <= 20.0 and market_cap > 1000000:
+                    stocks.append({
                         'ticker': ticker,
                         'price': current_price,
                         'market_cap': market_cap,
                         'sector': info.get('sector', 'Unknown')
-                    }
-                    
-                    # Categorize by price
-                    if current_price < 5.0:
-                        categorized_stocks['under_5'].append(stock_data)
-                    elif 5.0 <= current_price < 10.0:
-                        categorized_stocks['5_to_10'].append(stock_data)
-                    elif 10.0 <= current_price <= 20.0:
-                        categorized_stocks['10_to_20'].append(stock_data)
-                        
+                    })
+                    print(f"✓ {ticker}: ${current_price:.2f}")
+                else:
+                    print(f"✗ {ticker}: ${current_price:.2f} (filtered out)")
             except Exception as e:
-                print(f"Error processing {ticker}: {e}")
+                print(f"✗ Error processing {ticker}: {e}")
+                # Add delay to avoid rate limiting
+                import time
+                time.sleep(0.1)
         
-        # Print category counts
-        for category, stocks in categorized_stocks.items():
-            print(f"{category.replace('_', '-')} category: {len(stocks)} stocks")
+        # Save to phase1 directory
+        with open(f"{self.phase_dirs[0]}/stock_universe.json", 'w') as f:
+            json.dump(stocks, f, indent=2)
         
-        # Save categorized data to phase1 directory with safe file operations
-        if not save_analysis_phase_safe(self.output_dir, 1, categorized_stocks):
-            print("Warning: Failed to save phase 1 data")
-        
-        # Return flat list of all tickers for analysis
-        all_tickers = []
-        for category_stocks in categorized_stocks.values():
-            all_tickers.extend([stock['ticker'] for stock in category_stocks])
-        
-        return all_tickers
+        print(f"Found {len(stocks)} stocks in analysis universe")
+        return [stock['ticker'] for stock in stocks]
     
     def perform_technical_analysis(self, tickers: List[str]) -> Dict[str, Dict]:
         """
@@ -105,9 +105,15 @@ class PennyStockAnalyzer:
         print("Phase 2: Performing technical analysis...")
         
         technical_scores = {}
-        for ticker in tickers:
+        for i, ticker in enumerate(tickers):
             try:
+                print(f"Analyzing {ticker} ({i+1}/{len(tickers)})...")
                 stock = yf.Ticker(ticker)
+                
+                # Add delay to avoid rate limiting
+                import time
+                time.sleep(0.2)
+                
                 hist = stock.history(period="3mo")
                 
                 if len(hist) < 50:
@@ -156,9 +162,9 @@ class PennyStockAnalyzer:
             except Exception as e:
                 print(f"Error in technical analysis for {ticker}: {e}")
         
-        # Save technical analysis results with safe file operations
-        if not save_analysis_phase_safe(self.output_dir, 2, technical_scores):
-            print("Warning: Failed to save phase 2 data")
+        # Save technical analysis results
+        with open(f"{self.phase_dirs[1]}/technical_analysis.json", 'w') as f:
+            json.dump(technical_scores, f, indent=2)
         
         return technical_scores
     
@@ -202,9 +208,9 @@ class PennyStockAnalyzer:
             except Exception as e:
                 print(f"Error in fundamental analysis for {ticker}: {e}")
         
-        # Save fundamental analysis results with safe file operations
-        if not save_analysis_phase_safe(self.output_dir, 3, fundamental_scores):
-            print("Warning: Failed to save phase 3 data")
+        # Save fundamental analysis results
+        with open(f"{self.phase_dirs[2]}/fundamental_analysis.json", 'w') as f:
+            json.dump(fundamental_scores, f, indent=2)
         
         return fundamental_scores
     
@@ -225,22 +231,20 @@ class PennyStockAnalyzer:
                 'analyst_rating': 'hold'
             }
         
-        # Save sentiment analysis results with safe file operations
-        if not save_analysis_phase_safe(self.output_dir, 4, sentiment_scores):
-            print("Warning: Failed to save phase 4 data")
+        # Save sentiment analysis results
+        with open(f"{self.phase_dirs[3]}/sentiment_analysis.json", 'w') as f:
+            json.dump(sentiment_scores, f, indent=2)
         
         return sentiment_scores
     
     def generate_final_rankings(self, tickers: List[str], technical_scores: Dict, 
-                              fundamental_scores: Dict, sentiment_scores: Dict) -> Dict[str, List[Dict]]:
+                              fundamental_scores: Dict, sentiment_scores: Dict) -> List[Dict]:
         """
-        Phase 5: Integrate all analysis and generate final rankings by category
-        Returns top 10 picks for each price category
+        Phase 5: Integrate all analysis and generate final rankings
         """
-        print("Phase 5: Generating final rankings by category...")
+        print("Phase 5: Generating final rankings...")
         
-        # Calculate scores for all stocks
-        all_scores = []
+        final_scores = []
         for ticker in tickers:
             tech_score = technical_scores.get(ticker, {}).get('score', 0)
             fund_score = fundamental_scores.get(ticker, {}).get('score', 0)
@@ -249,91 +253,118 @@ class PennyStockAnalyzer:
             # Weighted composite score
             composite_score = (tech_score * 0.4 + fund_score * 0.4 + sent_score * 0.2)
             
-            # Get current price for target calculation and categorization
+            # Get current price for target calculation
             try:
                 stock = yf.Ticker(ticker)
-                current_price = stock.info.get('currentPrice', 0)
-                target_price = current_price * (1 + composite_score / 500)  # Simple target calculation
+                current_price = stock.info.get('currentPrice', stock.info.get('regularMarketPrice', 0))
                 
-                stock_data = {
+                # Avoid division by zero
+                if current_price <= 0:
+                    print(f"Skipping {ticker}: invalid price {current_price}")
+                    continue
+                    
+                target_price = current_price * (1 + composite_score / 500)  # Simple target calculation
+                upside_potential = (target_price - current_price) / current_price * 100
+                
+                # Calculate optimal holding period based on momentum and risk
+                # Get technical indicators for holding period calculation
+                rsi = technical_scores.get(ticker, {}).get('rsi', 50)
+                momentum = technical_scores.get(ticker, {}).get('price_momentum', 0)
+                volume_ratio = technical_scores.get(ticker, {}).get('volume_ratio', 1)
+                
+                # Base holding period by price tier
+                if current_price < 1:
+                    base_holding_days = 30  # High volatility, shorter hold
+                elif current_price < 5:
+                    base_holding_days = 45  # Moderate volatility
+                elif current_price < 10:
+                    base_holding_days = 60  # Lower volatility
+                else:
+                    base_holding_days = 90  # Most stable
+                
+                # Adjust based on momentum (positive momentum = longer hold)
+                momentum_factor = 1 + (momentum * 2)  # -20% to +20% adjustment
+                
+                # Adjust based on RSI (overbought = shorter, oversold = longer)
+                if rsi > 70:
+                    rsi_factor = 0.7  # Overbought, consider earlier exit
+                elif rsi < 30:
+                    rsi_factor = 1.3  # Oversold, potential for bounce
+                else:
+                    rsi_factor = 1.0
+                
+                # Adjust based on volume (high volume = confidence in trend)
+                volume_factor = min(1.2, volume_ratio)  # Cap at 20% increase
+                
+                # Calculate final holding period
+                optimal_holding_days = int(base_holding_days * momentum_factor * rsi_factor * volume_factor)
+                optimal_holding_days = max(7, min(180, optimal_holding_days))  # Clamp between 1 week and 6 months
+                
+                final_scores.append({
                     'ticker': ticker,
                     'composite_score': composite_score,
                     'current_price': current_price,
                     'target_price': target_price,
-                    'upside_potential': (target_price - current_price) / current_price * 100,
+                    'upside_potential': upside_potential,
                     'technical_score': tech_score,
                     'fundamental_score': fund_score,
-                    'sentiment_score': sent_score
-                }
-                
-                all_scores.append(stock_data)
-                
+                    'sentiment_score': sent_score,
+                    'optimal_holding_days': optimal_holding_days,
+                    'exit_date': (datetime.now() + timedelta(days=optimal_holding_days)).strftime('%Y-%m-%d'),
+                    'holding_confidence': min(100, composite_score + 20)  # Higher score = more confidence
+                })
             except Exception as e:
                 print(f"Error calculating final score for {ticker}: {e}")
         
-        # Categorize stocks by current price
-        categorized_picks = {
-            'under_5_picks': [],
-            '5_to_10_picks': [],
-            '10_to_20_picks': []
-        }
+        # Categorize stocks by price and get top 10 from each category
+        under_5 = [s for s in final_scores if s['current_price'] < 5]
+        between_5_10 = [s for s in final_scores if 5 <= s['current_price'] < 10]
+        between_10_20 = [s for s in final_scores if 10 <= s['current_price'] <= 20]
         
-        for stock in all_scores:
-            price = stock['current_price']
-            if price < 5.0:
-                categorized_picks['under_5_picks'].append(stock)
-            elif 5.0 <= price < 10.0:
-                categorized_picks['5_to_10_picks'].append(stock)
-            elif 10.0 <= price <= 20.0:
-                categorized_picks['10_to_20_picks'].append(stock)
+        # Sort each category by composite score
+        under_5.sort(key=lambda x: x['composite_score'], reverse=True)
+        between_5_10.sort(key=lambda x: x['composite_score'], reverse=True)
+        between_10_20.sort(key=lambda x: x['composite_score'], reverse=True)
         
-        # Sort each category by composite score and take top 10
-        final_rankings = {}
-        for category, stocks in categorized_picks.items():
-            stocks.sort(key=lambda x: x['composite_score'], reverse=True)
-            top_10 = stocks[:10]
-            final_rankings[category] = top_10
-            print(f"{category.replace('_', '-')}: {len(top_10)} picks (from {len(stocks)} candidates)")
+        # Get top 10 from each category
+        top_under_5 = under_5[:10]
+        top_5_10 = between_5_10[:10] 
+        top_10_20 = between_10_20[:10]
         
-        # Save categorized final rankings with safe file operations
-        if not save_analysis_phase_safe(self.output_dir, 5, final_rankings):
-            print("Warning: Failed to save phase 5 data")
+        # Combine all picks
+        top_picks = top_under_5 + top_5_10 + top_10_20
         
-        return final_rankings
+        print(f"Categories: Under $5: {len(top_under_5)}, $5-$10: {len(top_5_10)}, $10-$20: {len(top_10_20)}")
+        print(f"Total picks: {len(top_picks)}")
+        
+        # Save final rankings
+        with open(f"{self.phase_dirs[4]}/final_rankings.json", 'w') as f:
+            json.dump(top_picks, f, indent=2)
+        
+        return top_picks
     
-    def generate_report(self, categorized_picks: Dict[str, List[Dict]]):
+    def generate_report(self, top_10_picks: List[Dict]):
         """
-        Generate final report with categorized stock picks
+        Generate final report with top 10 picks and detailed analysis
         """
         print("Generating final report...")
         
-        report = f"""# Multi-Category Stock Analysis Report - {datetime.now().strftime('%Y-%m-%d')}
+        report = f"""# Top 10 Penny Stock Picks - {datetime.now().strftime('%Y-%m-%d')}
 
 ## Executive Summary
-This report presents the top 10 stocks in three price categories with the highest potential for growth, based on comprehensive technical, fundamental, and sentiment analysis.
+This report presents the top 10 penny stocks with the highest potential for growth in the next 30 days, based on comprehensive technical, fundamental, and sentiment analysis.
 
 ## Methodology
 - **Technical Analysis (40%)**: Price momentum, volume patterns, technical indicators
 - **Fundamental Analysis (40%)**: Financial health, growth prospects, business metrics
 - **Sentiment Analysis (20%)**: News sentiment, social media buzz, analyst opinions
 
-## Category Analysis
+## Top 10 Picks
 
 """
         
-        category_names = {
-            'under_5_picks': 'Under $5 Stocks (High Risk/High Reward)',
-            '5_to_10_picks': '$5-$10 Stocks (Moderate Risk)',
-            '10_to_20_picks': '$10-$20 Stocks (Lower Risk)'
-        }
-        
-        for category, picks in categorized_picks.items():
-            if picks:  # Only show categories that have picks
-                report += f"""### {category_names[category]}
-
-"""
-                for i, pick in enumerate(picks, 1):
-                    report += f"""#### {i}. {pick['ticker']}
+        for i, pick in enumerate(top_10_picks, 1):
+            report += f"""### {i}. {pick['ticker']}
 - **Current Price**: ${pick['current_price']:.2f}
 - **Target Price**: ${pick['target_price']:.2f}
 - **Upside Potential**: {pick['upside_potential']:.1f}%
@@ -363,28 +394,22 @@ This analysis is for informational purposes only and should not be considered as
 Generated by Agentic Loop Penny Stock Analysis System
 """
         
-        # Save final report with safe file operations
-        report_file = f"{self.output_dir}/penny_stock_report.md"
-        try:
-            # Write the complete report in one operation
-            with open(report_file, 'w') as f:
-                f.write(report)
-                f.flush()
-                os.fsync(f.fileno())  # Force write to disk
-            print(f"Report saved to: {report_file}")
-        except IOError as e:
-            print(f"Warning: Failed to save report: {e}")
+        # Save final report
+        with open(f"{self.output_dir}/penny_stock_report.md", 'w') as f:
+            f.write(report)
+        
+        print(f"Report saved to: {self.output_dir}/penny_stock_report.md")
     
     def run_analysis(self):
         """
         Main execution method that runs the complete analysis
         """
-        print("Starting Multi-Category Stock Analysis...")
+        print("Starting Penny Stock Analysis...")
         print(f"Output directory: {self.output_dir}")
         
-        # Phase 1: Get stock universe across all price categories
+        # Phase 1: Get penny stock universe
         tickers = self.get_penny_stock_universe()
-        print(f"Found {len(tickers)} stocks to analyze across all categories")
+        print(f"Found {len(tickers)} penny stocks to analyze")
         
         # Phase 2: Technical analysis
         technical_scores = self.perform_technical_analysis(tickers)
@@ -395,24 +420,15 @@ Generated by Agentic Loop Penny Stock Analysis System
         # Phase 4: Sentiment analysis
         sentiment_scores = self.analyze_sentiment(tickers)
         
-        # Phase 5: Final rankings by category
-        categorized_picks = self.generate_final_rankings(tickers, technical_scores, 
-                                                        fundamental_scores, sentiment_scores)
+        # Phase 5: Final rankings
+        top_10_picks = self.generate_final_rankings(tickers, technical_scores, 
+                                                   fundamental_scores, sentiment_scores)
         
         # Generate final report
-        self.generate_report(categorized_picks)
+        self.generate_report(top_10_picks)
         
         print("Analysis complete!")
-        
-        # Return flattened list for backward compatibility with web app
-        all_picks = []
-        for category_picks in categorized_picks.values():
-            all_picks.extend(category_picks)
-        
-        # Sort all picks by composite score for overall ranking
-        all_picks.sort(key=lambda x: x['composite_score'], reverse=True)
-        
-        return all_picks[:10]  # Return top 10 overall for compatibility
+        return top_10_picks
 
 if __name__ == "__main__":
     analyzer = PennyStockAnalyzer()

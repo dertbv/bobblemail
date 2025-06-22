@@ -52,6 +52,19 @@
                         <h3 id="target-price" class="text-success mb-1">-</h3>
                         <span id="upside-badge" class="badge bg-success fs-6">-</span>
                         <small class="text-muted mt-1">30-day price target</small>
+                        <div class="mt-3 p-3 bg-light rounded">
+                            <h6 class="text-info"><i class="fas fa-calendar-check me-2"></i>Optimal Exit Timing</h6>
+                            <div class="row">
+                                <div class="col-6 text-center">
+                                    <h4 id="holding-days" class="mb-0">-</h4>
+                                    <small class="text-muted">Hold Days</small>
+                                </div>
+                                <div class="col-6 text-center">
+                                    <h5 id="exit-date" class="mb-0">-</h5>
+                                    <small class="text-muted">Exit Date</small>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -293,6 +306,15 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('technical-score').textContent = stock.technical_score.toFixed(1);
         document.getElementById('fundamental-score').textContent = stock.fundamental_score.toFixed(1);
         document.getElementById('sentiment-score').textContent = stock.sentiment_score.toFixed(1);
+        
+        // Holding period info
+        if (stock.optimal_holding_days) {
+            document.getElementById('holding-days').textContent = stock.optimal_holding_days;
+            document.getElementById('exit-date').textContent = stock.exit_date || 'N/A';
+        } else {
+            document.getElementById('holding-days').textContent = 'N/A';
+            document.getElementById('exit-date').textContent = 'N/A';
+        }
         
         // Progress bars
         document.getElementById('technical-progress').style.width = stock.technical_score + '%';

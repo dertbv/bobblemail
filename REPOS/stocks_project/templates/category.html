@@ -1,244 +1,108 @@
 {% extends "base.html" %}
 
-{% block title %}
-    {% if category == 'under-5' %}Under $5 Stocks
-    {% elif category == '5-to-10' %}$5-$10 Stocks  
-    {% else %}$10-$20 Stocks
-    {% endif %} - Stock Analysis
-{% endblock %}
+{% block title %}{{ category_name }} - Stock Analysis{% endblock %}
 
 {% block content %}
 <div class="row">
     <div class="col-12">
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
-                <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
-                <li class="breadcrumb-item active">
-                    {% if category == 'under-5' %}Under $5 Stocks
-                    {% elif category == '5-to-10' %}$5-$10 Stocks  
-                    {% else %}$10-$20 Stocks
-                    {% endif %}
-                </li>
-            </ol>
-        </nav>
-        
-        <!-- Category Header -->
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="card 
-                    {% if category == 'under-5' %}bg-danger
-                    {% elif category == '5-to-10' %}bg-warning
-                    {% else %}bg-info
-                    {% endif %} text-white">
-                    <div class="card-body">
-                        <div class="row align-items-center">
-                            <div class="col-md-8">
-                                <h1 class="display-5 mb-2">
-                                    {% if category == 'under-5' %}
-                                        <i class="fas fa-fire me-3"></i>Under $5 Stocks
-                                    {% elif category == '5-to-10' %}
-                                        <i class="fas fa-chart-line me-3"></i>$5-$10 Stocks
-                                    {% else %}
-                                        <i class="fas fa-shield-alt me-3"></i>$10-$20 Stocks
-                                    {% endif %}
-                                </h1>
-                                <p class="lead mb-1" id="category-description">
-                                    {% if category == 'under-5' %}
-                                        Ultra-Small Cap stocks with highest risk and reward potential
-                                    {% elif category == '5-to-10' %}
-                                        Small Cap stocks with moderate risk and good growth potential
-                                    {% else %}
-                                        Mid-Small Cap stocks with lower risk and steady growth potential
-                                    {% endif %}
-                                </p>
-                                <small class="opacity-75">
-                                    {% if category == 'under-5' %}
-                                        Strategy: High-Risk Growth | Risk Level: 5/5 | Hold: 15-60 days
-                                    {% elif category == '5-to-10' %}
-                                        Strategy: Growth & Momentum | Risk Level: 3/5 | Hold: 30-120 days
-                                    {% else %}
-                                        Strategy: Value & Quality Growth | Risk Level: 2/5 | Hold: 60-180 days
-                                    {% endif %}
-                                </small>
-                            </div>
-                            <div class="col-md-4 text-md-end">
-                                <div class="text-center">
-                                    <h3 class="mb-1">Risk Level</h3>
-                                    <div class="fs-1">
-                                        {% if category == 'under-5' %}
-                                            ★★★★★
-                                        {% elif category == '5-to-10' %}
-                                            ★★★☆☆
-                                        {% else %}
-                                            ★★☆☆☆
-                                        {% endif %}
-                                    </div>
-                                    <small class="opacity-75">
-                                        {% if category == 'under-5' %}Highest Risk
-                                        {% elif category == '5-to-10' %}Moderate Risk
-                                        {% else %}Lower Risk
-                                        {% endif %}
-                                    </small>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2>
+                    <i class="fas fa-filter me-2"></i>{{ category_name }}
+                </h2>
+                <p class="text-muted mb-0">Filtered stocks in this price range</p>
             </div>
+            <a href="/dashboard" class="btn btn-outline-primary">
+                <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+            </a>
         </div>
         
         <div id="loading-spinner" class="text-center py-5">
             <div class="spinner-border text-primary" role="status">
                 <span class="visually-hidden">Loading...</span>
             </div>
-            <p class="mt-3">Loading category analysis...</p>
-        </div>
-        
-        <div id="no-data" class="text-center py-5 d-none">
-            <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
-            <h4>No Analysis Data Available</h4>
-            <p class="text-muted">Please run an analysis first to view results.</p>
-            <a href="{{ url_for('index') }}" class="btn btn-primary">
-                <i class="fas fa-play me-2"></i>Start Analysis
-            </a>
+            <p class="mt-3">Loading category data...</p>
         </div>
         
         <div id="category-content" class="d-none">
-            <!-- Summary Cards -->
+            <!-- Category Stats -->
             <div class="row mb-4">
                 <div class="col-md-3">
-                    <div class="card 
-                        {% if category == 'under-5' %}bg-danger
-                        {% elif category == '5-to-10' %}bg-warning
-                        {% else %}bg-info
-                        {% endif %} text-white">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between">
-                                <div>
-                                    <h6 class="card-title">Top Pick</h6>
-                                    <h3 id="top-pick-ticker">-</h3>
-                                </div>
-                                <i class="fas fa-trophy fa-2x opacity-75"></i>
-                            </div>
+                    <div class="card bg-primary text-white">
+                        <div class="card-body text-center">
+                            <h3 id="total-stocks">-</h3>
+                            <p class="mb-0">Total Stocks</p>
                         </div>
                     </div>
                 </div>
                 <div class="col-md-3">
                     <div class="card bg-success text-white">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between">
-                                <div>
-                                    <h6 class="card-title">Avg Upside</h6>
-                                    <h3 id="avg-upside">-</h3>
-                                </div>
-                                <i class="fas fa-arrow-up fa-2x opacity-75"></i>
-                            </div>
+                        <div class="card-body text-center">
+                            <h3 id="avg-upside">-</h3>
+                            <p class="mb-0">Avg Upside</p>
                         </div>
                     </div>
                 </div>
                 <div class="col-md-3">
-                    <div class="card bg-secondary text-white">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between">
-                                <div>
-                                    <h6 class="card-title">Total Stocks</h6>
-                                    <h3 id="total-stocks">-</h3>
-                                </div>
-                                <i class="fas fa-list fa-2x opacity-75"></i>
-                            </div>
+                    <div class="card bg-info text-white">
+                        <div class="card-body text-center">
+                            <h3 id="avg-score">-</h3>
+                            <p class="mb-0">Avg Score</p>
                         </div>
                     </div>
                 </div>
                 <div class="col-md-3">
-                    <div class="card bg-dark text-white">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between">
-                                <div>
-                                    <h6 class="card-title">Avg Score</h6>
-                                    <h3 id="avg-score">-</h3>
-                                </div>
-                                <i class="fas fa-star fa-2x opacity-75"></i>
-                            </div>
+                    <div class="card bg-warning text-dark">
+                        <div class="card-body text-center">
+                            <h3 id="price-range">-</h3>
+                            <p class="mb-0">Price Range</p>
                         </div>
                     </div>
                 </div>
             </div>
             
-            <!-- Top 10 Stocks Table -->
+            <!-- Stocks Table -->
             <div class="card">
                 <div class="card-header">
                     <h5 class="mb-0">
-                        <i class="fas fa-list-ol me-2"></i>
-                        Top 10 
-                        {% if category == 'under-5' %}Under $5
-                        {% elif category == '5-to-10' %}$5-$10
-                        {% else %}$10-$20
-                        {% endif %} 
-                        Stocks - Sorted by Upside Potential
-                        <span class="badge 
-                            {% if category == 'under-5' %}bg-danger
-                            {% elif category == '5-to-10' %}bg-warning
-                            {% else %}bg-info
-                            {% endif %} ms-2">
-                            Highest Return First
-                        </span>
+                        <i class="fas fa-list me-2"></i>All Stocks in {{ category_name }}
                     </h5>
                 </div>
-                <div class="card-body">
+                <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-hover">
+                        <table class="table table-hover mb-0">
                             <thead class="table-dark">
                                 <tr>
                                     <th>Rank</th>
-                                    <th>Ticker</th>
+                                    <th>Stock</th>
                                     <th>Current Price</th>
                                     <th>Target Price</th>
-                                    <th>Upside Potential</th>
-                                    <th>Composite Score</th>
-                                    <th>Hold Period</th>
-                                    <th>Strategy</th>
-                                    <th>Analysis</th>
+                                    <th>Upside</th>
+                                    <th>Score</th>
+                                    <th>Technical</th>
+                                    <th>Fundamental</th>
+                                    <th>Sentiment</th>
+                                    <th>Hold Days</th>
+                                    <th>Exit Date</th>
+                                    <th>Actions</th>
                                 </tr>
                             </thead>
-                            <tbody id="stocks-table-body">
-                                <!-- Data will be populated by JavaScript -->
+                            <tbody id="category-table-body">
+                                <!-- Table rows will be populated by JavaScript -->
                             </tbody>
                         </table>
                     </div>
                 </div>
             </div>
-            
-            <!-- Category-Specific Risk Warning -->
-            <div class="alert 
-                {% if category == 'under-5' %}alert-danger
-                {% elif category == '5-to-10' %}alert-warning
-                {% else %}alert-info
-                {% endif %} mt-4">
-                <h6>
-                    <i class="fas fa-exclamation-triangle me-2"></i>
-                    {% if category == 'under-5' %}High Risk Warning
-                    {% elif category == '5-to-10' %}Moderate Risk Notice
-                    {% else %}Investment Notice
-                    {% endif %}
-                </h6>
-                <p class="mb-0">
-                    {% if category == 'under-5' %}
-                        Stocks under $5 are considered high-risk investments with significant volatility and potential for substantial losses. 
-                        These ultra-small cap stocks may have limited liquidity and are more susceptible to market manipulation. 
-                        Position sizing should be limited to 1-3% of portfolio.
-                    {% elif category == '5-to-10' %}
-                        Stocks in the $5-$10 range represent small cap investments with moderate risk profiles. 
-                        While more stable than under $5 stocks, they still carry significant volatility risk. 
-                        Consider position sizing of 3-6% of portfolio.
-                    {% else %}
-                        Stocks in the $10-$20 range are mid-small cap investments with relatively lower risk profiles. 
-                        These stocks typically have better liquidity and more established business models. 
-                        Position sizing can be 5-10% of portfolio based on risk tolerance.
-                    {% endif %}
-                    Always conduct your own research and consult financial advisors before investing.
-                </p>
-            </div>
+        </div>
+        
+        <div id="no-data" class="text-center py-5 d-none">
+            <i class="fas fa-exclamation-triangle fa-3x text-muted mb-3"></i>
+            <h4>No Stocks Found</h4>
+            <p class="text-muted">No stocks found in this category.</p>
+            <a href="/dashboard" class="btn btn-primary">
+                <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+            </a>
         </div>
     </div>
 </div>
@@ -253,13 +117,30 @@ document.addEventListener('DOMContentLoaded', function() {
     function loadCategoryData(category) {
         showLoading();
         
-        fetch(`/api/category/${category}`)
+        fetch('/api/results')
         .then(response => response.json())
         .then(data => {
             if (data.status === 'success') {
-                populateCategoryData(data.data);
-                hideLoading();
-                showCategoryContent();
+                const picks = data.data.top_10_picks || [];
+                let filteredStocks = [];
+                
+                // Filter stocks based on category
+                if (category === 'under-5') {
+                    filteredStocks = picks.filter(stock => stock.current_price < 5);
+                } else if (category === '5-to-10') {
+                    filteredStocks = picks.filter(stock => stock.current_price >= 5 && stock.current_price < 10);
+                } else if (category === '10-to-20') {
+                    filteredStocks = picks.filter(stock => stock.current_price >= 10 && stock.current_price <= 20);
+                }
+                
+                if (filteredStocks.length > 0) {
+                    populateCategory(filteredStocks, category);
+                    hideLoading();
+                    showCategory();
+                } else {
+                    hideLoading();
+                    showNoData();
+                }
             } else {
                 hideLoading();
                 showNoData();
@@ -272,32 +153,28 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    function populateCategoryData(data) {
-        const stocks = data.stocks || [];
-        
-        // Update summary cards
-        if (stocks.length > 0) {
-            document.getElementById('top-pick-ticker').textContent = stocks[0].ticker;
-            
-            const avgUpside = stocks.reduce((sum, stock) => sum + stock.upside_potential, 0) / stocks.length;
-            document.getElementById('avg-upside').textContent = avgUpside.toFixed(1) + '%';
-            
-            const avgScore = stocks.reduce((sum, stock) => sum + stock.composite_score, 0) / stocks.length;
-            document.getElementById('avg-score').textContent = avgScore.toFixed(1);
-        }
-        
+    function populateCategory(stocks, category) {
+        // Update stats
         document.getElementById('total-stocks').textContent = stocks.length;
         
+        const avgUpside = stocks.reduce((sum, stock) => sum + stock.upside_potential, 0) / stocks.length;
+        document.getElementById('avg-upside').textContent = avgUpside.toFixed(1) + '%';
+        
+        const avgScore = stocks.reduce((sum, stock) => sum + stock.composite_score, 0) / stocks.length;
+        document.getElementById('avg-score').textContent = avgScore.toFixed(1);
+        
+        // Price range
+        const prices = stocks.map(s => s.current_price);
+        const minPrice = Math.min(...prices);
+        const maxPrice = Math.max(...prices);
+        document.getElementById('price-range').textContent = `$${minPrice.toFixed(2)} - $${maxPrice.toFixed(2)}`;
+        
         // Populate table
-        const tableBody = document.getElementById('stocks-table-body');
+        const tableBody = document.getElementById('category-table-body');
         tableBody.innerHTML = '';
         
         stocks.forEach((stock, index) => {
             const row = document.createElement('tr');
-            
-            const badgeColor = category === 'under-5' ? 'danger' : 
-                              category === '5-to-10' ? 'warning' : 'info';
-            
             row.innerHTML = `
                 <td><span class="badge bg-primary">${index + 1}</span></td>
                 <td>
@@ -310,27 +187,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 <td>
                     <strong>${stock.composite_score.toFixed(1)}</strong>
                     <div class="progress progress-sm mt-1">
-                        <div class="progress-bar bg-${badgeColor}" style="width: ${stock.composite_score}%"></div>
+                        <div class="progress-bar bg-primary" style="width: ${stock.composite_score}%"></div>
                     </div>
                 </td>
+                <td>${stock.technical_score.toFixed(1)}</td>
+                <td>${stock.fundamental_score.toFixed(1)}</td>
+                <td>${stock.sentiment_score.toFixed(1)}</td>
                 <td>
-                    <strong>${stock.optimal_hold || '30-60 days'}</strong>
-                    <br><small class="text-muted">${stock.exit_window || 'TBD'}</small>
+                    <span class="badge bg-info">${stock.optimal_holding_days || 'N/A'}</span>
                 </td>
                 <td>
-                    <span class="badge bg-outline-${badgeColor}">${stock.strategy || 'Growth'}</span>
-                    <br><small class="text-muted">Max ${stock.position_size || '5%'}</small>
+                    <small>${stock.exit_date || 'N/A'}</small>
                 </td>
                 <td>
-                    <div class="btn-group-vertical btn-group-sm">
-                        <a href="/stock/${stock.ticker}" class="btn btn-outline-primary btn-sm">
-                            <i class="fas fa-chart-area"></i> Details
-                        </a>
-                        <a href="https://www.google.com/finance/quote/${stock.ticker}:${getExchange(stock.ticker)}" 
-                           target="_blank" class="btn btn-outline-info btn-sm">
-                            <i class="fab fa-google"></i> Google
-                        </a>
-                    </div>
+                    <a href="/stock/${stock.ticker}" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-chart-area"></i> View
+                    </a>
                 </td>
             `;
             tableBody.appendChild(row);
@@ -352,7 +224,7 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('loading-spinner').classList.add('d-none');
     }
     
-    function showCategoryContent() {
+    function showCategory() {
         document.getElementById('category-content').classList.remove('d-none');
     }
     

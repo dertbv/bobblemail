@@ -205,9 +205,8 @@ document.addEventListener('DOMContentLoaded', function() {
         fetch('/api/analysis-status')
         .then(response => response.json())
         .then(data => {
-            console.log('Analysis status check:', data);
-            if (data.has_results && !data.in_progress) {
-                showStatus('success', 'Previous analysis results available - Click View Results');
+            if (data.has_results) {
+                showStatus('success', 'Previous analysis results available');
                 startBtn.classList.add('d-none');
                 viewBtn.classList.remove('d-none');
             } else if (data.in_progress) {
@@ -215,13 +214,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 startBtn.disabled = true;
                 progressContainer.classList.remove('d-none');
                 pollAnalysisStatus();
-            } else {
-                showStatus('info', 'Ready to start new analysis');
             }
         })
         .catch(error => {
-            console.error('Error checking analysis status:', error);
-            showStatus('info', 'Ready to start new analysis');
+            console.log('No previous analysis found');
         });
     }
     
