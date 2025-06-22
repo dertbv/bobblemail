@@ -1,0 +1,411 @@
+{% extends "base.html" %}
+
+{% block title %}{{ ticker }} - Stock Details{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+                <li class="breadcrumb-item active">{{ ticker }}</li>
+            </ol>
+        </nav>
+        
+        <div id="loading-spinner" class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-3">Loading stock details...</p>
+        </div>
+        
+        <div id="no-data" class="text-center py-5 d-none">
+            <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
+            <h4>Stock Not Found</h4>
+            <p class="text-muted">{{ ticker }} was not found in the current analysis.</p>
+            <a href="{{ url_for('dashboard') }}" class="btn btn-primary">
+                <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+            </a>
+        </div>
+        
+        <div id="stock-content" class="d-none">
+            <!-- Stock Header -->
+            <div class="row mb-4">
+                <div class="col-md-8">
+                    <h1 id="stock-ticker" class="display-4">{{ ticker }}</h1>
+                    <p class="lead text-muted" id="stock-price">Loading...</p>
+                    <div class="btn-group mt-2">
+                        <a id="google-finance-link" href="#" target="_blank" class="btn btn-outline-primary">
+                            <i class="fab fa-google me-1"></i> Google Finance
+                        </a>
+                        <a id="yahoo-finance-link" href="https://finance.yahoo.com/quote/{{ ticker }}" target="_blank" class="btn btn-outline-info">
+                            <i class="fas fa-chart-line me-1"></i> Yahoo Finance
+                        </a>
+                        <a id="sec-filings-link" href="#" target="_blank" class="btn btn-outline-secondary">
+                            <i class="fas fa-file-alt me-1"></i> SEC Filings
+                        </a>
+                    </div>
+                </div>
+                <div class="col-md-4 text-md-end">
+                    <div class="d-flex flex-column align-items-md-end">
+                        <h3 id="target-price" class="text-success mb-1">-</h3>
+                        <span id="upside-badge" class="badge bg-success fs-6">-</span>
+                        <small class="text-muted mt-1">30-day price target</small>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Score Cards -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card bg-primary text-white h-100">
+                        <div class="card-body text-center">
+                            <h6 class="card-title">Composite Score</h6>
+                            <h2 id="composite-score">-</h2>
+                            <small>out of 100</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-info text-white h-100">
+                        <div class="card-body text-center">
+                            <h6 class="card-title">Technical Score</h6>
+                            <h2 id="technical-score">-</h2>
+                            <small>Technical Analysis</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-success text-white h-100">
+                        <div class="card-body text-center">
+                            <h6 class="card-title">Fundamental Score</h6>
+                            <h2 id="fundamental-score">-</h2>
+                            <small>Financial Health</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-warning text-dark h-100">
+                        <div class="card-body text-center">
+                            <h6 class="card-title">Sentiment Score</h6>
+                            <h2 id="sentiment-score">-</h2>
+                            <small>Market Sentiment</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Detailed Analysis -->
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h5><i class="fas fa-chart-line me-2"></i>Technical Analysis
+                                <span class="badge bg-info ms-2" data-bs-toggle="tooltip" title="Based on price trends, momentum, volume patterns, and technical indicators">
+                                    40% Weight
+                                </span>
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="technical-details">
+                                <div class="row">
+                                    <div class="col-sm-6">
+                                        <p><strong>RSI:</strong> <span id="rsi-value">-</span>
+                                            <small class="text-muted d-block">Relative Strength Index (14-day)</small>
+                                        </p>
+                                        <p><strong>Volume Ratio:</strong> <span id="volume-ratio">-</span>
+                                            <small class="text-muted d-block">Recent vs average volume</small>
+                                        </p>
+                                    </div>
+                                    <div class="col-sm-6">
+                                        <p><strong>Price Momentum:</strong> <span id="price-momentum">-</span>
+                                            <small class="text-muted d-block">10-day average price change</small>
+                                        </p>
+                                        <p><strong>20-Day MA:</strong> <span id="sma-20-value">-</span>
+                                            <small class="text-muted d-block">Simple moving average</small>
+                                        </p>
+                                    </div>
+                                </div>
+                                <div class="progress mb-2">
+                                    <div id="technical-progress" class="progress-bar bg-info" role="progressbar" style="width: 0%"></div>
+                                </div>
+                                <small class="text-muted">Technical scoring: Price above MA (25pts) + Healthy RSI 30-70 (25pts) + Volume surge >10% (25pts) + Positive momentum (25pts)</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h5><i class="fas fa-file-invoice-dollar me-2"></i>Fundamental Analysis
+                                <span class="badge bg-success ms-2" data-bs-toggle="tooltip" title="Based on financial health, growth, profitability, and liquidity metrics">
+                                    40% Weight
+                                </span>
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="fundamental-details">
+                                <div class="row">
+                                    <div class="col-sm-6">
+                                        <p><strong>Revenue Growth:</strong> <span id="revenue-growth">-</span>
+                                            <small class="text-muted d-block">Year-over-year growth rate</small>
+                                        </p>
+                                        <p><strong>Profit Margins:</strong> <span id="profit-margins">-</span>
+                                            <small class="text-muted d-block">Net profit margin %</small>
+                                        </p>
+                                        <p><strong>Operating Margins:</strong> <span id="operating-margins">-</span>
+                                            <small class="text-muted d-block">Operating efficiency</small>
+                                        </p>
+                                    </div>
+                                    <div class="col-sm-6">
+                                        <p><strong>Debt to Equity:</strong> <span id="debt-equity">-</span>
+                                            <small class="text-muted d-block">Financial leverage ratio</small>
+                                        </p>
+                                        <p><strong>Current Ratio:</strong> <span id="current-ratio">-</span>
+                                            <small class="text-muted d-block">Short-term liquidity</small>
+                                        </p>
+                                    </div>
+                                </div>
+                                <div class="progress mb-2">
+                                    <div id="fundamental-progress" class="progress-bar bg-success" role="progressbar" style="width: 0%"></div>
+                                </div>
+                                <small class="text-muted">Fundamental scoring: Revenue growth >10% (20pts) + Positive margins (20pts) + Low debt <0.5 (20pts) + Current ratio >1.5 (20pts) + Operating margins >0 (20pts)</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mt-4">
+                <div class="col-md-6">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h5><i class="fas fa-comments me-2"></i>Sentiment Analysis
+                                <span class="badge bg-warning text-dark ms-2" data-bs-toggle="tooltip" title="Based on analyst recommendations and market sentiment indicators">
+                                    20% Weight
+                                </span>
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="sentiment-details">
+                                <div class="row">
+                                    <div class="col-sm-6">
+                                        <p><strong>Analyst Rating:</strong> <span id="analyst-rating" class="badge bg-secondary">-</span>
+                                            <small class="text-muted d-block">Professional recommendations</small>
+                                        </p>
+                                        <p><strong>News Sentiment:</strong> <span id="news-sentiment" class="badge bg-secondary">-</span>
+                                            <small class="text-muted d-block">Recent news tone</small>
+                                        </p>
+                                    </div>
+                                    <div class="col-sm-6">
+                                        <p><strong>Social Sentiment:</strong> <span id="social-sentiment" class="badge bg-secondary">-</span>
+                                            <small class="text-muted d-block">Retail investor sentiment</small>
+                                        </p>
+                                    </div>
+                                </div>
+                                <div class="progress mb-2">
+                                    <div id="sentiment-progress" class="progress-bar bg-warning" role="progressbar" style="width: 0%"></div>
+                                </div>
+                                <small class="text-muted">Sentiment scoring: Strong Buy/Buy (80pts) + Hold (50pts) + Sell/Strong Sell (20pts)</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h5><i class="fas fa-lightbulb me-2"></i>Investment Rationale</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="investment-rationale">
+                                <p class="text-muted">Loading investment analysis...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Risk Disclaimer -->
+            <div class="alert alert-warning mt-4">
+                <h6><i class="fas fa-exclamation-triangle me-2"></i>Risk Warning</h6>
+                <p class="mb-0">
+                    This analysis is for informational purposes only. {{ ticker }} is a penny stock and carries 
+                    significant risks including high volatility, limited liquidity, and potential for substantial losses. 
+                    Always conduct your own research and consult with financial advisors before making investment decisions.
+                </p>
+            </div>
+            
+            <div class="text-center mt-4">
+                <a href="{{ url_for('dashboard') }}" class="btn btn-secondary me-2">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+                </a>
+                <button class="btn btn-primary" onclick="window.print()">
+                    <i class="fas fa-print me-2"></i>Print Report
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const ticker = '{{ ticker }}';
+    loadStockDetails(ticker);
+    
+    function loadStockDetails(ticker) {
+        showLoading();
+        
+        fetch(`/api/stock/${ticker}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                populateStockDetails(data.data);
+                hideLoading();
+                showStockContent();
+            } else {
+                hideLoading();
+                showNoData();
+            }
+        })
+        .catch(error => {
+            console.error('Error loading stock details:', error);
+            hideLoading();
+            showNoData();
+        });
+    }
+    
+    function populateStockDetails(stock) {
+        // Basic info
+        document.getElementById('stock-price').textContent = `Current Price: $${stock.current_price.toFixed(2)}`;
+        document.getElementById('target-price').textContent = `Target: $${stock.target_price.toFixed(2)}`;
+        document.getElementById('upside-badge').textContent = `+${stock.upside_potential.toFixed(1)}% Upside`;
+        
+        // External links
+        const exchange = getExchange(stock.ticker);
+        document.getElementById('google-finance-link').href = `https://www.google.com/finance/quote/${stock.ticker}:${exchange}`;
+        document.getElementById('sec-filings-link').href = `https://www.sec.gov/edgar/search/#/q=${stock.ticker}&dateRange=all`;
+        
+        // Scores
+        document.getElementById('composite-score').textContent = stock.composite_score.toFixed(1);
+        document.getElementById('technical-score').textContent = stock.technical_score.toFixed(1);
+        document.getElementById('fundamental-score').textContent = stock.fundamental_score.toFixed(1);
+        document.getElementById('sentiment-score').textContent = stock.sentiment_score.toFixed(1);
+        
+        // Progress bars
+        document.getElementById('technical-progress').style.width = stock.technical_score + '%';
+        document.getElementById('fundamental-progress').style.width = stock.fundamental_score + '%';
+        document.getElementById('sentiment-progress').style.width = stock.sentiment_score + '%';
+        
+        // Investment rationale
+        if (stock.rationale) {
+            document.getElementById('investment-rationale').innerHTML = formatRationale(stock.rationale);
+        }
+        
+        // Load additional details from global analysis data
+        loadDetailedAnalysis(stock.ticker);
+    }
+    
+    function getExchange(ticker) {
+        const nasdaqTickers = ['SNDL', 'TLRY', 'NIO', 'WKHS', 'CLOV', 'AMC', 'ATOS', 'CTXR', 'SENS', 'SAVA', 'BNGO', 'OCGN'];
+        return nasdaqTickers.includes(ticker) ? 'NASDAQ' : 'NYSE';
+    }
+    
+    function formatRationale(rationale) {
+        // Convert rationale text to HTML with proper formatting
+        return rationale
+            .replace(/\n\n/g, '</p><p>')
+            .replace(/\n/g, '<br>')
+            .replace(/^/, '<p>')
+            .replace(/$/, '</p>')
+            .replace(/🔹/g, '<span class="text-info">🔹</span>')
+            .replace(/💰/g, '<span class="text-success">💰</span>')
+            .replace(/📈/g, '<span class="text-warning">📈</span>')
+            .replace(/🎯/g, '<span class="text-primary">🎯</span>')
+            .replace(/💡/g, '<span class="text-secondary">💡</span>')
+            .replace(/⚠️/g, '<span class="text-warning">⚠️</span>');
+    }
+    
+    function loadDetailedAnalysis(ticker) {
+        // Fetch detailed analysis data
+        fetch('/api/results')
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                const technical = data.data.technical_data[ticker] || {};
+                const fundamental = data.data.fundamental_data[ticker] || {};
+                const sentiment = data.data.sentiment_data[ticker] || {};
+                
+                // Technical details
+                document.getElementById('rsi-value').textContent = technical.rsi ? technical.rsi.toFixed(1) : 'N/A';
+                document.getElementById('volume-ratio').textContent = technical.volume_ratio ? technical.volume_ratio.toFixed(2) + 'x' : 'N/A';
+                document.getElementById('price-momentum').textContent = technical.price_momentum ? 
+                    (technical.price_momentum * 100).toFixed(2) + '%' : 'N/A';
+                document.getElementById('sma-20-value').textContent = technical.sma_20 ? 
+                    '$' + technical.sma_20.toFixed(2) : 'N/A';
+                
+                // Fundamental details
+                document.getElementById('revenue-growth').textContent = fundamental.revenue_growth ? 
+                    (fundamental.revenue_growth * 100).toFixed(1) + '%' : 'N/A';
+                document.getElementById('profit-margins').textContent = fundamental.profit_margins ? 
+                    (fundamental.profit_margins * 100).toFixed(1) + '%' : 'N/A';
+                document.getElementById('operating-margins').textContent = fundamental.operating_margins ? 
+                    (fundamental.operating_margins * 100).toFixed(1) + '%' : 'N/A';
+                document.getElementById('debt-equity').textContent = fundamental.debt_to_equity ? 
+                    fundamental.debt_to_equity.toFixed(2) : 'N/A';
+                document.getElementById('current-ratio').textContent = fundamental.current_ratio ? 
+                    fundamental.current_ratio.toFixed(2) : 'N/A';
+                
+                // Sentiment details
+                document.getElementById('news-sentiment').textContent = sentiment.news_sentiment || 'Neutral';
+                document.getElementById('social-sentiment').textContent = sentiment.social_sentiment || 'Neutral';
+                document.getElementById('analyst-rating').textContent = sentiment.analyst_rating || 'Hold';
+                
+                // Update badge colors based on sentiment
+                updateSentimentBadges(sentiment);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading detailed analysis:', error);
+        });
+    }
+    
+    function updateSentimentBadges(sentiment) {
+        const badges = ['news-sentiment', 'social-sentiment', 'analyst-rating'];
+        badges.forEach(badgeId => {
+            const badge = document.getElementById(badgeId);
+            const value = badge.textContent.toLowerCase();
+            
+            badge.className = 'badge ';
+            if (value.includes('positive') || value.includes('buy')) {
+                badge.className += 'bg-success';
+            } else if (value.includes('negative') || value.includes('sell')) {
+                badge.className += 'bg-danger';
+            } else {
+                badge.className += 'bg-secondary';
+            }
+        });
+    }
+    
+    function showLoading() {
+        document.getElementById('loading-spinner').classList.remove('d-none');
+        document.getElementById('stock-content').classList.add('d-none');
+        document.getElementById('no-data').classList.add('d-none');
+    }
+    
+    function hideLoading() {
+        document.getElementById('loading-spinner').classList.add('d-none');
+    }
+    
+    function showStockContent() {
+        document.getElementById('stock-content').classList.remove('d-none');
+    }
+    
+    function showNoData() {
+        document.getElementById('no-data').classList.remove('d-none');
+    }
+});
+</script>
+{% endblock %}

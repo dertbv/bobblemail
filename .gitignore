@@ -46,4 +46,21 @@ atlas_todos_*.md
 
 # Temporary files
 *.tmp
-*.tempREPOS/email_project/webapp.pid
+*.temp
+
+# Python virtual environments
+venv/
+env/
+.venv/
+.env/
+
+# Stocks project outputs and large data
+REPOS/stocks_project/venv/
+REPOS/stocks_project/outputs/
+REPOS/stocks_project/__pycache__/
+
+# Email project runtime files
+REPOS/email_project/webapp.pid
+
+# Backup directories
+*_backup_*/
