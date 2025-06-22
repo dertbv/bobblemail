@@ -263,12 +263,11 @@
                 </div>
             </div>
             
-            <!-- Analysis Results Table -->
+            <!-- Top 10 Picks Table -->
             <div class="card mt-4">
                 <div class="card-header">
                     <h5 class="mb-0">
-                        <i class="fas fa-chart-bar me-2"></i>
-                        Top 10 Stock Picks
+                        <i class="fas fa-list-ol me-2"></i>Top 10 Stock Picks
                         <span class="badge bg-success ms-2">Live Analysis</span>
                     </h5>
                 </div>
@@ -277,7 +276,7 @@
                         <table class="table table-hover">
                             <thead class="table-dark">
                                 <tr>
-                                    <th>Rank</th>
+                                    <th>#</th>
                                     <th>Ticker</th>
                                     <th>Tier</th>
                                     <th>Current Price</th>
@@ -290,7 +289,7 @@
                                 </tr>
                             </thead>
                             <tbody id="picks-table-body">
-                                <!-- Data will be populated by JavaScript -->
+                                <!-- Table rows will be populated by JavaScript -->
                             </tbody>
                         </table>
                     </div>
@@ -343,22 +342,12 @@ document.addEventListener('DOMContentLoaded', function() {
         fetch('/api/results')
         .then(response => response.json())
         .then(data => {
-            console.log('API Response:', data);
             if (data.status === 'success') {
-                console.log('Data received:', data.data);
-                console.log('Number of picks:', data.data.top_10_picks?.length);
                 analysisData = data.data;
-                try {
-                    populateDashboard(analysisData);
-                    hideLoading();
-                    showDashboard();
-                } catch (e) {
-                    console.error('Error in populateDashboard:', e);
-                    hideLoading();
-                    showNoData();
-                }
+                populateDashboard(analysisData);
+                hideLoading();
+                showDashboard();
             } else {
-                console.log('API returned non-success status:', data.status);
                 hideLoading();
                 showNoData();
             }
@@ -368,46 +357,6 @@ document.addEventListener('DOMContentLoaded', function() {
             hideLoading();
             showNoData();
         });
-    }
-    
-    function populateCategoryCards(picks) {
-        // Categorize picks by price
-        const under5 = picks.filter(pick => pick.current_price < 5);
-        const from5to10 = picks.filter(pick => pick.current_price >= 5 && pick.current_price < 10);
-        const from10to20 = picks.filter(pick => pick.current_price >= 10 && pick.current_price <= 20);
-        
-        // Under $5 category
-        document.getElementById('under-5-count').textContent = under5.length;
-        if (under5.length > 0) {
-            const avgUpside = under5.reduce((sum, pick) => sum + pick.upside_potential, 0) / under5.length;
-            document.getElementById('under-5-avg-upside').textContent = avgUpside.toFixed(1) + '%';
-            document.getElementById('under-5-top-pick').textContent = under5[0].ticker;
-        } else {
-            document.getElementById('under-5-avg-upside').textContent = 'N/A';
-            document.getElementById('under-5-top-pick').textContent = 'None';
-        }
-        
-        // $5-$10 category
-        document.getElementById('5-to-10-count').textContent = from5to10.length;
-        if (from5to10.length > 0) {
-            const avgUpside = from5to10.reduce((sum, pick) => sum + pick.upside_potential, 0) / from5to10.length;
-            document.getElementById('5-to-10-avg-upside').textContent = avgUpside.toFixed(1) + '%';
-            document.getElementById('5-to-10-top-pick').textContent = from5to10[0].ticker;
-        } else {
-            document.getElementById('5-to-10-avg-upside').textContent = 'N/A';
-            document.getElementById('5-to-10-top-pick').textContent = 'None';
-        }
-        
-        // $10-$20 category
-        document.getElementById('10-to-20-count').textContent = from10to20.length;
-        if (from10to20.length > 0) {
-            const avgUpside = from10to20.reduce((sum, pick) => sum + pick.upside_potential, 0) / from10to20.length;
-            document.getElementById('10-to-20-avg-upside').textContent = avgUpside.toFixed(1) + '%';
-            document.getElementById('10-to-20-top-pick').textContent = from10to20[0].ticker;
-        } else {
-            document.getElementById('10-to-20-avg-upside').textContent = 'N/A';
-            document.getElementById('10-to-20-top-pick').textContent = 'None';
-        }
     }
     
     function populateDashboard(data) {
@@ -437,17 +386,21 @@ document.addEventListener('DOMContentLoaded', function() {
             // Generate prediction rationale
             const rationale = generatePredictionRationale(pick);
             
-            // Calculate tier from price (simple heuristic)
-            const tier = pick.current_price < 5 ? 1 : (pick.current_price < 10 ? 2 : 3);
-            const tierName = tier === 1 ? 'High Risk' : (tier === 2 ? 'Medium Risk' : 'Lower Risk');
+            // Map category to tier for display
+            const categoryToTier = {
+                'under-5': 1,
+                '5-to-10': 2, 
+                '10-to-20': 3
+            };
+            const tier = categoryToTier[pick.category] || 1;
+            const tierName = pick.category_name || 'Unknown';
             
             // Tier badge colors
             const tierColors = {1: 'danger', 2: 'warning', 3: 'info'};
             const tierColor = tierColors[tier] || 'secondary';
             
             // Risk stars
-            const riskLevel = pick.risk_level || 3;
-            const riskStars = '★'.repeat(riskLevel) + '☆'.repeat(5 - riskLevel);
+            const riskStars = '★'.repeat(pick.risk_level) + '☆'.repeat(5 - pick.risk_level);
             
             row.innerHTML = `
                 <td><span class="badge bg-primary">${index + 1}</span></td>
@@ -456,7 +409,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <br><small class="text-muted">${getExchange(pick.ticker)}</small>
                 </td>
                 <td>
-                    <span class="badge bg-${tierColor}" data-bs-toggle="tooltip" title="${tierName} - ${riskLevel}/5 Risk">
+                    <span class="badge bg-${tierColor}" data-bs-toggle="tooltip" title="${tierName} - ${pick.risk_level}/5 Risk">
                         T${tier}
                     </span>
                     <br><small class="text-muted" style="font-size: 0.7rem;">${riskStars}</small>
@@ -475,7 +428,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     </div>
                 </td>
                 <td>
-                    <span class="badge text-bg-${tierColor}">${pick.strategy || 'Growth Play'}</span>
+                    <span class="badge bg-outline-${tierColor}">${pick.strategy || 'Growth Play'}</span>
                     <br><small class="text-muted">Max ${pick.position_size || '5%'} portfolio</small>
                 </td>
                 <td>
@@ -505,21 +458,43 @@ document.addEventListener('DOMContentLoaded', function() {
         createCharts(picks);
     }
     
-    function createCharts(picks) {
-        // Check if Chart.js is loaded
-        if (typeof Chart === 'undefined') {
-            console.error('Chart.js not loaded');
-            return;
-        }
+    function populateCategoryCards(picks) {
+        // Categorize picks by price
+        const categories = {
+            'under-5': picks.filter(pick => pick.current_price < 5),
+            '5-to-10': picks.filter(pick => pick.current_price >= 5 && pick.current_price < 10),
+            '10-to-20': picks.filter(pick => pick.current_price >= 10 && pick.current_price <= 20)
+        };
         
-        try {
-            // Score Distribution Chart
-            const scoreCtx = document.getElementById('score-chart');
-            if (!scoreCtx) {
-                console.error('score-chart canvas not found');
-                return;
+        // Populate each category card
+        Object.keys(categories).forEach(categoryKey => {
+            const categoryPicks = categories[categoryKey];
+            const count = categoryPicks.length;
+            
+            // Update count
+            document.getElementById(categoryKey + '-count').textContent = count;
+            
+            if (count > 0) {
+                // Calculate average upside
+                const avgUpside = categoryPicks.reduce((sum, pick) => sum + pick.upside_potential, 0) / count;
+                document.getElementById(categoryKey + '-avg-upside').textContent = avgUpside.toFixed(1) + '%';
+                
+                // Set top pick (highest composite score in category)
+                const topPick = categoryPicks.reduce((top, pick) => 
+                    pick.composite_score > top.composite_score ? pick : top
+                );
+                document.getElementById(categoryKey + '-top-pick').textContent = topPick.ticker;
+            } else {
+                document.getElementById(categoryKey + '-avg-upside').textContent = 'N/A';
+                document.getElementById(categoryKey + '-top-pick').textContent = 'None';
             }
-            new Chart(scoreCtx.getContext('2d'), {
+        });
+    }
+    
+    function createCharts(picks) {
+        // Score Distribution Chart
+        const scoreCtx = document.getElementById('score-chart').getContext('2d');
+        new Chart(scoreCtx, {
             type: 'bar',
             data: {
                 labels: picks.map(pick => pick.ticker),
@@ -548,13 +523,9 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
         
-            // Upside Potential Chart
-            const upsideCtx = document.getElementById('upside-chart');
-            if (!upsideCtx) {
-                console.error('upside-chart canvas not found');
-                return;
-            }
-            new Chart(upsideCtx.getContext('2d'), {
+        // Upside Potential Chart
+        const upsideCtx = document.getElementById('upside-chart').getContext('2d');
+        new Chart(upsideCtx, {
             type: 'doughnut',
             data: {
                 labels: picks.slice(0, 5).map(pick => pick.ticker),
@@ -578,9 +549,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
         });
-        } catch (error) {
-            console.error('Error creating charts:', error);
-        }
     }
     
     function showLoading() {

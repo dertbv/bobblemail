@@ -5,6 +5,7 @@ Provides robust validation for all API endpoints
 """
 
 import re
+import html
 from typing import Dict, Any, Optional, List, Union
 from flask import jsonify
 from logging_config import main_logger
@@ -28,7 +29,7 @@ class APIValidator:
     @staticmethod
     def validate_ticker(ticker: str) -> str:
         """
-        Validate stock ticker format
+        Validate stock ticker format with XSS protection
         
         Args:
             ticker: Stock ticker symbol
@@ -37,7 +38,7 @@ class APIValidator:
             Validated ticker in uppercase
             
         Raises:
-            ValidationError: If ticker is invalid
+            ValidationError: If ticker is invalid or contains malicious content
         """
         if not ticker:
             raise ValidationError("Ticker symbol is required")
@@ -45,8 +46,32 @@ class APIValidator:
         if not isinstance(ticker, str):
             raise ValidationError("Ticker must be a string")
         
+        # Check for potential XSS patterns before any processing
+        xss_patterns = [
+            r'<\s*script',      # <script> tags
+            r'<\s*iframe',      # <iframe> tags  
+            r'<\s*object',      # <object> tags
+            r'<\s*embed',       # <embed> tags
+            r'<\s*link',        # <link> tags
+            r'<\s*meta',        # <meta> tags
+            r'javascript:',     # javascript: protocol
+            r'data:',           # data: protocol
+            r'vbscript:',       # vbscript: protocol
+            r'on\w+\s*=',       # event handlers (onclick, onload, etc.)
+            r'<\s*\w+[^>]*>',   # any HTML tags
+        ]
+        
+        for pattern in xss_patterns:
+            if re.search(pattern, ticker, re.IGNORECASE):
+                main_logger.warning(f"XSS attempt detected in ticker: {ticker}")
+                raise ValidationError("Invalid ticker format: Contains prohibited characters")
+        
         # Clean and uppercase
         ticker = ticker.strip().upper()
+        
+        # Additional character filtering - only allow alphanumeric and basic punctuation
+        if re.search(r'[<>"\';\\&%#]', ticker):
+            raise ValidationError("Ticker contains invalid characters")
         
         if len(ticker) < MIN_TICKER_LENGTH or len(ticker) > MAX_TICKER_LENGTH:
             raise ValidationError(f"Ticker must be {MIN_TICKER_LENGTH}-{MAX_TICKER_LENGTH} characters long")
@@ -154,7 +179,7 @@ class APIValidator:
     @staticmethod
     def sanitize_string(value: str, max_length: int = 100) -> str:
         """
-        Sanitize string input
+        Sanitize string input for security with comprehensive XSS protection
         
         Args:
             value: String to sanitize
@@ -164,7 +189,7 @@ class APIValidator:
             Sanitized string
             
         Raises:
-            ValidationError: If string is invalid
+            ValidationError: If string is invalid or contains malicious content
         """
         if not isinstance(value, str):
             raise ValidationError("Value must be a string")
@@ -175,8 +200,34 @@ class APIValidator:
         if len(value) > max_length:
             raise ValidationError(f"String too long. Maximum {max_length} characters allowed")
         
-        # Remove potentially dangerous characters
-        value = re.sub(r'[<>"\';\\]', '', value)
+        # Check for XSS patterns
+        xss_patterns = [
+            r'<\s*script',      # <script> tags
+            r'<\s*iframe',      # <iframe> tags  
+            r'<\s*object',      # <object> tags
+            r'<\s*embed',       # <embed> tags
+            r'<\s*form',        # <form> tags
+            r'<\s*input',       # <input> tags
+            r'javascript:',     # javascript: protocol
+            r'data:text/html',  # data: protocol with HTML
+            r'vbscript:',       # vbscript: protocol
+            r'on\w+\s*=',       # event handlers
+            r'expression\s*\(',  # CSS expressions
+        ]
+        
+        for pattern in xss_patterns:
+            if re.search(pattern, value, re.IGNORECASE):
+                main_logger.warning(f"XSS attempt detected in string: {value[:50]}...")
+                raise ValidationError("Invalid input: Contains prohibited content")
+        
+        # HTML escape the entire value for safety
+        value = html.escape(value, quote=True)
+        
+        # Additional filtering for dangerous characters
+        dangerous_chars = r'[<>"\';\\&%#]'
+        if re.search(dangerous_chars, value):
+            # Remove dangerous characters after HTML escaping
+            value = re.sub(dangerous_chars, '', value)
         
         return value
 

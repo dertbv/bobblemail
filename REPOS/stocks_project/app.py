@@ -34,9 +34,8 @@ _analysis_cache = {
     'cache_duration': 60  # Cache for 60 seconds
 }
 
-@lru_cache(maxsize=1)
 def get_latest_analysis_dir():
-    """Get the latest analysis directory with caching"""
+    """Get the latest analysis directory - NO CACHING"""
     output_dir = 'outputs'
     if not os.path.exists(output_dir):
         return None
@@ -68,7 +67,7 @@ def load_most_recent_analysis():
             
             # Handle different data formats
             if isinstance(rankings, list):
-                # Simple list format (like penny_stocks_20250621_222219)
+                # Simple list format (like penny_stocks_20250621_222219) - legacy format
                 # Need to enrich with missing fields
                 top_picks = []
                 for i, pick in enumerate(rankings[:10]):
@@ -91,14 +90,33 @@ def load_most_recent_analysis():
                     top_picks.append(enriched_pick)
                     
             elif isinstance(rankings, dict):
-                # Complex categorized format (like stock_analysis_20250618_112218)
+                # New categorized format - return ALL picks from ALL categories (up to 30 total)
                 top_picks = []
                 for category_key in ['under_5_picks', '5_to_10_picks', '10_to_20_picks']:
                     if category_key in rankings:
-                        top_picks.extend(rankings[category_key])
-                # Sort by composite score and take top 10
+                        category_picks = rankings[category_key]
+                        # Enrich each pick with category information
+                        for pick in category_picks:
+                            enriched_pick = dict(pick)  # Copy the original
+                            
+                            # Add missing fields that the frontend expects
+                            enriched_pick['category'] = category_key.replace('_picks', '').replace('_', '-')
+                            enriched_pick['category_name'] = 'Ultra-Small Cap Stock' if pick['current_price'] < 5 else ('Small Cap Stock' if pick['current_price'] < 10 else 'Mid-Small Cap Stock')
+                            enriched_pick['risk_level'] = 5 if pick['current_price'] < 1 else (4 if pick['current_price'] < 5 else 3)
+                            enriched_pick['strategy'] = 'High-Risk Growth' if pick['current_price'] < 5 else 'Growth Play'
+                            enriched_pick['optimal_hold'] = '30-60 days'
+                            enriched_pick['exit_window'] = 'Day 30-60'
+                            enriched_pick['hold_confidence'] = 75.0
+                            enriched_pick['position_size'] = '1-3%' if pick['current_price'] < 5 else '3-5%'
+                            enriched_pick['exchange'] = 'NASDAQ'  # Default
+                            
+                            # Generate basic rationale
+                            enriched_pick['rationale'] = f"{pick['ticker']} shows potential with {pick['composite_score']:.1f}/100 composite score and {pick['upside_potential']:.1f}% upside potential."
+                            
+                            top_picks.append(enriched_pick)
+                
+                # Sort by composite score for overall display
                 top_picks.sort(key=lambda x: x.get('composite_score', 0), reverse=True)
-                top_picks = top_picks[:10]
             else:
                 top_picks = []
             
@@ -468,8 +486,7 @@ def run_background_analysis():
         analysis_in_progress = True
         main_logger.info("Starting background analysis...")
         
-        # Clear directory cache since we're creating new analysis
-        get_latest_analysis_dir.cache_clear()
+        # No cache to clear - always gets latest directory
         
         # Create analyzer instance
         analyzer = PennyStockAnalyzer()
@@ -551,8 +568,7 @@ def clear_all_caches():
     """Clear all memory caches"""
     global current_analysis
     current_analysis = None
-    get_latest_analysis_dir.cache_clear()
-    main_logger.info("All caches cleared")
+    main_logger.info("All caches cleared - no function caches to clear")
 
 # Global error handlers
 @app.errorhandler(ValidationError)
@@ -570,6 +586,21 @@ def handle_bad_request(error):
         'error_type': 'bad_request'
     }), 400
 
+@app.errorhandler(403)
+def handle_forbidden(error):
+    """Handle forbidden access errors"""
+    main_logger.warning(f"Forbidden access attempt: {request.path} from {request.remote_addr}")
+    # Check if it's an API request
+    if request.path.startswith('/api/'):
+        return jsonify({
+            'status': 'error',
+            'message': 'Access forbidden',
+            'error_type': 'forbidden'
+        }), 403
+    else:
+        # For page requests, render 403 template
+        return render_template('403.html'), 403
+
 @app.errorhandler(404)
 def handle_not_found(error):
     """Handle not found errors"""
@@ -582,7 +613,7 @@ def handle_not_found(error):
         }), 404
     else:
         # For page requests, render 404 template
-        return render_template('404.html'), 404
+        return render_template('404_simple.html'), 404
 
 @app.errorhandler(413)
 def handle_request_too_large(error):
@@ -620,6 +651,6 @@ def handle_internal_error(error):
 
 if __name__ == '__main__':
     print("Starting Penny Stock Analysis Web Application...")
-    print("Access the application at: http://localhost:5000")
+    print("Access the application at: http://localhost:5006")
     print("Memory optimization enabled with LRU caching")
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=True, host='0.0.0.0', port=5006)
