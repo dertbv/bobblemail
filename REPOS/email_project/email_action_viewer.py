@@ -7,7 +7,7 @@ Format: Date, Time, Action, Reason, Sender, Subject
 import csv
 import json
 from datetime import datetime
-from db_logger import bulletproof_logger
+from database import db  # Use our main database instead of bulletproof_logger
 from utils import get_user_choice, clear_screen, show_status_and_refresh
 
 class BulletproofEmailActionViewer:
@@ -59,10 +59,10 @@ class BulletproofEmailActionViewer:
         print("   [9] 🔙 Return to Main Menu")
     
     def _get_action_stats(self):
-        """Get quick statistics from bulletproof table"""
+        """Get quick statistics from session data"""
         try:
             # Get all recent emails and calculate stats
-            all_emails = bulletproof_logger.get_recent_emails(1000)  # Get more for accurate stats
+            all_emails = db.get_session_email_actions(1000)  # Get more for accurate stats
             
             total = len(all_emails)
             deleted = len([e for e in all_emails if e['action'] == 'DELETED'])
@@ -82,7 +82,7 @@ class BulletproofEmailActionViewer:
         print(f"\n📋 ALL EMAIL ACTIONS (Recent {self.page_size})")
         print("=" * 120)
         
-        emails = bulletproof_logger.get_recent_emails(self.page_size)
+        emails = db.get_session_email_actions(self.page_size)
         
         # Sort by timestamp ascending for chronological display
         emails.sort(key=lambda x: x['timestamp'])
@@ -94,7 +94,7 @@ class BulletproofEmailActionViewer:
         print(f"\n🗑️  DELETED EMAILS (Recent {self.page_size})")
         print("=" * 120)
         
-        emails = bulletproof_logger.get_recent_emails(self.page_size, 'DELETED')
+        emails = db.get_session_email_actions(self.page_size, 'DELETED')
         
         # Sort by timestamp ascending for chronological display
         emails.sort(key=lambda x: x['timestamp'])
@@ -106,7 +106,7 @@ class BulletproofEmailActionViewer:
         print(f"\n🛡️  PRESERVED EMAILS (Recent {self.page_size})")
         print("=" * 120)
         
-        emails = bulletproof_logger.get_recent_emails(self.page_size, 'PRESERVED')
+        emails = db.get_session_email_actions(self.page_size, 'PRESERVED')
         
         # Sort by timestamp ascending for chronological display
         emails.sort(key=lambda x: x['timestamp'])
@@ -125,7 +125,7 @@ class BulletproofEmailActionViewer:
             return
         
         # Get all emails and filter
-        all_emails = bulletproof_logger.get_recent_emails(1000)
+        all_emails = db.get_session_email_actions(1000)
         
         matching_emails = []
         for email in all_emails:
@@ -157,13 +157,13 @@ class BulletproofEmailActionViewer:
         choice = get_user_choice("Select export option:", ['1', '2', '3', '4'])
         
         if choice == '1':
-            self._export_to_csv(bulletproof_logger.get_recent_emails(1000), "all_actions")
+            self._export_to_csv(db.get_session_email_actions(1000), "all_actions")
         elif choice == '2':
-            self._export_to_csv(bulletproof_logger.get_recent_emails(1000, 'DELETED'), "deleted_actions")
+            self._export_to_csv(db.get_session_email_actions(1000, 'DELETED'), "deleted_actions")
         elif choice == '3':
-            self._export_to_csv(bulletproof_logger.get_recent_emails(1000, 'PRESERVED'), "preserved_actions")
+            self._export_to_csv(db.get_session_email_actions(1000, 'PRESERVED'), "preserved_actions")
         elif choice == '4':
-            self._export_to_json(bulletproof_logger.get_recent_emails(1000), "all_actions")
+            self._export_to_json(db.get_session_email_actions(1000), "all_actions")
     
     def _export_to_csv(self, emails, filename_prefix):
         """Export emails to CSV"""

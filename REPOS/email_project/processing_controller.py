@@ -167,7 +167,8 @@ def run_exact_cli_processing_for_account(account_id, preview_mode=False):
             domain_validator = DomainValidator(logger=write_log, account_provider=account_provider)
 
             # Initialize processors with new architecture EXACTLY like CLI (including account email for provider detection)
-            processor = EmailProcessor(mail, domain_validator=domain_validator, account_email=account_email)
+            # Pass account ID to enable flag checking (protect/delete)
+            processor = EmailProcessor(mail, domain_validator=domain_validator, account_email=account_email, account_id=account['id'])
             
             # Get filters EXACTLY like CLI
             from configuration_manager import get_filters
@@ -331,7 +332,9 @@ def single_account_filtering():
         domain_validator = DomainValidator(logger=write_log, account_provider=account_provider)
 
         # Initialize processors with new architecture (including account email for provider detection)
-        processor = EmailProcessor(mail, domain_validator=domain_validator, account_email=account_email)
+        # Pass account ID to enable flag checking (protect/delete)
+        account_id = current_account.get('id')
+        processor = EmailProcessor(mail, domain_validator=domain_validator, account_email=account_email, account_id=account_id)
         folder_manager = FolderManager(mail)
 
         target_candidates = []

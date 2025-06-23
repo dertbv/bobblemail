@@ -40,7 +40,10 @@ class MultiClassCategoryClassifier:
     5. User feedback integration for category corrections
     """
     
-    def __init__(self, db_path: str = "mail_filter.db"):
+    def __init__(self, db_path: str = None):
+        if db_path is None:
+            from database import DB_FILE
+            db_path = DB_FILE
         """Initialize the multi-class category classifier."""
         self.db_path = db_path
         self.feature_extractor = MLFeatureExtractor(db_path)

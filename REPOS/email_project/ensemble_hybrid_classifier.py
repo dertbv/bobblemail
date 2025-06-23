@@ -30,7 +30,10 @@ class EnsembleHybridClassifier:
     4. Performance tracking and optimization
     """
     
-    def __init__(self, db_path: str = "mail_filter.db", config_path: str = None):
+    def __init__(self, db_path: str = None, config_path: str = None):
+        if db_path is None:
+            from database import DB_FILE
+            db_path = DB_FILE
         """Initialize ensemble hybrid classifier"""
         self.db_path = db_path
         self.config_path = config_path  # Legacy support, but now uses settings.py

@@ -10,11 +10,17 @@ import re
 from collections import defaultdict, Counter
 from typing import Dict, List, Tuple
 import json
+import os
+import sys
+
+# Add parent directory to path for database imports
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+from database import DB_FILE
 
 def analyze_keyword_usage():
     """Analyze which keywords actually appear in processed emails."""
     
-    conn = sqlite3.connect('mail_filter.db')
+    conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
     
     print("🔍 KEYWORD USAGE ANALYSIS")
@@ -191,7 +197,7 @@ def analyze_keyword_usage():
 def find_cross_category_duplicates():
     """Find keywords that appear in multiple categories."""
     
-    conn = sqlite3.connect('mail_filter.db')
+    conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
     
     print("\n🔄 CROSS-CATEGORY DUPLICATE ANALYSIS")

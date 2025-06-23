@@ -535,6 +535,10 @@ class EmailProcessor:
         self.domain_validator = domain_validator or DomainValidator(logger=write_log)
         self.account_email = account_email
         self.account_id = account_id
+        if account_id:
+            print(f"🔍 EmailProcessor initialized with account_id: {account_id}")
+        else:
+            print(f"⚠️  EmailProcessor initialized WITHOUT account_id - flag checking disabled!")
         
         # Initialize Unified Keyword Processor (content-first classification)
         self.keyword_processor = KeywordProcessor()
@@ -596,6 +600,8 @@ class EmailProcessor:
         processed_count = 0  # Messages that matched classifiers (deleted + preserved)
         preserved_count = 0
         validated_count = 0
+        
+        print(f"\n🔍 DEBUG: process_folder called - account_id={self.account_id}, preview_mode={preview_mode}")
         legitimate_count = 0  # Messages classified as legitimate (not spam)
         category_counts = {}
 
@@ -841,6 +847,19 @@ class EmailProcessor:
                         self.stats['total_matched'] += 1
                         processed_count += 1
 
+                        # STEP 2.5: Check if email is flagged for deletion (overrides preservation decisions)
+                        # This allows users to manually flag emails for deletion through the web interface,
+                        # which will override domain validation and whitelist protection (but not user keyword protection)
+                        is_flagged_for_deletion = False
+                        if self.account_id:
+                            try:
+                                is_flagged_for_deletion = db.is_email_flagged_for_deletion(uid, folder_name, self.account_id)
+                                if is_flagged_for_deletion and debug_mode:
+                                    write_log(f"DEBUG UID {uid}: Email is FLAGGED FOR DELETION - will override preservation decisions", True)
+                            except Exception as e:
+                                if debug_mode:
+                                    write_log(f"DEBUG UID {uid}: Error checking deletion flag: {e}", True)
+
                         # STEP 3: Domain validation (safety check - can still override)
                         domain_check_passed, domain_reason, was_validated = self.domain_validator.validate_domain_before_deletion(sender, subject)
 
@@ -868,8 +887,8 @@ class EmailProcessor:
                             'Account Notification', 'Subscription Management'
                         ]
                         
-                        if not domain_check_passed and not user_keyword_override and (not is_promotional_content or is_legitimate_business_communication):
-                            # Domain validation overrides spam classifier, but NOT user keywords or promotional content
+                        if not domain_check_passed and not user_keyword_override and not is_flagged_for_deletion and (not is_promotional_content or is_legitimate_business_communication):
+                            # Domain validation overrides spam classifier, but NOT user keywords, deletion flags, or promotional content  
                             # Allow deletion of promotional/marketing content even from legitimate domains
                             preserved_count += 1
                             self.stats['total_preserved'] += 1
@@ -877,13 +896,16 @@ class EmailProcessor:
                             # Log to bulletproof table for tracking
                             logger.log_email_action("PRESERVED", uid, sender, subject, folder_name, f"{domain_reason} [HYBRID_CLASSIFIER override]", spam_category, confidence_score=spam_confidence, print_to_screen=False)
                             continue
+                        elif not domain_check_passed and is_flagged_for_deletion:
+                            # Deletion flag overrides domain validation
+                            write_log(f"DELETION FLAG OVERRIDE ({folder_name}): Domain validation would preserve, but email is flagged for deletion: '{subject}' from {sender} - {domain_reason}", False)
                         elif not domain_check_passed and user_keyword_override:
                             # User keyword overrides domain validation
                             write_log(f"KEYWORD OVERRIDE ({folder_name}): Domain validation would preserve, but my_keywords.txt takes authority: '{subject}' from {sender} - {domain_reason}", False)
 
-                        # STEP 4: Whitelist protection check (overrides everything except specific user keywords)
+                        # STEP 4: Whitelist protection check (overrides everything except user keywords and deletion flags)
                         whitelist_protected, whitelist_type = self._check_whitelist_protection(sender, subject)
-                        if whitelist_protected and not user_keyword_override:
+                        if whitelist_protected and not user_keyword_override and not is_flagged_for_deletion:
                             # Whitelist protection overrides spam detection including promotional content from legitimate domains
                             # Full protection for domains explicitly added to whitelist (like unraid.net)
                             preserved_count += 1
@@ -893,12 +915,26 @@ class EmailProcessor:
                             # Log to bulletproof table for tracking
                             logger.log_email_action("PRESERVED", uid, sender, subject, folder_name, f"{protection_reason} [WHITELIST override]", spam_category, confidence_score=spam_confidence, print_to_screen=False)
                             continue
+                        elif whitelist_protected and is_flagged_for_deletion:
+                            # Deletion flag overrides whitelist protection
+                            write_log(f"DELETION FLAG OVERRIDE ({folder_name}): Whitelist would protect, but email is flagged for deletion: '{subject}' from {sender}", False)
                         elif whitelist_protected and user_keyword_override:
                             # User keyword still takes priority even over whitelist
                             write_log(f"USER KEYWORD OVERRIDE ({folder_name}): Whitelist would protect, but user keyword takes priority: '{subject}' from {sender}", False)
 
                         # Prepare enhanced reason with source information
-                        if match_source == "HYBRID_CLASSIFIER":
+                        if is_flagged_for_deletion:
+                            # Deletion flag takes precedence in the reason
+                            if match_source == "HYBRID_CLASSIFIER":
+                                enhanced_reason = f"{deletion_reason} [FLAGGED_FOR_DELETION]"
+                                final_category = "Flagged for Deletion"
+                            elif match_source == "USER_KEYWORD":
+                                enhanced_reason = f"{deletion_reason} [FLAGGED_FOR_DELETION+USER_KEYWORD]"
+                                final_category = "Flagged for Deletion"
+                            else:
+                                enhanced_reason = f"{deletion_reason} [FLAGGED_FOR_DELETION]"
+                                final_category = "Flagged for Deletion"
+                        elif match_source == "HYBRID_CLASSIFIER":
                             enhanced_reason = f"{deletion_reason} [AUTO_DETECTED]"
                             final_category = spam_category
                         elif match_source == "USER_KEYWORD":
@@ -920,7 +956,40 @@ class EmailProcessor:
                         write_log(f"MARKED FOR DELETION ({folder_name}): UID {uid} '{subject}' from {sender} ({enhanced_reason})", False)
 
                     else:
-                        # Email had no spam indicators - count as legitimate
+                        # Email had no spam indicators - but check if manually flagged for deletion
+                        # This handles the case where users manually flag legitimate emails for deletion
+                        is_flagged_for_deletion = False
+                        if self.account_id:
+                            try:
+                                is_flagged_for_deletion = db.is_email_flagged_for_deletion(uid, folder_name, self.account_id)
+                                if is_flagged_for_deletion:
+                                    # Override the preservation decision
+                                    should_delete = True
+                                    deletion_reason = "Manually flagged for deletion"
+                                    match_source = "MANUAL_FLAG"
+                                    enhanced_reason = f"{deletion_reason} [FLAGGED_FOR_DELETION]"
+                                    final_category = "Flagged for Deletion"
+                                    
+                                    if final_category not in category_counts:
+                                        category_counts[final_category] = {"count": 0, "reason": deletion_reason}
+                                    category_counts[final_category]["count"] += 1
+                                    
+                                    messages_to_delete.append((uid, sender, subject, enhanced_reason, final_category, spam_confidence))
+                                    write_log(f"MANUAL FLAG OVERRIDE ({folder_name}): UID {uid} '{subject}' from {sender} ({enhanced_reason})", False)
+                                    
+                                    # Update stats
+                                    self.stats['total_matched'] += 1
+                                    processed_count += 1
+                                    
+                                    if debug_mode:
+                                        write_log(f"DEBUG UID {uid}: Email was manually FLAGGED FOR DELETION - overriding legitimate classification", True)
+                                    
+                                    continue  # Skip the legitimate processing below
+                            except Exception as e:
+                                if debug_mode:
+                                    write_log(f"DEBUG UID {uid}: Error checking deletion flag in else block: {e}", True)
+                        
+                        # Email had no spam indicators and is not flagged - count as legitimate
                         legitimate_count += 1
                         self.stats['total_legitimate'] += 1
                         

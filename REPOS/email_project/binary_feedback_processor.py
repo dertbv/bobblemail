@@ -30,7 +30,10 @@ class BinaryFeedbackProcessor:
     ML models for continuous learning and improvement.
     """
     
-    def __init__(self, db_path: str = "mail_filter.db"):
+    def __init__(self, db_path: str = None):
+        if db_path is None:
+            from database import DB_FILE
+            db_path = DB_FILE
         """Initialize the binary feedback processor."""
         self.db_path = db_path
         self.db = DatabaseManager(db_path)

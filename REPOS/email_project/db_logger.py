@@ -35,7 +35,10 @@ class LogCategory(Enum):
 class BulletproofLogger:
     """Bulletproof logger that NEVER loses email action data"""
     
-    def __init__(self, db_path: str = "mail_filter.db"):
+    def __init__(self, db_path: str = None):
+        if db_path is None:
+            from database import DB_FILE
+            db_path = DB_FILE
         self.db_path = db_path
         self.current_session_id = None
         self.lock = threading.Lock()

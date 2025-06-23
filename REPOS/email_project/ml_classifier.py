@@ -20,7 +20,10 @@ class NaiveBayesClassifier:
     Gaussian Naive Bayes for continuous features and Multinomial for discrete features.
     """
     
-    def __init__(self, db_path: str = "mail_filter.db"):
+    def __init__(self, db_path: str = None):
+        if db_path is None:
+            from database import DB_FILE
+            db_path = DB_FILE
         """Initialize classifier with feature extractor."""
         self.db_path = db_path
         self.feature_extractor = MLFeatureExtractor(db_path)

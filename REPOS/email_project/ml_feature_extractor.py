@@ -24,7 +24,10 @@ class MLFeatureExtractor:
     as the foundation, combining rule-based analysis with ML-ready feature engineering.
     """
     
-    def __init__(self, db_path: str = "mail_filter.db"):
+    def __init__(self, db_path: str = None):
+        if db_path is None:
+            from database import DB_FILE
+            db_path = DB_FILE
         """Initialize with database connection and keyword processor."""
         self.db_path = db_path
         self.keyword_processor = KeywordProcessor()
