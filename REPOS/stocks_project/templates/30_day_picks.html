@@ -21,16 +21,7 @@
                             <div class="col-md-8">
                                 <h1 class="display-5 mb-2">
                                     <i class="fas fa-bolt me-3"></i>30-Day Trading Picks
-                                    <span class="badge bg-warning text-dark ms-2" id="data-source-badge">LIVE DATA</span>
                                 </h1>
-                                <div class="d-flex gap-2 mt-2">
-                                    <button id="refresh-live-data" class="btn btn-success btn-sm">
-                                        <i class="fas fa-sync-alt me-1"></i>Start Live Research
-                                    </button>
-                                    <button id="toggle-data-source" class="btn btn-outline-light btn-sm">
-                                        <i class="fas fa-exchange-alt me-1"></i>Switch to Static
-                                    </button>
-                                </div>
                                 <p class="lead mb-2">
                                     <span id="description-text">Real-time research for stocks with 20%+ growth potential in the next 30 days</span>
                                 </p>
@@ -61,6 +52,15 @@
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+        
+        <!-- Centered Refresh Button -->
+        <div class="row mb-4">
+            <div class="col-12 text-center">
+                <button id="refresh-live-data" class="btn btn-success btn-lg">
+                    <i class="fas fa-sync-alt me-2"></i>Start Live Research
+                </button>
             </div>
         </div>
         
@@ -231,7 +231,6 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Event listeners
     document.getElementById('refresh-live-data').addEventListener('click', performLiveResearch);
-    document.getElementById('toggle-data-source').addEventListener('click', toggleDataSource);
     
     // Load cached/previous data first (don't trigger live research on page load)
     loadCachedData();
@@ -350,35 +349,10 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    function toggleDataSource() {
-        useLiveData = !useLiveData;
-        updateUIForDataSource();
-        
-        if (useLiveData) {
-            // If switching to live data, don't auto-load - let user click refresh
-            updateRefreshButtonState('ready');
-        } else {
-            // If switching to static data, load it immediately
-            loadTradingData();
-        }
-    }
     
     function updateUIForDataSource() {
-        const badge = document.getElementById('data-source-badge');
-        const toggleButton = document.getElementById('toggle-data-source');
         const description = document.getElementById('description-text');
-        
-        if (useLiveData) {
-            badge.textContent = 'LIVE DATA';
-            badge.className = 'badge bg-warning text-dark ms-2';
-            toggleButton.innerHTML = '<i class="fas fa-exchange-alt me-1"></i>Switch to Static';
-            description.textContent = 'Real-time research for stocks with 20%+ growth potential in the next 30 days';
-        } else {
-            badge.textContent = 'STATIC DATA';
-            badge.className = 'badge bg-secondary text-white ms-2';
-            toggleButton.innerHTML = '<i class="fas fa-exchange-alt me-1"></i>Switch to Live';
-            description.textContent = 'Pre-analyzed stocks optimized for 30-day trading windows';
-        }
+        description.textContent = 'Real-time research for stocks with 20%+ growth potential in the next 30 days';
     }
     
     function updateMetadata(metadata) {
@@ -533,17 +507,17 @@ document.addEventListener('DOMContentLoaded', function() {
         switch(state) {
             case 'ready':
                 if (hasInitialData) {
-                    button.innerHTML = '<i class="fas fa-sync-alt me-1"></i>Refresh Live Data';
+                    button.innerHTML = '<i class="fas fa-sync-alt me-2"></i>Refresh Live Data';
                 } else {
-                    button.innerHTML = '<i class="fas fa-play me-1"></i>Start Live Research';
+                    button.innerHTML = '<i class="fas fa-play me-2"></i>Start Live Research';
                 }
                 button.disabled = false;
-                button.className = 'btn btn-success btn-sm';
+                button.className = 'btn btn-success btn-lg';
                 break;
             case 'scanning':
-                button.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Scanning Market...';
+                button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Scanning Market...';
                 button.disabled = true;
-                button.className = 'btn btn-warning btn-sm';
+                button.className = 'btn btn-warning btn-lg';
                 break;
         }
     }

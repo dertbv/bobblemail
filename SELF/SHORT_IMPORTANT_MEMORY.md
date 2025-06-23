@@ -3,6 +3,9 @@
 ## Information Entropy Note
 This file should capture **non-obvious, surprising information** that you'll need frequently. Focus on things that differ from standard practices or would surprise a new team member.
 
+## MANDATORY FIRST ACTION
+**ALWAYS READ FIRST**: `@CLAUDE.md` - Contains ATLAS identity and core operating instructions. Required before any response or work.
+
 ## Boss Information
 - **Name**: Bobble
 - **Communication Style**: Direct feedback when frustrated, values working solutions over elegant architecture
@@ -32,8 +35,9 @@ This file should capture **non-obvious, surprising information** that you'll nee
 - **Unwritten Rules**: Always clear caches when debugging memory issues, use file locking for concurrent operations
 
 ## Important Resources
-- **Main Repository**: /Users/Badman/Desktop/email/REPOS/
-- **Documentation**: CLAUDE.md, DEVELOPMENT_BELIEFS.md, working logs in WORKING_LOG/
+- **Main Repository**: @REPOS/
+- **ATLAS Core**: . (@CLAUDE.md, @SELF/, @WORKING_LOG/, @MEMORY/)
+- **Documentation**: @CLAUDE.md, @DEVELOPMENT_BELIEFS.md, working logs in @WORKING_LOG/
 - **Staging Environment**: Local Flask dev servers (ports 5000, 5006)
 - **Production Environment**: Not yet deployed
 - **Hidden Dependencies**: yfinance API (rate limited), IMAP providers (Gmail, iCloud), personal whitelist domains

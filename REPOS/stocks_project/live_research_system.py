@@ -14,9 +14,91 @@ import numpy as np
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 import logging
-from functools import lru_cache
+from functools import wraps
 import time
 import json
+from threading import Lock
+
+
+def ttl_cache(seconds=900, maxsize=100):
+    """
+    Time-based LRU cache decorator with TTL (time-to-live)
+    
+    Args:
+        seconds: Cache TTL in seconds (default 15 minutes)
+        maxsize: Maximum number of cached items
+    
+    Returns:
+        Decorator function that adds TTL caching to the wrapped function
+    """
+    def decorator(func):
+        cache = {}
+        cache_lock = Lock()
+        cache_order = []  # Track insertion order for LRU
+        
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            # Create cache key from function arguments
+            key = str(args) + str(sorted(kwargs.items()))
+            current_time = time.time()
+            
+            with cache_lock:
+                # Check if key exists and is not expired
+                if key in cache:
+                    value, timestamp = cache[key]
+                    if current_time - timestamp < seconds:
+                        # Move to end (most recently used)
+                        cache_order.remove(key)
+                        cache_order.append(key)
+                        # Log cache hit
+                        if hasattr(func, '__self__') and hasattr(func.__self__, 'logger'):
+                            func.__self__.logger.debug(f"Cache hit for {func.__name__} with key: {key[:50]}...")
+                        return value
+                    else:
+                        # Expired - remove from cache
+                        del cache[key]
+                        cache_order.remove(key)
+                        if hasattr(func, '__self__') and hasattr(func.__self__, 'logger'):
+                            func.__self__.logger.debug(f"Cache expired for {func.__name__} with key: {key[:50]}...")
+                
+                # Clean up expired entries
+                expired_keys = []
+                for k in list(cache.keys()):
+                    _, timestamp = cache[k]
+                    if current_time - timestamp >= seconds:
+                        expired_keys.append(k)
+                
+                for k in expired_keys:
+                    del cache[k]
+                    if k in cache_order:
+                        cache_order.remove(k)
+            
+            # Call the actual function
+            result = func(*args, **kwargs)
+            
+            with cache_lock:
+                # Add to cache
+                cache[key] = (result, current_time)
+                cache_order.append(key)
+                
+                # Enforce maxsize limit (LRU eviction)
+                while len(cache) > maxsize:
+                    oldest_key = cache_order.pop(0)
+                    del cache[oldest_key]
+            
+            return result
+        
+        # Add method to clear cache manually
+        def clear_cache():
+            with cache_lock:
+                cache.clear()
+                cache_order.clear()
+        
+        wrapper.clear_cache = clear_cache
+        return wrapper
+    
+    return decorator
+
 
 class LiveStockResearcher:
     """
@@ -60,7 +142,7 @@ class LiveStockResearcher:
         )
         self.logger = logging.getLogger(__name__)
 
-    @lru_cache(maxsize=100, typed=True)
+    @ttl_cache(seconds=900, maxsize=100)  # 15-minute cache
     def get_stock_data(self, ticker: str, period: str = "1mo") -> Optional[pd.DataFrame]:
         """
         Get cached stock data using Yahoo Finance
@@ -469,6 +551,32 @@ class LiveStockResearcher:
         self.logger.info(f"✅ Scan complete: {len(qualified_stocks)} stocks with 20%+ potential found in {scan_duration:.1f}s")
         
         return results
+    
+    def clear_cache(self):
+        """
+        Clear all cached stock data
+        
+        This is useful when you want to force fresh data retrieval,
+        such as during market hours or after significant time has passed.
+        """
+        if hasattr(self.get_stock_data, 'clear_cache'):
+            self.get_stock_data.clear_cache()
+            self.logger.info("Stock data cache cleared")
+    
+    def get_cache_info(self) -> Dict[str, any]:
+        """
+        Get information about the current cache state
+        
+        Returns:
+            Dictionary with cache statistics
+        """
+        # Since we're using a custom cache, we can't easily get stats
+        # But we can at least indicate the cache settings
+        return {
+            'cache_ttl_seconds': 900,  # 15 minutes
+            'max_cache_size': 100,
+            'cache_type': 'TTL-based LRU cache'
+        }
 
 # Example usage and testing
 if __name__ == "__main__":

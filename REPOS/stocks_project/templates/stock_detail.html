@@ -323,6 +323,10 @@ document.addEventListener('DOMContentLoaded', function() {
         // Investment rationale
         if (stock.rationale) {
             document.getElementById('investment-rationale').innerHTML = formatRationale(stock.rationale);
+        } else {
+            // Generate a basic rationale from the available data
+            const rationale = generateRationale(stock);
+            document.getElementById('investment-rationale').innerHTML = rationale;
         }
         
         // Load additional details from global analysis data
@@ -439,6 +443,93 @@ document.addEventListener('DOMContentLoaded', function() {
     
     function showNoData() {
         document.getElementById('no-data').classList.remove('d-none');
+    }
+    
+    function formatRationale(rationale) {
+        if (!rationale) return '<p class="text-muted">No rationale available</p>';
+        
+        // Format the rationale with proper HTML
+        return rationale
+            .replace(/\n\n/g, '</p><p>')
+            .replace(/\n/g, '<br>')
+            .replace(/^/, '<p>')
+            .replace(/$/, '</p>')
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\*(.*?)\*/g, '<em>$1</em>');
+    }
+    
+    function generateRationale(stock) {
+        let rationale = '<div class="generated-rationale">';
+        
+        // Overall assessment
+        rationale += '<h6>Investment Summary</h6>';
+        rationale += `<p>${stock.ticker} presents a `;
+        
+        if (stock.composite_score >= 70) {
+            rationale += '<strong>strong opportunity</strong>';
+        } else if (stock.composite_score >= 60) {
+            rationale += '<strong>moderate opportunity</strong>';
+        } else if (stock.composite_score >= 50) {
+            rationale += '<strong>speculative opportunity</strong>';
+        } else {
+            rationale += '<strong>high-risk opportunity</strong>';
+        }
+        
+        rationale += ` with a composite score of ${stock.composite_score.toFixed(1)}/100 and `;
+        rationale += `${stock.upside_potential.toFixed(1)}% upside potential over ${stock.optimal_holding_days || '30'} days.</p>`;
+        
+        // Technical analysis
+        rationale += '<h6>Technical Analysis</h6>';
+        rationale += `<p>Technical indicators show a score of ${stock.technical_score.toFixed(0)}/100. `;
+        
+        if (stock.technical_score >= 75) {
+            rationale += 'Strong technical momentum suggests favorable entry conditions.';
+        } else if (stock.technical_score >= 50) {
+            rationale += 'Mixed technical signals indicate moderate momentum.';
+        } else {
+            rationale += 'Weak technical indicators suggest caution on entry timing.';
+        }
+        rationale += '</p>';
+        
+        // Fundamental analysis
+        rationale += '<h6>Fundamental Analysis</h6>';
+        rationale += `<p>Fundamental strength scores ${stock.fundamental_score.toFixed(0)}/100. `;
+        
+        if (stock.fundamental_score >= 75) {
+            rationale += 'Strong financial metrics support the investment thesis.';
+        } else if (stock.fundamental_score >= 50) {
+            rationale += 'Moderate financial health with room for improvement.';
+        } else {
+            rationale += 'Weak fundamentals increase investment risk.';
+        }
+        rationale += '</p>';
+        
+        // Sentiment analysis
+        rationale += '<h6>Market Sentiment</h6>';
+        rationale += `<p>Market sentiment score is ${stock.sentiment_score.toFixed(0)}/100. `;
+        
+        if (stock.sentiment_score >= 70) {
+            rationale += 'Positive analyst and investor sentiment supports upside.';
+        } else if (stock.sentiment_score >= 50) {
+            rationale += 'Neutral market sentiment provides balanced risk/reward.';
+        } else {
+            rationale += 'Negative sentiment may create headwinds.';
+        }
+        rationale += '</p>';
+        
+        // Trading recommendation
+        rationale += '<h6>Trading Strategy</h6>';
+        rationale += `<p>Recommended holding period: <strong>${stock.optimal_holding_days || '30'} days</strong>.<br>`;
+        rationale += `Target exit date: <strong>${stock.exit_date || 'Monitor for 30 days'}</strong>.<br>`;
+        rationale += `Confidence level: <strong>${stock.holding_confidence || '70'}%</strong>.</p>`;
+        
+        // Risk note
+        rationale += '<p class="text-warning"><small><i class="fas fa-exclamation-triangle"></i> ';
+        rationale += 'This is a penny stock with high volatility. Only invest what you can afford to lose.</small></p>';
+        
+        rationale += '</div>';
+        
+        return rationale;
     }
 });
 </script>

@@ -68,7 +68,31 @@ class StockAnalysisApp:
             "Processing market sentiment...",
             "Generating recommendations..."
         ]
+        self._setup_data_directories()
         self._setup_routes()
+        
+    def _setup_data_directories(self):
+        """Setup data directories for bundled app"""
+        import sys
+        from pathlib import Path
+        
+        # Determine data directory based on execution context
+        if getattr(sys, 'frozen', False):
+            # Running as bundled app - use user Documents folder
+            self.data_dir = Path.home() / 'Documents' / 'StocksAnalyzer'
+            self.outputs_dir = self.data_dir / 'outputs'
+        else:
+            # Running from source - use current directory
+            self.data_dir = Path.cwd()
+            self.outputs_dir = self.data_dir / 'outputs'
+        
+        # Create directories if they don't exist
+        self.data_dir.mkdir(parents=True, exist_ok=True)
+        self.outputs_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Set environment variables for analysis engines
+        os.environ['STOCKS_DATA_DIR'] = str(self.data_dir)
+        os.environ['STOCKS_OUTPUTS_DIR'] = str(self.outputs_dir)
         
     def _setup_routes(self):
         """Setup Flask routes"""
@@ -172,8 +196,8 @@ class StockAnalysisApp:
             
         @self.app.route('/stock/<ticker>')
         def stock_analysis(ticker):
-            """Redirect to dashboard with stock highlighted"""
-            return redirect(f'/#stock-{ticker.upper()}')
+            """Individual stock detail page"""
+            return render_template('stock_detail.html', ticker=ticker.upper())
             
         @self.app.route('/category/<category>')
         def category_view(category):
@@ -338,6 +362,28 @@ class StockAnalysisApp:
                 return jsonify({
                     'status': 'error',
                     'message': f'Live research failed: {str(e)}'
+                }), 500
+        
+        @self.app.route('/api/clear-cache', methods=['POST'])
+        def clear_cache():
+            """Clear the live research cache (admin use)"""
+            try:
+                if LIVE_RESEARCH_AVAILABLE:
+                    researcher = LiveStockResearcher()
+                    researcher.clear_cache()
+                    return jsonify({
+                        'status': 'success',
+                        'message': 'Live research cache cleared successfully'
+                    })
+                else:
+                    return jsonify({
+                        'status': 'error',
+                        'message': 'Live research system not available'
+                    }), 503
+            except Exception as e:
+                return jsonify({
+                    'status': 'error',
+                    'message': f'Failed to clear cache: {str(e)}'
                 }), 500
             
         @self.app.route('/debug')
