@@ -1815,6 +1815,120 @@ async def bulk_flag_emails(request: Request):
         traceback.print_exc()
         return {"success": False, "message": f"Error bulk flagging emails: {str(e)}"}
 
+@app.post("/api/emails/flag-for-deletion")
+async def flag_email_for_deletion(request: Request):
+    """Flag an email for deletion (override preservation decision)"""
+    print("🗑️ FLAG EMAIL FOR DELETION API called")
+    
+    try:
+        data = await request.json()
+        
+        # Extract required fields
+        email_uid = data.get('email_uid')
+        folder_name = data.get('folder_name')
+        account_id = data.get('account_id')
+        
+        # Extract optional fields
+        session_id = data.get('session_id')
+        sender_email = data.get('sender_email')
+        subject = data.get('subject')
+        flag_reason = data.get('flag_reason', 'User requested deletion')
+        
+        # Validate required fields
+        if not all([email_uid, folder_name, account_id]):
+            return {
+                "success": False,
+                "message": "Missing required fields: email_uid, folder_name, account_id"
+            }
+        
+        # Flag the email for deletion
+        success = db.flag_email_for_deletion(
+            email_uid=email_uid,
+            folder_name=folder_name,
+            account_id=int(account_id),
+            session_id=session_id,
+            sender_email=sender_email,
+            subject=subject,
+            flag_reason=flag_reason,
+            created_by='web_user'
+        )
+        
+        if success:
+            return {
+                "success": True,
+                "message": f"Email {email_uid} flagged for deletion",
+                "email_uid": email_uid,
+                "folder_name": folder_name
+            }
+        else:
+            return {
+                "success": False,
+                "message": "Failed to flag email for deletion"
+            }
+            
+    except Exception as e:
+        print(f"❌ Flag email for deletion error: {e}")
+        import traceback
+        traceback.print_exc()
+        return {"success": False, "message": f"Error flagging email for deletion: {str(e)}"}
+
+@app.get("/api/emails/flag-status-detailed/{account_id}/{folder_name}/{email_uid}")
+async def check_detailed_flag_status(account_id: int, folder_name: str, email_uid: str):
+    """Check detailed flag status for a specific email (both protect and delete flags)"""
+    print(f"🔍 CHECK DETAILED FLAG STATUS API called for {email_uid}")
+    
+    try:
+        # Get flag type for the email
+        flag_type = db.get_email_flag_type(
+            email_uid=email_uid,
+            folder_name=folder_name,
+            account_id=account_id
+        )
+        
+        # Check specific flag types
+        is_protected = db.is_email_flagged(email_uid, folder_name, account_id)
+        is_flagged_for_deletion = db.is_email_flagged_for_deletion(email_uid, folder_name, account_id)
+        
+        return {
+            "success": True,
+            "email_uid": email_uid,
+            "folder_name": folder_name,
+            "account_id": account_id,
+            "flag_type": flag_type,
+            "is_protected": is_protected,
+            "is_flagged_for_deletion": is_flagged_for_deletion,
+            "has_any_flag": flag_type is not None
+        }
+        
+    except Exception as e:
+        print(f"❌ Check detailed flag status error: {e}")
+        import traceback
+        traceback.print_exc()
+        return {"success": False, "message": f"Error checking detailed flag status: {str(e)}"}
+
+@app.get("/api/emails/deletion-flagged")
+async def get_deletion_flagged_emails(account_id: int = None, limit: int = 100):
+    """Get list of emails flagged for deletion"""
+    print("🗑️ GET DELETION FLAGGED EMAILS API called")
+    
+    try:
+        # Get deletion-flagged emails specifically
+        deletion_flagged_emails = db.get_flagged_emails(account_id=account_id, limit=limit, flag_type='DELETE')
+        deletion_flagged_count = db.get_flagged_count(account_id=account_id, flag_type='DELETE')
+        
+        return {
+            "success": True,
+            "deletion_flagged_emails": deletion_flagged_emails,
+            "total_count": deletion_flagged_count,
+            "returned_count": len(deletion_flagged_emails)
+        }
+        
+    except Exception as e:
+        print(f"❌ Get deletion flagged emails error: {e}")
+        import traceback
+        traceback.print_exc()
+        return {"success": False, "message": f"Error getting deletion flagged emails: {str(e)}"}
+
 
 # ========================================
 # CATEGORY VALIDATION ROUTES
@@ -3342,6 +3456,24 @@ async def accounts_page():
         # Build account cards
         account_cards = ""
         if accounts:
+            # Add "All Accounts" option first
+            total_accounts = len(accounts)
+            account_cards += f"""
+            <div class="account-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <div class="account-icon">🌐</div>
+                <div class="account-info">
+                    <div class="account-email" style="color: white;">All Accounts</div>
+                    <div class="account-provider" style="color: #f0f0f0;">Process all {total_accounts} accounts at once</div>
+                    <div class="account-meta" style="color: #f0f0f0;">
+                        Batch filtering with preview option
+                    </div>
+                </div>
+                <div class="account-actions">
+                    <a href="/single-account/all" class="btn" style="background: white; color: #667eea;">Select All</a>
+                </div>
+            </div>
+            """
+            # Then add individual accounts
             for i, account in enumerate(accounts):
                 provider = account.get('provider', 'Custom')
                 icon = provider_icons.get(provider, '📧')
@@ -3575,32 +3707,75 @@ async def accounts_page():
         """
 
 @app.get("/single-account/{account_id}", response_class=HTMLResponse)
-async def single_account_page(account_id: int):
+async def single_account_page(account_id: str):
     """Single account filtering dashboard - replicates CLI functionality"""
     try:
         from db_credentials import db_credentials
         
         # Load account details
         accounts = db_credentials.load_credentials()
-        if account_id >= len(accounts):
-            return """
-            <html><body>
-                <h1>Account Not Found</h1>
-                <a href="/accounts">← Back to Accounts</a>
-            </body></html>
-            """
         
-        account = accounts[account_id]
+        # Handle "all" accounts special case
+        if account_id == "all":
+            # Create a virtual "all accounts" object
+            account = {
+                'email_address': 'All Accounts',
+                'provider': f'Processing {len(accounts)} accounts',
+                'target_folders': []
+            }
+            # Show target accounts instead of folders
+            target_accounts = []
+            for acc in accounts:
+                folders = acc.get('target_folders', [])
+                folder_count = len(folders) if folders else 0
+                provider = acc.get('provider', 'Custom')
+                target_accounts.append(f"{acc['email_address']} ({provider}) - {folder_count} folders")
+            account['target_folders'] = target_accounts
+            account_idx = "all"
+        else:
+            # Handle individual account
+            try:
+                account_idx = int(account_id)
+                if account_idx >= len(accounts):
+                    return """
+                    <html><body>
+                        <h1>Account Not Found</h1>
+                        <a href="/accounts">← Back to Accounts</a>
+                    </body></html>
+                    """
+                account = accounts[account_idx]
+            except ValueError:
+                return """
+                <html><body>
+                    <h1>Invalid Account ID</h1>
+                    <a href="/accounts">← Back to Accounts</a>
+                </body></html>
+                """
         provider_icons = {
             'iCloud': '🍎',
             'Gmail': '📧', 
             'Outlook': '🏢',
             'Yahoo': '🟣',
-            'Custom': '⚙️'
+            'Custom': '⚙️',
+            'Processing 0 accounts': '🌐',
+            'Processing 1 accounts': '🌐',
+            'Processing 2 accounts': '🌐',
+            'Processing 3 accounts': '🌐',
+            'Processing 4 accounts': '🌐',
+            'Processing 5 accounts': '🌐',
+            'Processing 6 accounts': '🌐',
+            'Processing 7 accounts': '🌐',
+            'Processing 8 accounts': '🌐',
+            'Processing 9 accounts': '🌐',
+            'Processing 10 accounts': '🌐'
         }
         
         provider = account.get('provider', 'Custom')
-        icon = provider_icons.get(provider, '📧')
+        # Special icon for "all accounts"
+        if account_id == "all":
+            icon = '🌐'
+        else:
+            icon = provider_icons.get(provider, '📧')
         target_folders = account.get('target_folders', [])
         
         # Build folder list
@@ -3882,7 +4057,7 @@ async def single_account_page(account_id: int):
                     </div>
                     
                     <div class="section">
-                        <div class="section-header">📁 Target Folders</div>
+                        <div class="section-header">{'🌐 Target Accounts' if account_id == 'all' else '📁 Target Folders'}</div>
                         <div class="section-content">
                             {folder_list}
                         </div>
@@ -3927,7 +4102,7 @@ async def single_account_page(account_id: int):
             </div>
             
             <script>
-                const accountId = {account_id};
+                const accountId = "{account_id}";
                 
                 async function runPreview() {{
                     await runAction('preview');
@@ -3956,18 +4131,19 @@ async def single_account_page(account_id: int):
                     resultsContent.style.display = 'none';
                     
                     try {{
-                        const endpoint = mode === 'preview' ? `/api/single-account/${{accountId}}/preview` : `/api/single-account/${{accountId}}/process`;
-                        const response = await fetch(endpoint, {{
-                            method: 'POST'
-                        }});
-                        const result = await response.json();
-                        
-                        if (result.success) {{
-                            statusDiv.className = 'status-message status-success';
-                            statusDiv.textContent = `✅ ${{mode === 'preview' ? 'Preview' : 'Processing'}} completed successfully!`;
+                        if (mode === 'preview') {{
+                            // Preview mode: just call preview endpoint
+                            const response = await fetch(`/api/single-account/${{accountId}}/preview`, {{
+                                method: 'POST'
+                            }});
+                            const result = await response.json();
                             
-                            // Display results
-                            const stats = result.data;
+                            if (result.success) {{
+                                statusDiv.className = 'status-message status-success';
+                                statusDiv.textContent = `✅ Preview completed successfully!`;
+                                
+                                // Display results
+                                const stats = result.data;
                             resultsContent.innerHTML = `
                                 <div class="stats-grid">
                                     <div class="stat-card">
@@ -4000,13 +4176,37 @@ async def single_account_page(account_id: int):
                                     </div>
                                 </div>
                                 
+                                ${{stats.account_breakdown ? `
+                                <div style="margin-top: 25px;">
+                                    <h4>🌐 Account Breakdown:</h4>
+                                    <div id="account-breakdown-list">
+                                        ${{stats.account_breakdown.map(account => 
+                                            account.error ? 
+                                            `<div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; background-color: #fff5f5;">
+                                                <span style="color: #dc3545;">${{account.email}}</span>
+                                                <span style="color: #dc3545; font-weight: 600;">Error: ${{account.error}}</span>
+                                            </div>` :
+                                            `<div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee;">
+                                                <span>${{account.email}}</span>
+                                                <span style="font-weight: 600;">
+                                                    <span style="color: #dc3545;">${{account.deleted}}</span> deleted, 
+                                                    <span style="color: #28a745;">${{account.preserved}}</span> preserved
+                                                </span>
+                                            </div>`
+                                        ).join('')}}
+                                    </div>
+                                </div>
+                                ` : ''}}
+                                
                                 <div id="email-details-section" style="margin-top: 30px;">
                                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                                         <h4 style="margin: 0;">📧 Email Details:</h4>
+                                        ${{!(typeof stats.session_id === 'string' && stats.session_id.startsWith('all_')) ? `
                                         <div>
                                             <button id="show-session-emails" onclick="toggleEmailView('session')" style="background: #667eea; color: white; border: none; padding: 8px 12px; border-radius: 5px; margin-right: 5px; cursor: pointer; font-size: 0.9em;">Current Session</button>
                                             <button id="show-all-emails" onclick="toggleEmailView('all')" style="background: #6c757d; color: white; border: none; padding: 8px 12px; border-radius: 5px; cursor: pointer; font-size: 0.9em;">All Account Emails</button>
                                         </div>
+                                        ` : ''}}
                                     </div>
                                     <div id="email-details-loading" style="text-align: center; padding: 20px; color: #6c757d;">
                                         <div style="font-size: 1.5em; margin-bottom: 10px;">⏳</div>
@@ -4021,10 +4221,22 @@ async def single_account_page(account_id: int):
                                 </div>
                             `;
                             
-                            // Load email details table (only if session_id is valid)
-                            if (stats.session_id && stats.session_id !== 'undefined') {{
+                            // Load email details table (only if session_id is valid and not "all accounts")
+                            if (stats.session_id && stats.session_id !== 'undefined' && !(typeof stats.session_id === 'string' && stats.session_id.startsWith('all_'))) {{
                                 currentSessionId = stats.session_id;
                                 loadEmailDetails(stats.session_id);
+                            }} else if (stats.session_id && typeof stats.session_id === 'string' && stats.session_id.startsWith('all_')) {{
+                                // Handle "all accounts" mode - load emails from multiple sessions
+                                if (stats.session_ids && stats.session_ids.length > 0) {{
+                                    loadAllAccountsEmailDetails(stats.session_ids);
+                                }} else {{
+                                    document.getElementById('email-details-loading').innerHTML = `
+                                        <div style="text-align: center; padding: 20px; color: #17a2b8;">
+                                            <div style="font-size: 1.5em; margin-bottom: 10px;">🌐</div>
+                                            All accounts processing complete. See account breakdown above for detailed results.
+                                        </div>
+                                    `;
+                                }}
                             }} else {{
                                 document.getElementById('email-details-loading').innerHTML = `
                                     <div style="text-align: center; padding: 20px; color: #ffc107;">
@@ -4036,19 +4248,177 @@ async def single_account_page(account_id: int):
                             
                             loadingDiv.style.display = 'none';
                             resultsContent.style.display = 'block';
+                            }} else {{
+                                statusDiv.className = 'status-message status-error';
+                                statusDiv.textContent = `❌ Preview failed: ${{result.error || 'Unknown error'}}`;
+                                
+                                resultsContent.innerHTML = `
+                                    <div style="text-align: center; padding: 40px; color: #dc3545;">
+                                        <div style="font-size: 2em; margin-bottom: 15px;">❌</div>
+                                        <div>Preview failed. Please try again or check the CLI for more details.</div>
+                                    </div>
+                                `;
+                                
+                                loadingDiv.style.display = 'none';
+                                resultsContent.style.display = 'block';
+                            }}
                         }} else {{
-                            statusDiv.className = 'status-message status-error';
-                            statusDiv.textContent = `❌ ${{mode === 'preview' ? 'Preview' : 'Processing'}} failed: ${{result.error || 'Unknown error'}}`;
+                            // Process mode: first process, then automatically run preview
+                            statusDiv.className = 'status-message status-info';
+                            statusDiv.textContent = `🔄 Processing emails in background...`;
                             
-                            resultsContent.innerHTML = `
-                                <div style="text-align: center; padding: 40px; color: #dc3545;">
-                                    <div style="font-size: 2em; margin-bottom: 15px;">❌</div>
-                                    <div>Operation failed. Please try again or check the CLI for more details.</div>
-                                </div>
-                            `;
+                            const processResponse = await fetch(`/api/single-account/${{accountId}}/process`, {{
+                                method: 'POST'
+                            }});
+                            const processResult = await processResponse.json();
                             
-                            loadingDiv.style.display = 'none';
-                            resultsContent.style.display = 'block';
+                            if (processResult.success) {{
+                                // Processing successful - now automatically run preview to show remaining emails
+                                statusDiv.textContent = `🔄 Processing completed! Loading current inbox state...`;
+                                
+                                const previewResponse = await fetch(`/api/single-account/${{accountId}}/preview`, {{
+                                    method: 'POST'
+                                }});
+                                const previewResult = await previewResponse.json();
+                                
+                                if (previewResult.success) {{
+                                    statusDiv.className = 'status-message status-success';
+                                    statusDiv.textContent = `✅ Processing completed! Showing remaining emails in your inbox:`;
+                                    
+                                    // Display preview results (current state of inbox)
+                                    const stats = previewResult.data;
+                                    resultsContent.innerHTML = `
+                                        <div class="stats-grid">
+                                            <div class="stat-card">
+                                                <div class="stat-value">${{stats.total_emails || 0}}</div>
+                                                <div class="stat-label">Remaining Emails</div>
+                                            </div>
+                                            <div class="stat-card">
+                                                <div class="stat-value" style="color: #dc3545;">${{stats.total_deleted || 0}}</div>
+                                                <div class="stat-label">Would Delete</div>
+                                            </div>
+                                            <div class="stat-card">
+                                                <div class="stat-value" style="color: #28a745;">${{stats.total_preserved || 0}}</div>
+                                                <div class="stat-label">Preserved</div>
+                                            </div>
+                                            <div class="stat-card">
+                                                <div class="stat-value">${{Object.keys(stats.categories || {{}}).length}}</div>
+                                                <div class="stat-label">Categories</div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div style="margin-top: 25px;">
+                                            <h4>📊 Category Breakdown:</h4>
+                                            <div id="categories-list">
+                                                ${{Object.entries(stats.categories || {{}}).map(([category, count]) => 
+                                                    `<div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee;">
+                                                        <span>${{category}}</span>
+                                                        <span style="font-weight: 600;">${{count}} emails</span>
+                                                    </div>`
+                                                ).join('')}}
+                                            </div>
+                                        </div>
+                                        
+                                        ${{stats.account_breakdown ? `
+                                        <div style="margin-top: 25px;">
+                                            <h4>🌐 Account Breakdown:</h4>
+                                            <div id="account-breakdown-list">
+                                                ${{stats.account_breakdown.map(account => 
+                                                    account.error ? 
+                                                    `<div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; background-color: #fff5f5;">
+                                                        <span style="color: #dc3545;">${{account.email}}</span>
+                                                        <span style="color: #dc3545; font-weight: 600;">Error: ${{account.error}}</span>
+                                                    </div>` :
+                                                    `<div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee;">
+                                                        <span>${{account.email}}</span>
+                                                        <span style="font-weight: 600;">
+                                                            <span style="color: #dc3545;">${{account.deleted}}</span> deleted, 
+                                                            <span style="color: #28a745;">${{account.preserved}}</span> preserved
+                                                        </span>
+                                                    </div>`
+                                                ).join('')}}
+                                            </div>
+                                        </div>
+                                        ` : ''}}
+                                        
+                                        <div id="email-details-section" style="margin-top: 30px;">
+                                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                                                <h4 style="margin: 0;">📧 Email Details:</h4>
+                                                ${{!(typeof stats.session_id === 'string' && stats.session_id.startsWith('all_')) ? `
+                                                <div>
+                                                    <button id="show-session-emails" onclick="toggleEmailView('session')" style="background: #667eea; color: white; border: none; padding: 8px 12px; border-radius: 5px; margin-right: 5px; cursor: pointer; font-size: 0.9em;">Current Session</button>
+                                                    <button id="show-all-emails" onclick="toggleEmailView('all')" style="background: #6c757d; color: white; border: none; padding: 8px 12px; border-radius: 5px; cursor: pointer; font-size: 0.9em;">All Account Emails</button>
+                                                </div>
+                                                ` : ''}}
+                                            </div>
+                                            <div id="email-details-loading" style="text-align: center; padding: 20px; color: #6c757d;">
+                                                <div style="font-size: 1.5em; margin-bottom: 10px;">⏳</div>
+                                                Loading email details...
+                                            </div>
+                                            <div id="email-details-table" style="display: none;"></div>
+                                        </div>
+                                        
+                                        <div style="margin-top: 25px; font-size: 0.9em; color: #6c757d;">
+                                            Account: ${{stats.account_email}}<br>
+                                            Processing Time: ${{new Date().toLocaleString()}}
+                                        </div>
+                                    `;
+                                    
+                                    // Load email details table (only if session_id is valid and not "all accounts")
+                                    if (stats.session_id && stats.session_id !== 'undefined' && !(typeof stats.session_id === 'string' && stats.session_id.startsWith('all_'))) {{
+                                        currentSessionId = stats.session_id;
+                                        loadEmailDetails(stats.session_id);
+                                    }} else if (stats.session_id && typeof stats.session_id === 'string' && stats.session_id.startsWith('all_')) {{
+                                        // Handle "all accounts" mode - load emails from multiple sessions
+                                        if (stats.session_ids && stats.session_ids.length > 0) {{
+                                            loadAllAccountsEmailDetails(stats.session_ids);
+                                        }} else {{
+                                            document.getElementById('email-details-loading').innerHTML = `
+                                                <div style="text-align: center; padding: 20px; color: #17a2b8;">
+                                                    <div style="font-size: 1.5em; margin-bottom: 10px;">🌐</div>
+                                                    All accounts processing complete. See account breakdown above for detailed results.
+                                                </div>
+                                            `;
+                                        }}
+                                    }} else {{
+                                        document.getElementById('email-details-loading').innerHTML = `
+                                            <div style="text-align: center; padding: 20px; color: #ffc107;">
+                                                <div style="font-size: 1.5em; margin-bottom: 10px;">⚠️</div>
+                                                Session ID not available. Email details cannot be loaded.
+                                            </div>
+                                        `;
+                                    }}
+                                    
+                                    loadingDiv.style.display = 'none';
+                                    resultsContent.style.display = 'block';
+                                }} else {{
+                                    statusDiv.className = 'status-message status-error';
+                                    statusDiv.textContent = `❌ Failed to load current inbox state: ${{previewResult.error || 'Unknown error'}}`;
+                                    
+                                    resultsContent.innerHTML = `
+                                        <div style="text-align: center; padding: 40px; color: #dc3545;">
+                                            <div style="font-size: 2em; margin-bottom: 15px;">❌</div>
+                                            <div>Processing completed but failed to load current state. Please try Preview to see remaining emails.</div>
+                                        </div>
+                                    `;
+                                    
+                                    loadingDiv.style.display = 'none';
+                                    resultsContent.style.display = 'block';
+                                }}
+                            }} else {{
+                                statusDiv.className = 'status-message status-error';
+                                statusDiv.textContent = `❌ Processing failed: ${{processResult.error || 'Unknown error'}}`;
+                                
+                                resultsContent.innerHTML = `
+                                    <div style="text-align: center; padding: 40px; color: #dc3545;">
+                                        <div style="font-size: 2em; margin-bottom: 15px;">❌</div>
+                                        <div>Processing failed. Please try again or check the CLI for more details.</div>
+                                    </div>
+                                `;
+                                
+                                loadingDiv.style.display = 'none';
+                                resultsContent.style.display = 'block';
+                            }}
                         }}
                     }} catch (error) {{
                         statusDiv.className = 'status-message status-error';
@@ -4252,13 +4622,20 @@ async def single_account_page(account_id: int):
                                                 </td>
                                                 <td style="padding: 10px; border-right: 1px solid #eee; text-align: center;">
                                                     <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
-                                                        <span style="font-size: 0.8em; color: #6c757d;">
-                                                            ${{email.is_flagged ? '🛡️ Protected' : 'No Protection'}}
+                                                        <span style="font-size: 0.8em; color: #6c757d; font-weight: 500;">
+                                                            ${{email.is_protected ? 'Protected' : (email.action === 'DELETED' && !email.is_protected) || email.is_flagged_for_deletion ? 'Delete' : ''}}
                                                         </span>
-                                                        <button onclick="toggleEmailFlagInTable('${{email.uid || ''}}', '${{email.folder_name || ''}}', ${{email.account_id || 0}}, ${{email.is_flagged}}, this)" 
-                                                                style="border: 1px solid ${{email.is_flagged ? '#dc3545' : '#28a745'}}; background: #f8f9fa; color: ${{email.is_flagged ? '#dc3545' : '#28a745'}}; padding: 2px 6px; border-radius: 3px; font-size: 0.75em; cursor: pointer; transition: all 0.2s;">
-                                                            ${{email.is_flagged ? 'Remove' : 'Protect'}}
-                                                        </button>
+                                                        ${{email.action === 'DELETED' ? `
+                                                            <button onclick="toggleEmailFlagInTable('${{email.uid || ''}}', '${{email.folder_name || ''}}', ${{email.account_id || 0}}, ${{email.is_protected || false}}, this, 'protect')" 
+                                                                    style="border: 1px solid ${{email.is_protected ? '#dc3545' : '#28a745'}}; background: #f8f9fa; color: ${{email.is_protected ? '#dc3545' : '#28a745'}}; padding: 2px 6px; border-radius: 3px; font-size: 0.75em; cursor: pointer; transition: all 0.2s;">
+                                                                ${{email.is_protected ? 'Unmark Protection' : 'Mark for Protection'}}
+                                                            </button>
+                                                        ` : `
+                                                            <button onclick="toggleEmailFlagInTable('${{email.uid || ''}}', '${{email.folder_name || ''}}', ${{email.account_id || 0}}, ${{email.is_flagged_for_deletion || false}}, this, 'delete')" 
+                                                                    style="border: 1px solid ${{email.is_flagged_for_deletion ? '#dc3545' : '#fd7e14'}}; background: #f8f9fa; color: ${{email.is_flagged_for_deletion ? '#dc3545' : '#fd7e14'}}; padding: 2px 6px; border-radius: 3px; font-size: 0.75em; cursor: pointer; transition: all 0.2s;">
+                                                                ${{email.is_flagged_for_deletion ? 'Unmark for Deletion' : 'Mark for Deletion'}}
+                                                            </button>
+                                                        `}}
                                                     </div>
                                                 </td>
                                                 <td style="padding: 10px; border-right: 1px solid #eee; text-align: center;">
@@ -4283,9 +4660,11 @@ async def single_account_page(account_id: int):
                     `;
                 }}
                 
-                // Toggle email flag function for table view
-                async function toggleEmailFlagInTable(emailUid, folderName, accountId, currentlyFlagged, buttonElement) {{
+                // Toggle email flag function for table view (handles both protect and delete flags)
+                async function toggleEmailFlagInTable(emailUid, folderName, accountId, currentlyFlagged, buttonElement, flagType = 'protect') {{
                     try {{
+                        console.log('toggleEmailFlagInTable called:', {{ emailUid, folderName, accountId, currentlyFlagged, flagType }});
+                        
                         // Validate required parameters
                         if (!emailUid || !folderName || !accountId || accountId === 0) {{
                             throw new Error(`❌ Cannot flag this email: Missing email UID or folder information. This email may be from an older session before flagging was enabled.`);
@@ -4296,19 +4675,45 @@ async def single_account_page(account_id: int):
                         const originalText = buttonElement.textContent;
                         buttonElement.textContent = 'Working...';
                         
-                        // Determine action and endpoint
-                        const action = currentlyFlagged ? 'unflag' : 'flag';
-                        const endpoint = '/api/emails/' + action;
+                        let endpoint, requestData, successMessage;
                         
-                        // Prepare request data
-                        const requestData = {{
-                            email_uid: emailUid,
-                            folder_name: folderName,
-                            account_id: parseInt(accountId)
-                        }};
-                        
-                        if (action === 'flag') {{
-                            requestData.flag_reason = 'User requested protection from All Account Emails view';
+                        if (flagType === 'protect') {{
+                            // Handle protection flags (for DELETED emails)
+                            const action = currentlyFlagged ? 'unflag' : 'flag';
+                            endpoint = '/api/emails/' + action;
+                            requestData = {{
+                                email_uid: emailUid,
+                                folder_name: folderName,
+                                account_id: parseInt(accountId)
+                            }};
+                            if (action === 'flag') {{
+                                requestData.flag_reason = 'User requested protection from deletion';
+                            }}
+                            successMessage = currentlyFlagged ? 
+                                'Email protection removed' : 
+                                'Email protected from deletion';
+                        }} else {{
+                            // Handle delete flags (for PRESERVED emails)
+                            if (currentlyFlagged) {{
+                                // Remove delete flag (unflag)
+                                endpoint = '/api/emails/unflag';
+                                requestData = {{
+                                    email_uid: emailUid,
+                                    folder_name: folderName,
+                                    account_id: parseInt(accountId)
+                                }};
+                                successMessage = 'Email unmarked for deletion';
+                            }} else {{
+                                // Add delete flag
+                                endpoint = '/api/emails/flag-for-deletion';
+                                requestData = {{
+                                    email_uid: emailUid,
+                                    folder_name: folderName,
+                                    account_id: parseInt(accountId),
+                                    flag_reason: 'User requested deletion override'
+                                }};
+                                successMessage = 'Email marked for deletion';
+                            }}
                         }}
                         
                         // Make API call
@@ -4326,27 +4731,36 @@ async def single_account_page(account_id: int):
                             // Update UI to reflect new state
                             const newFlaggedState = !currentlyFlagged;
                             
-                            // Update the status text
+                            // Update the status text and button based on flag type
                             const statusSpan = buttonElement.parentElement.querySelector('span');
-                            statusSpan.textContent = newFlaggedState ? '🛡️ Protected' : 'No Protection';
                             
-                            // Update button text and styling
-                            buttonElement.textContent = newFlaggedState ? 'Remove' : 'Protect';
-                            buttonElement.style.borderColor = newFlaggedState ? '#dc3545' : '#28a745';
-                            buttonElement.style.color = newFlaggedState ? '#dc3545' : '#28a745';
-                            
-                            // Update onclick handler for new state
-                            buttonElement.onclick = function() {{
-                                toggleEmailFlagInTable(emailUid, folderName, accountId, newFlaggedState, this);
-                            }};
+                            if (flagType === 'protect') {{
+                                statusSpan.textContent = newFlaggedState ? 'Protected' : '';
+                                buttonElement.textContent = newFlaggedState ? 'Unmark Protection' : 'Mark for Protection';
+                                buttonElement.style.borderColor = newFlaggedState ? '#dc3545' : '#28a745';
+                                buttonElement.style.color = newFlaggedState ? '#dc3545' : '#28a745';
+                                
+                                // Update onclick handler for new state
+                                buttonElement.onclick = function() {{
+                                    toggleEmailFlagInTable(emailUid, folderName, accountId, newFlaggedState, this, 'protect');
+                                }};
+                            }} else {{
+                                statusSpan.textContent = newFlaggedState ? 'Delete' : '';
+                                buttonElement.textContent = newFlaggedState ? 'Unmark for Deletion' : 'Mark for Deletion';
+                                buttonElement.style.borderColor = newFlaggedState ? '#dc3545' : '#fd7e14';
+                                buttonElement.style.color = newFlaggedState ? '#dc3545' : '#fd7e14';
+                                
+                                // Update onclick handler for new state
+                                buttonElement.onclick = function() {{
+                                    toggleEmailFlagInTable(emailUid, folderName, accountId, newFlaggedState, this, 'delete');
+                                }};
+                            }}
                             
                             // Show success message
-                            showSuccessMessage(currentlyFlagged ? 
-                                '🛡️ Email protection removed' : 
-                                '🛡️ Email protected from deletion');
+                            showSuccessMessage(successMessage);
                             
                         }} else {{
-                            throw new Error(result.message || 'Failed to update email protection');
+                            throw new Error(result.message || 'Failed to update email flag');
                         }}
                         
                     }} catch (error) {{
@@ -4386,6 +4800,144 @@ async def single_account_page(account_id: int):
                         messageDiv.style.animation = 'slideOut 0.3s ease';
                         setTimeout(() => messageDiv.remove(), 300);
                     }}, 3000);
+                }}
+                
+                async function loadAllAccountsEmailDetails(sessionIds) {{
+                    const loadingDiv = document.getElementById('email-details-loading');
+                    const tableDiv = document.getElementById('email-details-table');
+                    
+                    loadingDiv.style.display = 'block';
+                    tableDiv.style.display = 'none';
+                    loadingDiv.innerHTML = `
+                        <div style="text-align: center; padding: 20px; color: #6c757d;">
+                            <div style="font-size: 1.5em; margin-bottom: 10px;">⏳</div>
+                            Loading emails from all accounts...
+                        </div>
+                    `;
+                    
+                    try {{
+                        // Convert sessionIds array to JSON string for API call
+                        const sessionIdsParam = encodeURIComponent(JSON.stringify(sessionIds));
+                        const response = await fetch(`/api/all-accounts/emails?session_ids=${{sessionIdsParam}}`);
+                        const result = await response.json();
+                        
+                        if (result.success && result.emails) {{
+                            const emails = result.emails;
+                            
+                            if (emails.length === 0) {{
+                                tableDiv.innerHTML = `
+                                    <div style="text-align: center; padding: 20px; color: #6c757d;">
+                                        <div style="font-size: 1.5em; margin-bottom: 10px;">📭</div>
+                                        No emails found across all accounts.
+                                    </div>
+                                `;
+                            }} else {{
+                                displayAllAccountsEmailTable(emails, `${{emails.length}} emails from ${{result.session_count}} accounts`);
+                            }}
+                            
+                            loadingDiv.style.display = 'none';
+                            tableDiv.style.display = 'block';
+                        }} else {{
+                            tableDiv.innerHTML = `
+                                <div style="text-align: center; padding: 20px; color: #dc3545;">
+                                    <div style="font-size: 1.5em; margin-bottom: 10px;">❌</div>
+                                    Failed to load all accounts emails: ${{result.error || 'Unknown error'}}
+                                </div>
+                            `;
+                            loadingDiv.style.display = 'none';
+                            tableDiv.style.display = 'block';
+                        }}
+                    }} catch (error) {{
+                        tableDiv.innerHTML = `
+                            <div style="text-align: center; padding: 20px; color: #dc3545;">
+                                <div style="font-size: 1.5em; margin-bottom: 10px;">⚠️</div>
+                                Network error loading all accounts emails: ${{error.message}}
+                            </div>
+                        `;
+                        loadingDiv.style.display = 'none';
+                        tableDiv.style.display = 'block';
+                    }}
+                }}
+                
+                function displayAllAccountsEmailTable(emails, description) {{
+                    const tableDiv = document.getElementById('email-details-table');
+                    
+                    tableDiv.innerHTML = `
+                        <div style="background: white; border: 1px solid #dee2e6; border-radius: 8px; overflow: hidden;">
+                            <div style="overflow-x: auto;">
+                                <table style="width: 100%; border-collapse: collapse;">
+                                    <thead>
+                                        <tr style="background: #f8f9fa; border-bottom: 2px solid #dee2e6;">
+                                            <th style="padding: 12px; text-align: left; border-right: 1px solid #dee2e6; font-weight: 600; width: 140px;">Account</th>
+                                            <th style="padding: 12px; text-align: left; border-right: 1px solid #dee2e6; font-weight: 600; width: 180px;">Sender</th>
+                                            <th style="padding: 12px; text-align: left; border-right: 1px solid #dee2e6; font-weight: 600; width: 250px;">Subject</th>
+                                            <th style="padding: 12px; text-align: center; border-right: 1px solid #dee2e6; font-weight: 600; width: 140px;">Category</th>
+                                            <th style="padding: 12px; text-align: center; border-right: 1px solid #dee2e6; font-weight: 600; width: 90px;">Confidence</th>
+                                            <th style="padding: 12px; text-align: center; border-right: 1px solid #dee2e6; font-weight: 600; width: 110px;">Protection</th>
+                                            <th style="padding: 12px; text-align: center; border-right: 1px solid #dee2e6; font-weight: 600; width: 100px;">Action</th>
+                                            <th style="padding: 12px; text-align: center; font-weight: 600; width: 100px;">Date</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${{emails.map(email => `
+                                            <tr style="border-bottom: 1px solid #eee;">
+                                                <td style="padding: 10px; border-right: 1px solid #eee; width: 140px; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.85em; color: #6c757d;" title="${{email.account_email}}">
+                                                    ${{email.account_email}}
+                                                </td>
+                                                <td style="padding: 10px; border-right: 1px solid #eee; width: 180px; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${{email.sender}}">
+                                                    ${{email.sender}}
+                                                </td>
+                                                <td style="padding: 10px; border-right: 1px solid #eee; width: 250px; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${{email.subject}}">
+                                                    ${{email.subject}}
+                                                </td>
+                                                <td style="padding: 10px; border-right: 1px solid #eee; width: 140px; text-align: center;">
+                                                    <span style="background: ${{getCategoryColor(email.category)}}; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.85em; font-weight: 500;">
+                                                        ${{email.category}}
+                                                    </span>
+                                                </td>
+                                                <td style="padding: 10px; border-right: 1px solid #eee; width: 90px; text-align: center;">
+                                                    <span style="font-weight: 500; color: ${{email.confidence >= 70 ? '#28a745' : email.confidence >= 40 ? '#ffc107' : '#dc3545'}};">
+                                                        ${{Math.round(email.confidence)}}%
+                                                    </span>
+                                                </td>
+                                                <td style="padding: 10px; border-right: 1px solid #eee; width: 110px; text-align: center;">
+                                                    <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                                                        <span style="font-size: 0.8em; color: #6c757d; font-weight: 500;">
+                                                            ${{email.is_protected ? 'Protected' : (email.action === 'DELETED' && !email.is_protected) || email.is_flagged_for_deletion ? 'Delete' : ''}}
+                                                        </span>
+                                                        ${{email.action === 'DELETED' ? `
+                                                            <button onclick="toggleEmailFlagInTable('${{email.uid || ''}}', '${{email.folder_name || ''}}', ${{email.account_id || 0}}, ${{email.is_protected || false}}, this, 'protect')" 
+                                                                    style="border: 1px solid ${{email.is_protected ? '#dc3545' : '#28a745'}}; background: #f8f9fa; color: ${{email.is_protected ? '#dc3545' : '#28a745'}}; padding: 2px 6px; border-radius: 3px; font-size: 0.75em; cursor: pointer; transition: all 0.2s;">
+                                                                ${{email.is_protected ? 'Unmark Protection' : 'Mark for Protection'}}
+                                                            </button>
+                                                        ` : `
+                                                            <button onclick="toggleEmailFlagInTable('${{email.uid || ''}}', '${{email.folder_name || ''}}', ${{email.account_id || 0}}, ${{email.is_flagged_for_deletion || false}}, this, 'delete')" 
+                                                                    style="border: 1px solid ${{email.is_flagged_for_deletion ? '#dc3545' : '#fd7e14'}}; background: #f8f9fa; color: ${{email.is_flagged_for_deletion ? '#dc3545' : '#fd7e14'}}; padding: 2px 6px; border-radius: 3px; font-size: 0.75em; cursor: pointer; transition: all 0.2s;">
+                                                                ${{email.is_flagged_for_deletion ? 'Unmark for Deletion' : 'Mark for Deletion'}}
+                                                            </button>
+                                                        `}}
+                                                    </div>
+                                                </td>
+                                                <td style="padding: 10px; border-right: 1px solid #eee; width: 100px; text-align: center;">
+                                                    <span style="background: ${{email.action === 'DELETED' ? '#dc3545' : '#28a745'}}; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.85em; font-weight: 500;">
+                                                        ${{email.action}}
+                                                    </span>
+                                                </td>
+                                                <td style="padding: 10px; width: 100px; text-align: center; font-size: 0.85em; color: #6c757d;">
+                                                    ${{new Date(email.timestamp).toLocaleDateString()}}
+                                                </td>
+                                            </tr>
+                                        `).join('')}}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div style="padding: 15px; background: #f8f9fa; border-top: 1px solid #dee2e6; font-size: 0.9em; color: #6c757d; text-align: center;">
+                                Showing ${{description}}
+                                <br>
+                                <span style="font-size: 0.85em;">(${{emails.filter(e => e.action === 'DELETED' || e.action === 'WOULD DELETE').length}} deleted, ${{emails.filter(e => e.action === 'PRESERVED' || e.action === 'WOULD PRESERVE').length}} preserved)</span>
+                            </div>
+                        </div>
+                    `;
                 }}
             </script>
         </body>
@@ -4431,57 +4983,171 @@ async def get_accounts_api():
         return {"success": False, "error": str(e)}
 
 @app.post("/api/single-account/{account_id}/preview")
-async def single_account_preview_api(account_id: int):
+async def single_account_preview_api(account_id: str):
     """Preview mode for single account - calls EXACT CLI function with preview_mode=True"""
     try:
         # Import the EXACT CLI function that replicates the working CLI flow
         from processing_controller import run_exact_cli_processing_for_account
+        from db_credentials import db_credentials
         
-        print(f"🔍 Calling EXACT CLI preview function for account {account_id}")
-        
-        # Call the EXACT CLI function with preview_mode=True for preview
-        result = run_exact_cli_processing_for_account(account_id, preview_mode=True)
-        
-        return {"success": True, "data": result}
+        # Handle "all" accounts special case
+        if account_id == "all":
+            print(f"🔍 Running preview for ALL accounts")
+            accounts = db_credentials.load_credentials()
+            
+            # Aggregate results from all accounts
+            all_results = {
+                'total_emails': 0,
+                'total_deleted': 0,
+                'total_preserved': 0,
+                'categories': {},
+                'account_email': f'All {len(accounts)} Accounts',
+                'session_id': 'all_preview',
+                'account_breakdown': [],
+                'session_ids': []  # Collect individual session IDs for email details
+            }
+            
+            # Process each account
+            for idx, account in enumerate(accounts):
+                print(f"🔍 Preview account {idx}: {account['email_address']}")
+                try:
+                    result = run_exact_cli_processing_for_account(idx, preview_mode=True)
+                    
+                    # Aggregate totals
+                    all_results['total_emails'] += result.get('total_emails', 0)
+                    all_results['total_deleted'] += result.get('total_deleted', 0)
+                    all_results['total_preserved'] += result.get('total_preserved', 0)
+                    
+                    # Aggregate categories
+                    for category, count in result.get('categories', {}).items():
+                        all_results['categories'][category] = all_results['categories'].get(category, 0) + count
+                    
+                    # Add account breakdown
+                    all_results['account_breakdown'].append({
+                        'email': account['email_address'],
+                        'deleted': result.get('total_deleted', 0),
+                        'preserved': result.get('total_preserved', 0)
+                    })
+                    
+                    # Collect session ID for email details
+                    if result.get('session_id'):
+                        all_results['session_ids'].append({
+                            'session_id': result.get('session_id'),
+                            'account_email': account['email_address']
+                        })
+                except Exception as e:
+                    print(f"❌ Error processing account {idx}: {e}")
+                    all_results['account_breakdown'].append({
+                        'email': account['email_address'],
+                        'error': str(e)
+                    })
+            
+            return {"success": True, "data": all_results}
+        else:
+            # Handle single account
+            account_idx = int(account_id)
+            print(f"🔍 Calling EXACT CLI preview function for account {account_idx}")
+            
+            # Call the EXACT CLI function with preview_mode=True for preview
+            result = run_exact_cli_processing_for_account(account_idx, preview_mode=True)
+            
+            return {"success": True, "data": result}
     except Exception as e:
         print(f"❌ Error calling EXACT CLI preview: {e}")
         return {"success": False, "error": str(e)}
 
 @app.post("/api/single-account/{account_id}/process")
-async def single_account_process_api(account_id: int):
+async def single_account_process_api(account_id: str):
     """Actual processing for single account - calls EXACT CLI deletion flow directly"""
     print("🍎🍎🍎 PROCESS ENDPOINT CALLED - USING EXACT CLI FLOW 🍎🍎🍎")
     try:
         # Import the EXACT CLI function that replicates the working CLI deletion flow
         from processing_controller import run_exact_cli_processing_for_account
+        from db_credentials import db_credentials
         
-        print(f"🍎 Calling EXACT CLI processing function for account {account_id}")
-        print("🍎 This uses the EXACT same flow as CLI: Main → Option 2 → Option 1 (iCloud) → Option 1 (delete)")
-        
-        # Call the EXACT CLI function with preview_mode=False for actual deletion
-        cli_result = run_exact_cli_processing_for_account(account_id, preview_mode=False)
-        
-        if cli_result["success"]:
-            print(f"🍎 EXACT CLI processing SUCCESS: {cli_result['total_deleted']} deleted, {cli_result['total_preserved']} preserved")
-            return {
-                "success": True, 
-                "data": {
-                    "success": True,
-                    "total_deleted": cli_result['total_deleted'],
-                    "total_preserved": cli_result['total_preserved'],
-                    "total_validated": cli_result['total_validated'],
-                    "total_legitimate": cli_result['total_legitimate'],
-                    "session_id": cli_result['session_id'],
-                    "account_email": cli_result['account_email'],
-                    "folders_processed": cli_result['folders_processed'],
-                    "categories": cli_result['categories'],
-                    "message": cli_result['message'],
-                    "mode": "process"
-                }
+        # Handle "all" accounts special case
+        if account_id == "all":
+            print(f"🍎 Running PROCESS for ALL accounts")
+            accounts = db_credentials.load_credentials()
+            
+            # Aggregate results from all accounts
+            all_results = {
+                'total_emails': 0,
+                'total_deleted': 0,
+                'total_preserved': 0,
+                'categories': {},
+                'account_email': f'All {len(accounts)} Accounts',
+                'session_id': 'all_process',
+                'account_breakdown': [],
+                'session_ids': []  # Collect individual session IDs for email details
             }
+            
+            # Process each account
+            for idx, account in enumerate(accounts):
+                print(f"🍎 Processing account {idx}: {account['email_address']}")
+                try:
+                    result = run_exact_cli_processing_for_account(idx, preview_mode=False)
+                    
+                    # Aggregate totals
+                    all_results['total_emails'] += result.get('total_emails', 0)
+                    all_results['total_deleted'] += result.get('total_deleted', 0)
+                    all_results['total_preserved'] += result.get('total_preserved', 0)
+                    
+                    # Aggregate categories
+                    for category, count in result.get('categories', {}).items():
+                        all_results['categories'][category] = all_results['categories'].get(category, 0) + count
+                    
+                    # Add account breakdown
+                    all_results['account_breakdown'].append({
+                        'email': account['email_address'],
+                        'deleted': result.get('total_deleted', 0),
+                        'preserved': result.get('total_preserved', 0)
+                    })
+                    
+                    # Collect session ID for email details
+                    if result.get('session_id'):
+                        all_results['session_ids'].append({
+                            'session_id': result.get('session_id'),
+                            'account_email': account['email_address']
+                        })
+                except Exception as e:
+                    print(f"❌ Error processing account {idx}: {e}")
+                    all_results['account_breakdown'].append({
+                        'email': account['email_address'],
+                        'error': str(e)
+                    })
+            
+            return {"success": True, "data": all_results}
         else:
-            print(f"🍎 EXACT CLI processing FAILED: {cli_result['message']}")
-            return {"success": False, "error": cli_result['message']}
+            # Handle single account
+            account_idx = int(account_id)
+            print(f"🍎 Calling EXACT CLI processing function for account {account_idx}")
+            print("🍎 This uses the EXACT same flow as CLI: Main → Option 2 → Option 1 (iCloud) → Option 1 (delete)")
+            
+            # Call the EXACT CLI function with preview_mode=False for actual deletion
+            cli_result = run_exact_cli_processing_for_account(account_idx, preview_mode=False)
+            
+            if cli_result["success"]:
+                print(f"🍎 EXACT CLI processing SUCCESS: {cli_result['total_deleted']} deleted, {cli_result['total_preserved']} preserved")
+                return {
+                    "success": True, 
+                    "data": {
+                        "success": True,
+                        "total_deleted": cli_result['total_deleted'],
+                        "total_preserved": cli_result['total_preserved'],
+                        "total_validated": cli_result['total_validated'],
+                        "total_legitimate": cli_result['total_legitimate'],
+                        "session_id": cli_result['session_id'],
+                        "account_email": cli_result['account_email'],
+                        "folders_processed": cli_result['folders_processed'],
+                        "categories": cli_result['categories'],
+                        "message": cli_result['message'],
+                        "mode": "process"
+                    }
+                }
+            else:
+                print(f"🍎 EXACT CLI processing FAILED: {cli_result['message']}")
+                return {"success": False, "error": cli_result['message']}
             
     except Exception as e:
         print(f"❌ Error calling EXACT CLI processing: {e}")
@@ -4528,7 +5194,10 @@ async def get_account_session_emails(account_id: int, session_id: str):
                 pe.uid,
                 pe.folder_name,
                 s.account_id,
-                CASE WHEN f.id IS NOT NULL THEN 1 ELSE 0 END as is_flagged
+                CASE WHEN f.id IS NOT NULL THEN 1 ELSE 0 END as is_flagged,
+                COALESCE(f.flag_type, '') as flag_type,
+                CASE WHEN f.flag_type = 'PROTECT' THEN 1 ELSE 0 END as is_protected,
+                CASE WHEN f.flag_type = 'DELETE' THEN 1 ELSE 0 END as is_flagged_for_deletion
             FROM processed_emails_bulletproof pe
             JOIN sessions s ON pe.session_id = s.id
             LEFT JOIN email_flags f ON (
@@ -4556,7 +5225,10 @@ async def get_account_session_emails(account_id: int, session_id: str):
                 'uid': email[8] or '',
                 'folder_name': email[9] or '',
                 'account_id': email[10] or account_id,
-                'is_flagged': bool(email[11])
+                'is_flagged': bool(email[11]),
+                'flag_type': email[12] or '',
+                'is_protected': bool(email[13]),
+                'is_flagged_for_deletion': bool(email[14])
             })
         
         return {
@@ -4603,7 +5275,10 @@ async def get_all_account_emails(account_id: int):
                 pe.folder_name,
                 s.account_id,
                 s.id as session_id,
-                CASE WHEN f.id IS NOT NULL THEN 1 ELSE 0 END as is_flagged
+                CASE WHEN f.id IS NOT NULL THEN 1 ELSE 0 END as is_flagged,
+                COALESCE(f.flag_type, '') as flag_type,
+                CASE WHEN f.flag_type = 'PROTECT' THEN 1 ELSE 0 END as is_protected,
+                CASE WHEN f.flag_type = 'DELETE' THEN 1 ELSE 0 END as is_flagged_for_deletion
             FROM processed_emails_bulletproof pe
             JOIN sessions s ON pe.session_id = s.id
             LEFT JOIN email_flags f ON (
@@ -4640,7 +5315,10 @@ async def get_all_account_emails(account_id: int):
                 'folder_name': email[9] or '',
                 'account_id': email[10] or account_id,
                 'session_id': email[11] or '',
-                'is_flagged': bool(email[12])
+                'is_flagged': bool(email[12]),
+                'flag_type': email[13] or '',
+                'is_protected': bool(email[14]),
+                'is_flagged_for_deletion': bool(email[15])
             })
         
         return {
@@ -4653,6 +5331,100 @@ async def get_all_account_emails(account_id: int):
         }
         
     except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@app.get("/api/all-accounts/emails")
+async def get_all_accounts_emails(session_ids: str):
+    """Get emails from multiple session IDs for 'all accounts' view"""
+    try:
+        from database import DatabaseManager
+        import json
+        
+        # Initialize database connection
+        db = DatabaseManager()
+        
+        # Parse session_ids parameter (JSON string of session info)
+        try:
+            session_info_list = json.loads(session_ids)
+        except json.JSONDecodeError:
+            return {"success": False, "error": "Invalid session_ids format"}
+        
+        all_emails = []
+        
+        # Query emails for each session
+        for session_info in session_info_list:
+            session_id = session_info.get('session_id')
+            account_email = session_info.get('account_email')
+            
+            if not session_id:
+                continue
+                
+            # Query emails for this session
+            emails = db.execute_query("""
+                SELECT 
+                    pe.id,
+                    pe.sender_email,
+                    pe.subject,
+                    pe.category,
+                    pe.confidence_score,
+                    pe.action,
+                    pe.timestamp,
+                    pe.sender_domain,
+                    pe.uid,
+                    pe.folder_name,
+                    s.account_id,
+                    CASE WHEN f.id IS NOT NULL THEN 1 ELSE 0 END as is_flagged,
+                    COALESCE(f.flag_type, '') as flag_type,
+                    CASE WHEN f.flag_type = 'PROTECT' THEN 1 ELSE 0 END as is_protected,
+                    CASE WHEN f.flag_type = 'DELETE' THEN 1 ELSE 0 END as is_flagged_for_deletion
+                FROM processed_emails_bulletproof pe
+                JOIN sessions s ON pe.session_id = s.id
+                LEFT JOIN email_flags f ON (
+                    pe.uid = f.email_uid AND 
+                    pe.folder_name = f.folder_name AND 
+                    s.account_id = f.account_id AND 
+                    f.is_active = 1
+                )
+                WHERE pe.session_id = ?
+                ORDER BY pe.timestamp DESC
+            """, (session_id,))
+            
+            # Format emails and add account info
+            for email in emails:
+                formatted_email = {
+                    'id': email[0],
+                    'sender': email[1] or 'Unknown',
+                    'subject': email[2] or '(No Subject)',
+                    'category': email[3] or 'Unclassified',
+                    'confidence': float(email[4]) if email[4] else 0.0,
+                    'action': email[5] or 'UNKNOWN',
+                    'timestamp': email[6] or '',
+                    'domain': email[7] or '',
+                    'uid': email[8] or '',
+                    'folder_name': email[9] or '',
+                    'account_id': email[10],
+                    'is_flagged': bool(email[11]),
+                    'flag_type': email[12] or '',
+                    'is_protected': bool(email[13]),
+                    'is_flagged_for_deletion': bool(email[14]),
+                    'account_email': account_email  # Add account info for display
+                }
+                all_emails.append(formatted_email)
+        
+        # Sort by timestamp descending
+        all_emails.sort(key=lambda x: x['timestamp'], reverse=True)
+        
+        return {
+            "success": True,
+            "emails": all_emails,
+            "count": len(all_emails),
+            "session_count": len(session_info_list)
+        }
+        
+    except Exception as e:
+        print(f"❌ Error getting all accounts emails: {e}")
+        import traceback
+        traceback.print_exc()
         return {"success": False, "error": str(e)}
 
 
