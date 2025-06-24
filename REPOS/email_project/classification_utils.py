@@ -193,10 +193,68 @@ def is_legitimate_company_domain(domain):
     if domain.endswith(('.edu', '.gov', '.org')) and len(domain.split('.')) <= 3:
         return True
     
+    # BRAND IMPERSONATION PROTECTION: Block suspicious domains that might impersonate major brands
+    # This must be checked BEFORE professional business domain detection
+    if _is_brand_impersonation_attempt(domain):
+        return False
+    
     # ENHANCEMENT: Intelligent business domain detection
     # Check for professional business domain patterns
     if _is_professional_business_domain(domain):
         return True
+    
+    return False
+
+def _is_brand_impersonation_attempt(domain):
+    """
+    Detect potential brand impersonation attempts by suspicious domains.
+    
+    Specifically targets domains like 'hiseenction.com' that use tech-sounding
+    names but aren't legitimate company domains.
+    """
+    if not domain:
+        return False
+    
+    domain_lower = domain.lower()
+    
+    # Extract domain name without TLD
+    domain_name = domain_lower.split('.')[0] if '.' in domain_lower else domain_lower
+    
+    # Suspicious patterns that often indicate brand impersonation
+    suspicious_patterns = [
+        # Tech-sounding but fake patterns
+        r'.*tech.*', r'.*secure.*', r'.*guard.*', r'.*protect.*',
+        r'.*safety.*', r'.*alert.*', r'.*notify.*', r'.*update.*',
+        r'.*service.*', r'.*support.*', r'.*account.*', r'.*security.*',
+        # Common impersonation suffixes/prefixes
+        r'.*-support.*', r'.*-security.*', r'.*-alert.*', r'.*-service.*',
+        r'support-.*', r'security-.*', r'alert-.*', r'service-.*',
+        # Gibberish that sounds technical
+        r'[a-z]*ction[a-z]*', r'[a-z]*tion[a-z]*', r'[a-z]*sion[a-z]*',
+        # Specific known impersonation domains
+        r'.*contralism.*', r'.*hiseenction.*'
+    ]
+    
+    # Check if domain matches suspicious patterns
+    for pattern in suspicious_patterns:
+        if re.match(pattern, domain_name):
+            # Additional validation - if it's actually a known business, allow it
+            known_legitimate = [
+                'protection', 'connection', 'interaction', 'transaction', 'construction',
+                'instruction', 'direction', 'production', 'introduction', 'reduction'
+            ]
+            if not any(legit in domain_name for legit in known_legitimate):
+                return True
+    
+    # Specific check for domains that sound like they should be from major companies
+    # but use suspicious/fake domains
+    major_brands = ['google', 'apple', 'microsoft', 'amazon', 'facebook', 'twitter', 'linkedin']
+    
+    # If domain contains fragments that might confuse users into thinking it's a major brand
+    for brand in major_brands:
+        if brand[:3] in domain_name or brand[-3:] in domain_name:
+            # This might be an attempt to impersonate, be extra cautious
+            return True
     
     return False
 
@@ -506,7 +564,7 @@ def is_account_notification(subject, sender, headers=""):
         'login attempt', 'new device', 'unknown device', 'new sign-in', 'sign-in', 'login',
         'account access', 'unauthorized access', 'unusual activity',
         'verify your account', 'account verification', 'confirm your email',
-        'two-factor authentication', '2fa', 'security code', 'verification code'
+        'two-factor authentication', '2fa', 'security code', 'verification code', 'authentication code'
     ]
     
     # Account management keywords  
@@ -545,7 +603,21 @@ def is_account_notification(subject, sender, headers=""):
     
     is_legitimate_domain = domain and is_legitimate_company_domain(domain)
     
-    # Confidence scoring
+    # CRITICAL FIX: Account notifications MUST come from legitimate domains
+    # If sender claims to be from Google, AOL, etc. but uses fake domain, reject immediately
+    brand_claims = ['google', 'gmail', 'aol', 'yahoo', 'microsoft', 'apple', 'amazon', 'paypal', 'facebook', 'instagram', 'twitter', 'linkedin']
+    sender_claims_brand = any(brand in sender_lower for brand in brand_claims)
+    
+    if sender_claims_brand and not is_legitimate_domain:
+        # Sender claims to be from major brand but uses suspicious domain - REJECT
+        return False
+    
+    # Enhanced domain validation for account notifications
+    if not is_legitimate_domain:
+        # Account notifications MUST come from legitimate domains
+        return False
+    
+    # Confidence scoring (only if domain passed validation)
     confidence_score = 0
     
     if has_account_keywords:
@@ -556,8 +628,6 @@ def is_account_notification(subject, sender, headers=""):
     
     if is_legitimate_domain:
         confidence_score += 0.3
-    else:
-        confidence_score -= 0.5  # Penalize unknown domains for account notifications
     
     return confidence_score >= 0.8  # Higher threshold for account notifications
 

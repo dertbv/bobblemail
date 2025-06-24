@@ -162,8 +162,9 @@ def parse_config_file():
 def validate_config(filters):
     """Validate configuration settings"""
     if not filters:
-        print("Warning: No filter terms found in configuration.")
-        return False
+        print("ℹ️ No custom filter terms found - using built-in spam detection only.")
+        print("💡 This is normal! The system has comprehensive built-in spam detection.")
+        return True  # Empty filter list is now valid since system has built-in detection
     
     if len(filters) > 100:
         print("Warning: Large number of filters may impact performance.")

@@ -200,35 +200,9 @@ class LogicalEmailClassifier:
     
     def _is_legitimate_domain(self, domain):
         """Check if domain is from a known legitimate company"""
-        
-        legitimate_domains = [
-            # Major retailers
-            'amazon.com', 'walmart.com', 'target.com', 'bestbuy.com', 'costco.com',
-            'macys.com', 'kohls.com', 'nordstrom.com', 'skechers.com', 'wrangler.com',
-            
-            # Email providers
-            'gmail.com', 'outlook.com', 'yahoo.com', 'hotmail.com',
-            
-            # Technology
-            'apple.com', 'microsoft.com', 'google.com', 'facebook.com',
-            
-            # Financial
-            'chase.com', 'bankofamerica.com', 'wellsfargo.com', 'visa.com',
-            
-            # Common business domains
-            'shopify.com', 'mailchimp.com', 'constantcontact.com'
-        ]
-        
-        # Direct domain match
-        if domain in legitimate_domains:
-            return True
-            
-        # Subdomain of legitimate domain
-        for legit_domain in legitimate_domains:
-            if domain.endswith('.' + legit_domain):
-                return True
-                
-        return False
+        # Use the comprehensive legitimate domain function from classification_utils
+        from classification_utils import is_legitimate_company_domain
+        return is_legitimate_company_domain(domain)
     
     def _is_personal_email_account(self, sender):
         """Check if sender is from a personal email account (Gmail, Yahoo, etc.)"""
@@ -666,16 +640,19 @@ class LogicalEmailClassifier:
                 reason = "Phishing with urgency tactics"
                 return "Phishing", confidence, reason
                 
-        # Free stuff scams
+        # Free stuff scams (but only from non-legitimate domains)
         free_terms = [
             'free gift', 'free money', 'free cash', 'free prize',
             'no cost', 'completely free', 'risk free'
         ]
         
         if any(term in full_text for term in free_terms):
-            confidence = 0.70
-            reason = "Free stuff scam"
-            return "Payment Scam", confidence, reason
+            # Check if this is from a legitimate company first
+            if not domain_info.get('is_legitimate'):
+                confidence = 0.70
+                reason = "Free stuff scam"
+                return "Payment Scam", confidence, reason
+            # If from legitimate company, this is just promotional marketing
             
         return None
     

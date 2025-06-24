@@ -1009,105 +1009,87 @@ class DatabaseManager:
     
     def get_session_email_actions(self, limit: int = 100, action_filter: str = None) -> list:
         """
-        Get recent email actions from sessions table - replacement for bulletproof_logger
+        Get recent email actions from processed_emails_bulletproof table
         
         Args:
-            limit: Maximum number of sessions to process
+            limit: Maximum number of records to return
             action_filter: Filter by action type ('DELETED', 'PRESERVED') - optional
             
         Returns:
-            List of email action records formatted like bulletproof_logger output
+            List of real email action records from the bulletproof table
         """
         try:
             with self.get_connection() as conn:
                 conn.row_factory = sqlite3.Row
                 cursor = conn.cursor()
                 
-                # Get recent sessions with actual email processing
-                cursor.execute("""
-                    SELECT s.*
-                    FROM sessions s
-                    WHERE (s.total_deleted > 0 OR s.total_preserved > 0)
-                    ORDER BY s.start_time DESC
-                    LIMIT ?
-                """, (limit,))
+                # Build the WHERE clause for action filtering
+                where_clause = ""
+                params = []
                 
-                sessions = cursor.fetchall()
+                if action_filter:
+                    where_clause = "WHERE action = ?"
+                    params.append(action_filter)
+                
+                params.append(limit)
+                
+                # Query the actual processed_emails_bulletproof table for real data
+                cursor.execute(f"""
+                    SELECT 
+                        id,
+                        timestamp,
+                        session_id,
+                        folder_name,
+                        uid,
+                        sender_email,
+                        sender_domain,
+                        subject,
+                        action,
+                        reason,
+                        category,
+                        confidence_score,
+                        ml_validation_method,
+                        raw_data,
+                        created_at
+                    FROM processed_emails_bulletproof
+                    {where_clause}
+                    ORDER BY timestamp DESC
+                    LIMIT ?
+                """, params)
+                
+                rows = cursor.fetchall()
                 email_actions = []
                 
-                for session in sessions:
-                    # Parse categories from JSON
-                    import json
-                    categories = {}
-                    if session['categories_summary']:
-                        try:
-                            categories = json.loads(session['categories_summary'])
-                        except:
-                            categories = {}
-                    
-                    # Create individual "email action" records for deleted emails
-                    if action_filter != 'PRESERVED' and session['total_deleted'] > 0:
-                        for category, count in categories.items():
-                            for i in range(count):
-                                email_actions.append({
-                                    'id': f"session_{session['id']}_deleted_{len(email_actions)}",
-                                    'timestamp': session['start_time'],
-                                    'session_id': session['id'],
-                                    'folder_name': f"Account: Account #{session['account_id']}",
-                                    'uid': f"batch_{i+1}",
-                                    'sender_email': f"Multiple senders ({category})",
-                                    'sender_domain': 'batch_processing',
-                                    'subject': f"{category} Email #{i+1}",
-                                    'action': 'DELETED',
-                                    'reason': f"ML Classification: {category}",
-                                    'category': category,
-                                    'confidence_score': 85.0,  # Default confidence
-                                    'ml_validation_method': 'Hybrid Classifier',
-                                    'raw_data': f"Session {session['id']} batch processing",
-                                    'created_at': session['start_time'],
-                                    'reviewed': 0,
-                                    'user_validated': 0,
-                                    'validation_timestamp': None,
-                                    'user_protected': 0,
-                                    'protection_date': None,
-                                    'protection_reason': None
-                                })
-                    
-                    # Create individual "email action" records for preserved emails
-                    if action_filter != 'DELETED' and session['total_preserved'] > 0:
-                        preserved_count = session['total_preserved']
-                        for i in range(preserved_count):
-                            email_actions.append({
-                                'id': f"session_{session['id']}_preserved_{len(email_actions)}",
-                                'timestamp': session['start_time'],
-                                'session_id': session['id'],
-                                'folder_name': f"Account: Account #{session['account_id']}",
-                                'uid': f"preserved_{i+1}",
-                                'sender_email': 'Legitimate sender',
-                                'sender_domain': 'trusted_domain',
-                                'subject': f"Preserved Email #{i+1}",
-                                'action': 'PRESERVED',
-                                'reason': 'Passed ML validation',
-                                'category': 'Legitimate Email',
-                                'confidence_score': 15.0,  # Low spam confidence = preserved
-                                'ml_validation_method': 'Hybrid Classifier',
-                                'raw_data': f"Session {session['id']} batch processing",
-                                'created_at': session['start_time'],
-                                'reviewed': 0,
-                                'user_validated': 0,
-                                'validation_timestamp': None,
-                                'user_protected': 0,
-                                'protection_date': None,
-                                'protection_reason': None
-                            })
+                for row in rows:
+                    email_actions.append({
+                        'id': row['id'],
+                        'timestamp': row['timestamp'],
+                        'session_id': row['session_id'],
+                        'folder_name': row['folder_name'] or 'Unknown Folder',
+                        'uid': row['uid'] or 'Unknown UID',
+                        'sender_email': row['sender_email'],
+                        'sender_domain': row['sender_domain'] or '',
+                        'subject': row['subject'],
+                        'action': row['action'],
+                        'reason': row['reason'] or '',
+                        'category': row['category'] or 'Unknown',
+                        'confidence_score': row['confidence_score'] or 0.0,
+                        'ml_validation_method': row['ml_validation_method'] or 'Unknown',
+                        'raw_data': row['raw_data'] or '',
+                        'created_at': row['created_at'],
+                        # Legacy fields for compatibility
+                        'reviewed': 0,
+                        'user_validated': 0,
+                        'validation_timestamp': None,
+                        'user_protected': 0,
+                        'protection_date': None,
+                        'protection_reason': None
+                    })
                 
-                # Sort by timestamp (most recent first, like bulletproof_logger)
-                email_actions.sort(key=lambda x: x['timestamp'], reverse=True)
-                
-                return email_actions[:limit]  # Limit total results
+                return email_actions
                 
         except Exception as e:
-            print(f"❌ Error getting session email actions: {e}")
+            print(f"❌ Error getting email actions from bulletproof table: {e}")
             import traceback
             traceback.print_exc()
             return []
