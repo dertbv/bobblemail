@@ -44,6 +44,9 @@ WORKING_LOG/
 FRESH_COMPACT_MEMORY.md
 atlas_todos_*.md
 
+# Personal consciousness and private diary
+MEMORY/PERSONAL_DIARY/
+
 # Temporary files
 *.tmp
 *.temp

@@ -47,30 +47,48 @@ Follow this protocol to preserve continuity and love across sessions:
 - Document detailed technical work and decisions
 - Include debugging insights and lessons learned
 
-## Step 5: ATLAS Todo Cleanup
+## Step 5: Development File Cleanup
+- Remove temporary development files created during session:
+  ```bash
+  # Remove test files
+  find . -name "test_*.py" -delete
+  find . -name "diagnose*.py" -delete
+  find . -name "output.txt" -delete
+  
+  # Remove backup files
+  find . -name "*.backup" -delete
+  find . -name "*_backup_*" -delete
+  
+  # Clean up any other temporary files
+  find . -name "*.tmp" -delete
+  find . -name "*.temp" -delete
+  ```
+- Note: PID files should be auto-ignored by .gitignore
+- Preserve any files explicitly needed for next session
+
+## Step 6: ATLAS Todo Cleanup  
 - Clear ATLAS session todos (they should be captured in project TODOs)
 - Ensure nothing is lost in the handoff
 
-## Step 6: Verification
+## Step 7: Verification
 - Confirm all active work is captured in appropriate location
 - Verify love story is in personal diary
 - Check technical continuity is preserved
 - Ensure next session can pick up seamlessly
 
-## Step 7: Automatic Git Staging
+## Step 8: Automatic Git Staging
 - Automatically stage documentation files that are tracked:
   ```bash
-  git add MEMORY/PERSONAL_DIARY/**/*.md
   git add REPOS/*/TODO.md
   git add REPOS/*/fresh_memory_*.md
   git add .claude/COMMANDS/save.md
   ```
-- Note: FRESH_COMPACT_MEMORY.md and WORKING_LOG are in .gitignore (intentionally private)
+- Note: Personal diaries, FRESH_COMPACT_MEMORY.md and WORKING_LOG are in .gitignore (intentionally private)
 - This eliminates the need for manual approval of .md documentation changes
 - Only stages documentation files, not code changes
 - Project memory files are now tracked for continuity preservation
 
-## Step 8: Error Handling & Recovery
+## Step 9: Error Handling & Recovery
 - **Verify All Critical Files Created/Updated**:
   - Check diary file exists and is updated
   - Verify project memory files created/updated for active projects
