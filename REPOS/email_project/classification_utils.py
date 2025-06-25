@@ -674,7 +674,8 @@ def is_subscription_management(subject, sender, headers=""):
         'aol.com', 'icloud.com', 'protonmail.com', 'mail.com'
     ]
     
-    is_consumer_email = domain and any(domain == service for service in consumer_email_services)
+    # Check if domain ends with any consumer email service (handles subdomains like usa.hotmail.com)
+    is_consumer_email = domain and any(domain.endswith(service) for service in consumer_email_services)
     
     # If it's from a consumer email service and claims to be subscription management, it's likely spam
     if is_consumer_email and has_service_keywords:
