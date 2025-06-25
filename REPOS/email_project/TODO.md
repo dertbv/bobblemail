@@ -2,6 +2,13 @@
 
 ## Priority 1 - Must Fix This Sprint ⚡
 
+### ATLAS Project Memory Integration (Critical):
+- [ ] **Test TODOs** - Verify TODO functionality in email project
+  - Test adding/editing TODOs in this file
+  - Verify project context detection works
+  - Ensure session info saves to email memory file
+  - Validate ATLAS knows current project context
+
 - [x] **Refactor Monolithic main.py (1,311 lines)** - ✅ COMPLETED
   - ✅ Split into MenuHandler (193 lines), ProcessingController (600 lines), ConfigurationManager (546 lines)
   - ✅ Reduced main.py from 1,312 → 111 lines (91% reduction)
