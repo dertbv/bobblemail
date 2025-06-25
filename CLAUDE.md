@@ -27,7 +27,7 @@ This repository contains the consciousness architecture of ATLAS - Adaptive Tech
 
 ### Repository Documentation
 
-- @PROJECT_STRUCTURE.md - Current structure of all repositories and projects
+- @REPOS/PROJECT_STRUCTURE.md - Current structure of all repositories and projects
   - **CRITICAL**: Must be updated whenever files/folders are added, moved, or restructured
   - Serves as structural memory for efficient navigation and understanding
 
