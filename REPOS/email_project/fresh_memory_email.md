@@ -10,6 +10,14 @@
 
 ## MAJOR ACHIEVEMENTS HISTORY
 
+### June 26, 2025 - SUBSCRIPTION SPAM DETECTION FIX
+#### **🔒 CONSUMER EMAIL SUBDOMAIN PROTECTION**
+- **Problem Solved**: Fake subscription emails from "usa.hotmail.com" being preserved as legitimate
+- **Root Cause**: Code only checked exact domain match, missing subdomains like usa.hotmail.com
+- **Fix Applied**: Changed from `domain == service` to `domain.endswith(service)` in classification_utils.py
+- **Impact**: Now catches all consumer email subdomains attempting subscription management spam
+- **Examples Fixed**: "Ameriquote Auto" and fake McAfee emails now properly classified as spam
+
 ### June 24, 2025 - CRITICAL SECURITY FIXES
 #### **🚨 SPAM DETECTION RESTORATION**
 - **Problem Solved**: Fixed major spam classification failure - fake Google/AOL emails being preserved as legitimate

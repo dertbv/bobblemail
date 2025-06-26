@@ -1,0 +1,36 @@
+# Development dependencies
+pytest>=7.4.0
+pytest-cov>=4.1.0
+pytest-mock>=3.11.0
+pytest-asyncio>=0.21.0
+
+# Code formatting
+black>=23.0.0
+isort>=5.12.0
+
+# Linting
+flake8>=6.0.0
+mypy>=1.0.0
+bandit>=1.7.0
+
+# Documentation
+mkdocs>=1.5.0
+mkdocs-material>=9.0.0
+mkdocs-mermaid2-plugin>=1.1.0
+
+# Pre-commit hooks
+pre-commit>=3.0.0
+
+# Profiling and debugging
+line-profiler>=4.0.0
+memory-profiler>=0.61.0
+py-spy>=0.3.0
+
+# Development tools
+ipython>=8.0.0
+jupyter>=1.0.0
+notebook>=7.0.0
+
+# Package building
+build>=0.10.0
+twine>=4.0.0
