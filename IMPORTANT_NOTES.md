@@ -16,4 +16,8 @@ do not assume if in doubt ask
 2. Do NOT move/modify related elements unless explicitly requested
 3. Confirm scope before making any changes beyond the exact request
 4. Example: "Move button X" does NOT mean "move button X and related button Y together"
+
+**Email Research Command**: When user mentions researching emails (any variation), run the research tool:
+
+Command: `cd /Users/Badman/Desktop/email/REPOS/Atlas_Email && python3 tools/analyzers/email_classification_analyzer.py`
 </IMPORTANT>
