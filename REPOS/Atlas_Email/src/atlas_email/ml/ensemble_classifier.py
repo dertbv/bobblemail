@@ -141,9 +141,15 @@ class EnsembleHybridClassifier:
             print(f"  Active ML Models: Naive Bayes + Random Forest + Keywords")
         print()
     
-    def classify_email(self, subject="", sender="", body="", headers=""):
+    def classify_email(self, subject="", sender="", body="", headers=None):
         """
         Main classification method using ensemble approach
+        
+        Args:
+            subject: Email subject line
+            sender: Email sender address  
+            body: Email body content
+            headers: Email headers (dict or str)
         """
         start_time = time.time()
         self.stats['total_classifications'] += 1
@@ -205,10 +211,17 @@ class EnsembleHybridClassifier:
         
         # Random Forest prediction  
         try:
+            # Convert headers to string format if needed
+            headers = email_data.get("headers", {})
+            if isinstance(headers, dict):
+                headers_str = "\n".join([f"{k}: {v}" for k, v in headers.items()])
+            else:
+                headers_str = str(headers) if headers else ""
+                
             rf_result = self.random_forest.predict(
                 sender=email_data["sender"],
                 subject=email_data["subject"],
-                headers=email_data.get("headers", "")
+                headers=headers_str
             )
             # Convert to standard format
             rf_classification = "SPAM" if rf_result.get("is_spam", False) else "NOT_SPAM"
@@ -217,8 +230,15 @@ class EnsembleHybridClassifier:
             print(f"⚠️ Random Forest failed: {e}")
         
         # Keyword-based prediction with higher weight
+        # Convert headers to string format if needed
+        headers = email_data.get("headers", {})
+        if isinstance(headers, dict):
+            headers_str = "\n".join([f"{k}: {v}" for k, v in headers.items()])
+        else:
+            headers_str = str(headers) if headers else ""
+            
         keyword_result = classify_spam_type_with_processor(
-            email_data.get("headers", ""),
+            headers_str,
             email_data["sender"],
             email_data["subject"]
         )
@@ -273,9 +293,17 @@ class EnsembleHybridClassifier:
     def _classify_with_fallback(self, email_data):
         """Fallback classification using legacy keyword processor"""
         try:
+            # Convert headers to string format if needed
+            headers = email_data.get("headers", {})
+            if isinstance(headers, dict):
+                # Convert dict headers to string representation
+                headers_str = "\n".join([f"{k}: {v}" for k, v in headers.items()])
+            else:
+                headers_str = str(headers) if headers else ""
+            
             # Use keyword processor for classification
             classification_result = classify_spam_type_with_processor(
-                email_data.get("headers", ""),
+                headers_str,
                 email_data["sender"],
                 email_data["subject"]
             )

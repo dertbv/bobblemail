@@ -21,10 +21,10 @@ class NaiveBayesClassifier:
     """
     
     def __init__(self, db_path: str = None):
+        """Initialize classifier with feature extractor."""
         if db_path is None:
             from atlas_email.models.database import DB_FILE
             db_path = DB_FILE
-        """Initialize classifier with feature extractor."""
         self.db_path = db_path
         self.feature_extractor = MLFeatureExtractor(db_path)
         

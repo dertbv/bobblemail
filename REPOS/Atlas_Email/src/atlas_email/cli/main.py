@@ -9,9 +9,9 @@ Refactored with modular architecture: MenuHandler, ProcessingController, Configu
 import sys
 from pathlib import Path
 
-# Add project root to path so config module can be found
-project_root = Path(__file__).parent.parent.parent.parent
-sys.path.insert(0, str(project_root))
+# Add src directory to path for package imports
+src_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(src_root))
 
 from atlas_email.models.db_logger import logger, LogCategory
 from atlas_email.utils.general import clear_screen

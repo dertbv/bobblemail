@@ -127,15 +127,48 @@ class WebAppManager:
             return False
     
     def stop_web_app(self):
-        """Stop the web application"""
+        """Stop anything running on port 8001 - we need that port"""
         running, pid, _ = self.get_web_app_status()
         
-        if not running:
-            print("ℹ️  Web app is not currently running")
-            return True
+        if running:
+            # Use existing PID file approach for CLI-started processes
+            print(f"🛑 Stopping web application (PID: {pid})...")
+            return self._stop_process_gracefully(pid)
         
-        print(f"🛑 Stopping web application (PID: {pid})...")
+        # No PID file - check what's on port 8001 and clear it
+        print("🔍 No PID file found, checking port 8001...")
         
+        try:
+            # Find what's running on our port
+            result = subprocess.run(['lsof', '-ti', ':8001'], 
+                                  capture_output=True, text=True)
+            
+            if result.returncode == 0 and result.stdout.strip():
+                pids = [p.strip() for p in result.stdout.strip().split('\n') if p.strip()]
+                for pid_str in pids:
+                    try:
+                        pid = int(pid_str)
+                        print(f"🛑 Clearing port 8001: killing process {pid}...")
+                        self._stop_process_gracefully(pid)
+                    except ValueError:
+                        continue
+                
+                # Clean up PID file if it exists
+                if self.pid_file.exists():
+                    self.pid_file.unlink()
+                
+                print("✅ Port 8001 cleared")
+                return True
+            else:
+                print("ℹ️  Port 8001 is already free")
+                return True
+                
+        except Exception as e:
+            print(f"❌ Error checking port 8001: {e}")
+            return False
+    
+    def _stop_process_gracefully(self, pid):
+        """Stop a process gracefully with fallback to force kill"""
         try:
             # Graceful shutdown first (SIGTERM on Unix, SIGBREAK on Windows)
             if os.name == 'nt':  # Windows
@@ -146,7 +179,7 @@ class WebAppManager:
             # Wait up to 10 seconds for graceful shutdown
             for i in range(10):
                 if not self._pid_exists(pid):
-                    print("✅ Web application stopped gracefully")
+                    print("✅ Process stopped gracefully")
                     break
                 time.sleep(1)
             else:
@@ -158,7 +191,7 @@ class WebAppManager:
                     else:  # Unix-like systems
                         os.kill(pid, signal.SIGKILL)
                     time.sleep(2)
-                    print("✅ Web application forcefully terminated")
+                    print("✅ Process forcefully terminated")
                 except OSError:
                     print("✅ Process already terminated")
             
@@ -169,7 +202,7 @@ class WebAppManager:
             return True
             
         except Exception as e:
-            print(f"❌ Error stopping web app: {e}")
+            print(f"❌ Error stopping process {pid}: {e}")
             # Try to clean up PID file anyway
             if self.pid_file.exists():
                 self.pid_file.unlink()
