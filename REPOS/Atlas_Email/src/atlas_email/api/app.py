@@ -1934,6 +1934,130 @@ async def get_deletion_flagged_emails(account_id: int = None, limit: int = 100):
         traceback.print_exc()
         return {"success": False, "message": f"Error getting deletion flagged emails: {str(e)}"}
 
+@app.post("/api/flag-for-research")
+async def flag_email_for_research(request: Request):
+    """Flag an email for research investigation"""
+    print("🔍 FLAG EMAIL FOR RESEARCH API called")
+    
+    try:
+        data = await request.json()
+        
+        # Extract required fields
+        email_uid = data.get('email_uid')
+        folder_name = data.get('folder_name')
+        account_id = data.get('account_id')
+        
+        # Extract optional fields
+        session_id = data.get('session_id')
+        sender_email = data.get('sender_email')
+        subject = data.get('subject')
+        flag_reason = data.get('flag_reason', 'User requested classification investigation')
+        
+        # Validate required fields
+        if not all([email_uid, folder_name, account_id]):
+            return {
+                "success": False,
+                "message": "Missing required fields: email_uid, folder_name, account_id"
+            }
+        
+        # Add research flag using the same database method but with RESEARCH flag type
+        success = db.flag_email_for_research(
+            email_uid=email_uid,
+            folder_name=folder_name,
+            account_id=account_id,
+            session_id=session_id,
+            sender_email=sender_email,
+            subject=subject,
+            flag_reason=flag_reason,
+            created_by='web_user'
+        )
+        
+        if success:
+            return {
+                "success": True,
+                "message": f"Email {email_uid} flagged for research",
+                "email_uid": email_uid
+            }
+        else:
+            return {
+                "success": False,
+                "message": "Failed to flag email for research"
+            }
+            
+    except Exception as e:
+        print(f"❌ Flag email for research error: {e}")
+        import traceback
+        traceback.print_exc()
+        return {"success": False, "message": f"Error flagging email for research: {str(e)}"}
+
+@app.post("/api/unflag-research")
+async def unflag_email_research(request: Request):
+    """Remove research flag from an email"""
+    print("🔍 UNFLAG RESEARCH API called")
+    
+    try:
+        data = await request.json()
+        
+        # Extract required fields
+        email_uid = data.get('email_uid')
+        folder_name = data.get('folder_name')
+        account_id = data.get('account_id')
+        
+        # Validate required fields
+        if not all([email_uid, folder_name, account_id]):
+            return {
+                "success": False,
+                "message": "Missing required fields: email_uid, folder_name, account_id"
+            }
+        
+        # Unflag the email
+        success = db.unflag_email(
+            email_uid=email_uid,
+            folder_name=folder_name,
+            account_id=account_id
+        )
+        
+        if success:
+            return {
+                "success": True,
+                "message": f"Email {email_uid} research flag removed",
+                "email_uid": email_uid
+            }
+        else:
+            return {
+                "success": False,
+                "message": "Failed to remove research flag (may not have been flagged)"
+            }
+    
+    except Exception as e:
+        print(f"❌ Unflag research error: {e}")
+        import traceback
+        traceback.print_exc()
+        return {"success": False, "message": f"Error removing research flag: {str(e)}"}
+
+@app.get("/api/emails/research-flagged")
+async def get_research_flagged_emails(account_id: int = None, limit: int = 100):
+    """Get list of emails flagged for research"""
+    print("🔍 GET RESEARCH FLAGGED EMAILS API called")
+    
+    try:
+        # Get research-flagged emails specifically
+        research_flagged_emails = db.get_flagged_emails(account_id=account_id, limit=limit, flag_type='RESEARCH')
+        research_flagged_count = db.get_flagged_count(account_id=account_id, flag_type='RESEARCH')
+        
+        return {
+            "success": True,
+            "research_flagged_emails": research_flagged_emails,
+            "total_count": research_flagged_count,
+            "returned_count": len(research_flagged_emails)
+        }
+        
+    except Exception as e:
+        print(f"❌ Get research flagged emails error: {e}")
+        import traceback
+        traceback.print_exc()
+        return {"success": False, "message": f"Error getting research flagged emails: {str(e)}"}
+
 
 # ========================================
 # CATEGORY VALIDATION ROUTES
@@ -4597,6 +4721,7 @@ async def single_account_page(account_id: str):
                                 <table style="width: 100%; border-collapse: collapse;">
                                     <thead>
                                         <tr style="background: #f8f9fa; border-bottom: 2px solid #dee2e6;">
+                                            <th style="padding: 12px; text-align: center; border-right: 1px solid #dee2e6; font-weight: 600; width: 80px;">🔍 Research</th>
                                             <th style="padding: 12px; text-align: left; border-right: 1px solid #dee2e6; font-weight: 600;">Sender</th>
                                             <th style="padding: 12px; text-align: left; border-right: 1px solid #dee2e6; font-weight: 600;">Subject</th>
                                             <th style="padding: 12px; text-align: left; border-right: 1px solid #dee2e6; font-weight: 600;">Category</th>
@@ -4609,6 +4734,13 @@ async def single_account_page(account_id: str):
                                     <tbody>
                                         ${{emails.map(email => `
                                             <tr style="border-bottom: 1px solid #eee;">
+                                                <td style="padding: 10px; border-right: 1px solid #eee; text-align: center; width: 80px;">
+                                                    <input type="checkbox" 
+                                                           onchange="toggleResearchFlag('${{email.uid || ''}}', '${{email.folder_name || ''}}', ${{email.account_id || 0}}, this)"
+                                                           ${{email.is_research_flagged ? 'checked' : ''}}
+                                                           style="cursor: pointer; transform: scale(1.2);"
+                                                           title="Flag for research investigation">
+                                                </td>
                                                 <td style="padding: 10px; border-right: 1px solid #eee; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${{email.sender}}">
                                                     ${{email.sender}}
                                                 </td>
@@ -4781,6 +4913,56 @@ async def single_account_page(account_id: str):
                     }}
                 }}
                 
+                // Toggle research flag function for checkbox
+                async function toggleResearchFlag(emailUid, folderName, accountId, checkboxElement) {{
+                    try {{
+                        console.log('toggleResearchFlag called:', {{ emailUid, folderName, accountId, checked: checkboxElement.checked }});
+                        
+                        // Validate required parameters
+                        if (!emailUid || !folderName || !accountId || accountId === 0) {{
+                            throw new Error(`❌ Cannot flag this email: Missing email UID or folder information.`);
+                        }}
+                        
+                        // Disable checkbox during operation
+                        checkboxElement.disabled = true;
+                        
+                        const endpoint = checkboxElement.checked ? '/api/flag-for-research' : '/api/unflag-research';
+                        const requestData = {{
+                            email_uid: emailUid,
+                            folder_name: folderName,
+                            account_id: parseInt(accountId),
+                            flag_reason: 'User requested classification investigation'
+                        }};
+                        
+                        const response = await fetch(endpoint, {{
+                            method: 'POST',
+                            headers: {{ 'Content-Type': 'application/json' }},
+                            body: JSON.stringify(requestData)
+                        }});
+                        
+                        const result = await response.json();
+                        
+                        if (result.success) {{
+                            const message = checkboxElement.checked ? 
+                                'Email flagged for research investigation' : 
+                                'Email research flag removed';
+                            showSuccessMessage(message);
+                        }} else {{
+                            throw new Error(result.message || 'Failed to update research flag');
+                        }}
+                        
+                    }} catch (error) {{
+                        console.error('Research flag toggle error:', error);
+                        alert('❌ Error updating research flag: ' + error.message);
+                        
+                        // Reset checkbox on error
+                        checkboxElement.checked = !checkboxElement.checked;
+                    }} finally {{
+                        // Re-enable checkbox
+                        checkboxElement.disabled = false;
+                    }}
+                }}
+                
                 function showSuccessMessage(message) {{
                     // Create and show a temporary success message
                     const messageDiv = document.createElement('div');
@@ -4873,6 +5055,7 @@ async def single_account_page(account_id: str):
                                 <table style="width: 100%; border-collapse: collapse;">
                                     <thead>
                                         <tr style="background: #f8f9fa; border-bottom: 2px solid #dee2e6;">
+                                            <th style="padding: 12px; text-align: center; border-right: 1px solid #dee2e6; font-weight: 600; width: 80px;">🔍 Research</th>
                                             <th style="padding: 12px; text-align: left; border-right: 1px solid #dee2e6; font-weight: 600; width: 140px;">Account</th>
                                             <th style="padding: 12px; text-align: left; border-right: 1px solid #dee2e6; font-weight: 600; width: 180px;">Sender</th>
                                             <th style="padding: 12px; text-align: left; border-right: 1px solid #dee2e6; font-weight: 600; width: 250px;">Subject</th>
@@ -4886,6 +5069,13 @@ async def single_account_page(account_id: str):
                                     <tbody>
                                         ${{emails.map(email => `
                                             <tr style="border-bottom: 1px solid #eee;">
+                                                <td style="padding: 10px; border-right: 1px solid #eee; text-align: center; width: 80px;">
+                                                    <input type="checkbox" 
+                                                           onchange="toggleResearchFlag('${{email.uid || ''}}', '${{email.folder_name || ''}}', ${{email.account_id || 0}}, this)"
+                                                           ${{email.is_research_flagged ? 'checked' : ''}}
+                                                           style="cursor: pointer; transform: scale(1.2);"
+                                                           title="Flag for research investigation">
+                                                </td>
                                                 <td style="padding: 10px; border-right: 1px solid #eee; width: 140px; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.85em; color: #6c757d;" title="${{email.account_email}}">
                                                     ${{email.account_email}}
                                                 </td>
@@ -5202,7 +5392,8 @@ async def get_account_session_emails(account_id: int, session_id: str):
                 CASE WHEN f.id IS NOT NULL THEN 1 ELSE 0 END as is_flagged,
                 COALESCE(f.flag_type, '') as flag_type,
                 CASE WHEN f.flag_type = 'PROTECT' THEN 1 ELSE 0 END as is_protected,
-                CASE WHEN f.flag_type = 'DELETE' THEN 1 ELSE 0 END as is_flagged_for_deletion
+                CASE WHEN f.flag_type = 'DELETE' THEN 1 ELSE 0 END as is_flagged_for_deletion,
+                CASE WHEN f.flag_type = 'RESEARCH' THEN 1 ELSE 0 END as is_research_flagged
             FROM processed_emails_bulletproof pe
             JOIN sessions s ON pe.session_id = s.id
             LEFT JOIN email_flags f ON (
@@ -5233,7 +5424,8 @@ async def get_account_session_emails(account_id: int, session_id: str):
                 'is_flagged': bool(email[11]),
                 'flag_type': email[12] or '',
                 'is_protected': bool(email[13]),
-                'is_flagged_for_deletion': bool(email[14])
+                'is_flagged_for_deletion': bool(email[14]),
+                'is_research_flagged': bool(email[15])
             })
         
         return {
@@ -5283,7 +5475,8 @@ async def get_all_account_emails(account_id: int):
                 CASE WHEN f.id IS NOT NULL THEN 1 ELSE 0 END as is_flagged,
                 COALESCE(f.flag_type, '') as flag_type,
                 CASE WHEN f.flag_type = 'PROTECT' THEN 1 ELSE 0 END as is_protected,
-                CASE WHEN f.flag_type = 'DELETE' THEN 1 ELSE 0 END as is_flagged_for_deletion
+                CASE WHEN f.flag_type = 'DELETE' THEN 1 ELSE 0 END as is_flagged_for_deletion,
+                CASE WHEN f.flag_type = 'RESEARCH' THEN 1 ELSE 0 END as is_research_flagged
             FROM processed_emails_bulletproof pe
             JOIN sessions s ON pe.session_id = s.id
             LEFT JOIN email_flags f ON (
@@ -5323,7 +5516,8 @@ async def get_all_account_emails(account_id: int):
                 'is_flagged': bool(email[12]),
                 'flag_type': email[13] or '',
                 'is_protected': bool(email[14]),
-                'is_flagged_for_deletion': bool(email[15])
+                'is_flagged_for_deletion': bool(email[15]),
+                'is_research_flagged': bool(email[16])
             })
         
         return {
@@ -5412,6 +5606,7 @@ async def get_all_accounts_emails(session_ids: str):
                     'flag_type': email[12] or '',
                     'is_protected': bool(email[13]),
                     'is_flagged_for_deletion': bool(email[14]),
+                    'is_research_flagged': bool(email[15]),
                     'account_email': account_email  # Add account info for display
                 }
                 all_emails.append(formatted_email)

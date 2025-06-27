@@ -799,6 +799,59 @@ class DatabaseManager:
             print(f"❌ Failed to flag email {email_uid} for deletion: {e}")
             return False
     
+    def flag_email_for_research(self, email_uid: str, folder_name: str, account_id: int,
+                               session_id: int = None, sender_email: str = None, 
+                               subject: str = None, flag_reason: str = None,
+                               created_by: str = 'user') -> bool:
+        """
+        Flag an email for research investigation.
+        
+        Args:
+            email_uid: IMAP UID of the email
+            folder_name: Folder containing the email
+            account_id: Account ID the email belongs to
+            session_id: Session ID when flag was created (optional)
+            sender_email: Email sender (optional, for display)
+            subject: Email subject (optional, for display)
+            flag_reason: Reason for flagging (optional)
+            created_by: Who created the flag (default: 'user')
+            
+        Returns:
+            True if flag was created successfully, False otherwise
+        """
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                
+                # Check if email is already flagged for research
+                cursor.execute("""
+                    SELECT id, flag_type FROM email_flags 
+                    WHERE email_uid = ? AND folder_name = ? AND account_id = ? 
+                    AND flag_type = 'RESEARCH' AND is_active = TRUE
+                """, (email_uid, folder_name, account_id))
+                
+                existing_research_flag = cursor.fetchone()
+                if existing_research_flag:
+                    print(f"Email {email_uid} in {folder_name} is already flagged for research")
+                    return True  # Already flagged for research, consider success
+                
+                # Insert new research flag
+                cursor.execute("""
+                    INSERT INTO email_flags (
+                        email_uid, folder_name, account_id, session_id, 
+                        sender_email, subject, flag_type, flag_reason, created_by
+                    ) VALUES (?, ?, ?, ?, ?, ?, 'RESEARCH', ?, ?)
+                """, (email_uid, folder_name, account_id, session_id, 
+                     sender_email, subject, flag_reason, created_by))
+                
+                conn.commit()
+                print(f"✅ Flagged email {email_uid} in {folder_name} for research investigation")
+                return True
+                
+        except Exception as e:
+            print(f"❌ Failed to flag email {email_uid} for research: {e}")
+            return False
+    
     def unflag_email(self, email_uid: str, folder_name: str, account_id: int) -> bool:
         """
         Remove protection flag from an email.
@@ -1008,6 +1061,57 @@ class DatabaseManager:
         except Exception as e:
             print(f"❌ Failed to get flagged email count: {e}")
             return 0
+    
+    def get_research_flagged_emails_for_investigation(self, limit: int = 50) -> list:
+        """
+        Get emails flagged for research investigation with full details for ATLAS analysis.
+        
+        Args:
+            limit: Maximum number of emails to return (default: 50)
+            
+        Returns:
+            List of dictionaries with email details for research
+        """
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.row_factory = sqlite3.Row
+                
+                # Get research-flagged emails with all relevant information
+                cursor.execute("""
+                    SELECT 
+                        f.email_uid,
+                        f.folder_name,
+                        f.sender_email,
+                        f.subject,
+                        f.flag_reason,
+                        f.created_at as research_flagged_at,
+                        pe.sender_email as processed_sender,
+                        pe.subject as processed_subject,
+                        pe.category,
+                        pe.confidence,
+                        pe.action_taken as final_action,
+                        pe.preservation_reason,
+                        pe.spam_indicators,
+                        pe.timestamp as processed_at,
+                        a.email_address as account_email
+                    FROM email_flags f
+                    LEFT JOIN processed_emails_bulletproof pe ON (
+                        f.email_uid = pe.uid AND 
+                        f.folder_name = pe.folder_name AND 
+                        f.account_id = pe.session_id
+                    )
+                    LEFT JOIN accounts a ON f.account_id = a.id
+                    WHERE f.flag_type = 'RESEARCH' AND f.is_active = TRUE
+                    ORDER BY f.created_at DESC
+                    LIMIT ?
+                """, (limit,))
+                
+                return [dict(row) for row in cursor.fetchall()]
+                
+        except Exception as e:
+            print(f"❌ Failed to get research flagged emails: {e}")
+            return []
     
     def get_session_email_actions(self, limit: int = 100, action_filter: str = None) -> list:
         """
