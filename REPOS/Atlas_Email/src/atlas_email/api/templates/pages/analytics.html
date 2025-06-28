@@ -1,0 +1,255 @@
+{% extends "base.html" %}
+
+{% block title %}Analytics & Reports - Atlas Email{% endblock %}
+
+{% block page_title %}📊 Analytics & Reports{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Analytics-specific styles that override or extend common.css */
+    .container {
+        max-width: 1400px; /* Wider for analytics */
+    }
+    
+    /* Remove the default body background for analytics page */
+    body {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 20px;
+    }
+    
+    /* Additional account breakdown card styles */
+    .analytics-card.accounts-total-card {
+        border-top-color: #17a2b8;
+    }
+    
+    .analytics-card.accounts-spam-card {
+        border-top-color: #dc3545;
+    }
+    
+    /* Spam-specific bar styling */
+    .bar-fill.spam-bar {
+        background: #dc3545 !important;
+    }
+    
+    .bar-value.spam-value {
+        color: #dc3545 !important;
+    }
+    
+    /* Auto-refresh notice */
+    .refresh-notice {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: rgba(0, 0, 0, 0.7);
+        color: white;
+        padding: 8px 15px;
+        border-radius: 15px;
+        font-size: 0.8em;
+        z-index: 1000;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+{% if error %}
+<div class="analytics-card" style="border-top-color: #dc3545;">
+    <div class="card-title color-danger">
+        ❌ Analytics Error
+    </div>
+    <p class="color-danger">{{ error }}</p>
+    <p>Please try refreshing the page or check the system logs.</p>
+</div>
+{% else %}
+<div class="analytics-grid">
+    <div class="analytics-card effectiveness-card">
+        <div class="card-title">
+            🎯 Processing Effectiveness (30 Days)
+        </div>
+        <div class="metric-row">
+            <div class="metric-label">Total Emails Processed</div>
+            <div class="metric-value">{{ "{:,}".format(effectiveness.total_count|default(0)|int) }}</div>
+        </div>
+        <div class="metric-row">
+            <div class="metric-label">Spam Deleted</div>
+            <div class="metric-value color-danger">{{ "{:,}".format(effectiveness.deleted_count|default(0)|int) }}</div>
+        </div>
+        <div class="metric-row">
+            <div class="metric-label">Emails Preserved</div>
+            <div class="metric-value color-success">{{ "{:,}".format(effectiveness.preserved_count|default(0)|int) }}</div>
+        </div>
+        <div class="metric-row">
+            <div class="metric-label">Detection Rate</div>
+            <div class="metric-value" style="color: #fd7e14;">{{ effectiveness_rate|round(1) }}%</div>
+        </div>
+    </div>
+    
+    <div class="analytics-card sessions-card">
+        <div class="card-title">
+            ⚡ Session Performance (30 Days)
+        </div>
+        <div class="metric-row">
+            <div class="metric-label">Total Sessions</div>
+            <div class="metric-value">{{ session_stats.total_sessions|default(0)|int }}</div>
+        </div>
+        <div class="metric-row">
+            <div class="metric-label">Avg Emails/Session</div>
+            <div class="metric-value">{{ session_stats.avg_emails_per_session|default(0)|round(0)|int }}</div>
+        </div>
+        <div class="metric-row">
+            <div class="metric-label">Avg Deletion Rate</div>
+            <div class="metric-value">{{ session_stats.avg_deletion_rate|default(0)|round(1) }}%</div>
+        </div>
+    </div>
+</div>
+
+<div class="analytics-grid">
+    <div class="analytics-card categories-card">
+        <div class="card-title">
+            🏷️ Top Spam Categories (30 Days)
+        </div>
+        {% if categories %}
+            {% set max_percentage = categories | map(attribute='percentage') | max %}
+            {% for category in categories %}
+                {% set bar_width = (category.percentage / max_percentage * 100) if max_percentage > 0 else 0 %}
+                <div class="chart-bar">
+                    <div class="bar-label">{{ category.category or 'Unknown' }}</div>
+                    <div class="bar-container">
+                        <div class="bar-fill" style="width: {{ bar_width|round(1) }}%"></div>
+                    </div>
+                    <div class="bar-value">{{ "{:,}".format(category.count) }} ({{ category.percentage|round(1) }}%)</div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p class="text-center opacity-8">No category data available</p>
+        {% endif %}
+    </div>
+    
+    <div class="analytics-card accounts-total-card">
+        <div class="card-title">
+            👤 Total Mail by Account (30 Days)
+        </div>
+        {% if account_breakdown_total %}
+            {% set max_account_total_percentage = account_breakdown_total | map(attribute='percentage') | max %}
+            {% for account in account_breakdown_total %}
+                {% set bar_width = (account.percentage / max_account_total_percentage * 100) if max_account_total_percentage > 0 else 0 %}
+                {% set provider_icon = provider_icons.get(account.provider.lower(), '📮') %}
+                <div class="chart-bar">
+                    <div class="bar-label">{{ provider_icon }} {{ account.provider.title() }}</div>
+                    <div class="bar-container">
+                        <div class="bar-fill" style="width: {{ bar_width|round(1) }}%"></div>
+                    </div>
+                    <div class="bar-value">{{ "{:,}".format(account.email_count) }} ({{ account.percentage|round(1) }}%)</div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p class="text-center opacity-8">No account data available</p>
+        {% endif %}
+    </div>
+</div>
+
+<div class="analytics-grid">
+    <div class="analytics-card accounts-spam-card">
+        <div class="card-title">
+            🗑️ Spam Mail by Account (30 Days)
+        </div>
+        {% if account_breakdown_spam %}
+            {% set max_spam_percentage = account_breakdown_spam | map(attribute='percentage') | max %}
+            {% for account in account_breakdown_spam %}
+                {% set bar_width = (account.percentage / max_spam_percentage * 100) if max_spam_percentage > 0 else 0 %}
+                {% set provider_icon = provider_icons.get(account.provider.lower(), '📮') %}
+                <div class="chart-bar">
+                    <div class="bar-label">{{ provider_icon }} {{ account.provider.title() }}</div>
+                    <div class="bar-container">
+                        <div class="bar-fill spam-bar" style="width: {{ bar_width|round(1) }}%; background-color: #dc3545;"></div>
+                    </div>
+                    <div class="bar-value spam-value" style="color: #dc3545;">{{ "{:,}".format(account.get('spam_count', account.get('email_count', 0))) }} ({{ account.percentage|round(1) }}%)</div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p class="text-center opacity-8">No spam account data available</p>
+        {% endif %}
+    </div>
+</div>
+
+<div class="analytics-grid">
+    <div class="analytics-card domains-card">
+        <div class="card-title">
+            🌐 Top Spam Domains (30 Days)
+        </div>
+        {% if spam_domains %}
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Domain</th>
+                        <th>Blocked Count</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for domain in spam_domains %}
+                        <tr>
+                            <td style="font-family: monospace; color: #dc3545;">{{ domain.sender_domain }}</td>
+                            <td>{{ "{:,}".format(domain.count) }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p class="text-center opacity-8">No spam domain data available</p>
+        {% endif %}
+    </div>
+</div>
+
+<div class="analytics-card activity-card">
+    <div class="card-title">
+        📈 Daily Activity (Last 14 Days)
+    </div>
+    {% if daily_activity %}
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Deleted</th>
+                    <th>Preserved</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for day in daily_activity %}
+                    <tr>
+                        <td>{{ day.date }}</td>
+                        <td class="color-danger font-weight-bold">{{ "{:,}".format(day.deleted) }}</td>
+                        <td class="color-success font-weight-bold">{{ "{:,}".format(day.preserved) }}</td>
+                        <td>{{ "{:,}".format(day.deleted + day.preserved) }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p class="text-center opacity-8">No daily activity data available</p>
+    {% endif %}
+</div>
+
+<!-- Auto-refresh notice -->
+<div class="refresh-notice">
+    Auto-refresh: 30s
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Data refresh functionality
+    setInterval(function() {
+        window.location.reload();
+    }, 30000); // Refresh every 30 seconds
+    
+    // Add fade-in animation to cards
+    document.addEventListener('DOMContentLoaded', function() {
+        const cards = document.querySelectorAll('.analytics-card');
+        cards.forEach((card, index) => {
+            card.style.animationDelay = (index * 0.1) + 's';
+            card.classList.add('fade-in');
+        });
+    });
+</script>
+{% endblock %}

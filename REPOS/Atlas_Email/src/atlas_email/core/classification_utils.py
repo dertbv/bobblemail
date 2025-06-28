@@ -19,8 +19,8 @@ Extracted functions:
 
 import re
 import email.header
-from atlas_email.models.database import db
-from atlas_email.utils.domain_validator import detect_provider_from_sender
+from ..models.database import db
+from ..utils.domain_validator import detect_provider_from_sender
 
 # ============================================================================
 # LEGITIMATE DOMAIN CHECKING

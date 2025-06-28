@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+
+{% block title %}Timer Control - Atlas Email{% endblock %}
+
+{% block page_title %}⏰ Timer Control{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Timer-specific status card styling */
+    .status-card {
+        border-left-color: {{ '#28a745' if timer_active else '#dc3545' }};
+    }
+    
+    .status-value {
+        color: {{ '#28a745' if timer_active else '#dc3545' }};
+    }
+    
+    /* Override container max-width for timer page */
+    .container {
+        max-width: 800px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="status-card">
+    <div class="status-row">
+        <div class="status-label">Status:</div>
+        <div class="status-value">{{ '🟢 Active' if timer_active else '🔴 Inactive' }}</div>
+    </div>
+    <div class="status-row">
+        <div class="status-label">Duration:</div>
+        <div class="status-value">{{ timer_minutes }} minutes</div>
+    </div>
+    <div class="status-row">
+        <div class="status-label">Mode:</div>
+        <div class="status-value">{{ '🔄 Repeating' if repeat_mode else '🔂 One-time' }}</div>
+    </div>
+    <div class="status-row">
+        <div class="status-label">Executions:</div>
+        <div class="status-value">{{ execution_count }}</div>
+    </div>
+    {% if timer_details %}
+    <div class="status-row">
+        <div class="status-label">Time Remaining:</div>
+        <div class="status-value">{{ timer_details }}</div>
+    </div>
+    {% endif %}
+</div>
+
+<div class="form-group">
+    <label for="minutes">Timer Duration (minutes):</label>
+    <input type="number" id="minutes" name="minutes" value="{{ timer_minutes }}" min="1" max="10080" placeholder="Enter minutes (1-10080)">
+</div>
+
+<div class="form-group">
+    <label for="repeat">Timer Mode:</label>
+    <select id="repeat" name="repeat">
+        <option value="false" {{ 'selected' if not repeat_mode else '' }}>One-time execution</option>
+        <option value="true" {{ 'selected' if repeat_mode else '' }}>Repeating timer</option>
+    </select>
+</div>
+
+<div class="button-group">
+    <button class="btn btn-primary" onclick="setTimer()">⚙️ Set Timer</button>
+    <button class="btn btn-success" onclick="startTimer()" {{ 'disabled' if timer_active else '' }}>▶️ Start Timer</button>
+    <button class="btn btn-danger" onclick="stopTimer()" {{ 'disabled' if not timer_active else '' }}>⏹️ Stop Timer</button>
+    <button class="btn btn-warning" onclick="testBatch()">🧪 Test Batch Now</button>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    async function setTimer() {
+        const minutes = document.getElementById('minutes').value;
+        const repeat = document.getElementById('repeat').value;
+        
+        if (!minutes || minutes < 1) {
+            alert('Please enter a valid duration (1+ minutes)');
+            return;
+        }
+        
+        try {
+            const response = await fetch('/api/timer/set', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    minutes: parseInt(minutes),
+                    repeat_mode: repeat === 'true'
+                })
+            });
+            
+            const result = await response.json();
+            alert(result.message);
+            if (result.success) location.reload();
+        } catch (error) {
+            alert('Error setting timer: ' + error.message);
+        }
+    }
+    
+    async function startTimer() {
+        try {
+            const response = await fetch('/api/timer/start', {method: 'POST'});
+            const result = await response.json();
+            alert(result.message);
+            if (result.success) location.reload();
+        } catch (error) {
+            alert('Error starting timer: ' + error.message);
+        }
+    }
+    
+    async function stopTimer() {
+        try {
+            const response = await fetch('/api/timer/stop', {method: 'POST'});
+            const result = await response.json();
+            alert(result.message);
+            if (result.success) location.reload();
+        } catch (error) {
+            alert('Error stopping timer: ' + error.message);
+        }
+    }
+    
+    async function testBatch() {
+        if (confirm('Run batch processing now? This will process emails on all accounts.')) {
+            try {
+                const response = await fetch('/api/batch/run', {method: 'POST'});
+                const result = await response.json();
+                alert(result.message);
+            } catch (error) {
+                alert('Error running batch: ' + error.message);
+            }
+        }
+    }
+</script>
+{% endblock %}

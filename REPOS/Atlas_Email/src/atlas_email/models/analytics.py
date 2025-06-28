@@ -8,9 +8,9 @@ import json
 from datetime import datetime, timedelta
 from collections import defaultdict
 from typing import Dict, List, Any, Optional, Tuple
-from atlas_email.models.database import db
-from atlas_email.utils.general import get_user_choice, format_number, format_percentage
-from atlas_email.models.db_logger import logger, LogCategory
+from .database import db
+from ..utils.general import get_user_choice, format_number, format_percentage
+from .db_logger import logger, LogCategory
 
 class DatabaseAnalytics:
     """Advanced analytics engine using database queries"""
@@ -912,19 +912,47 @@ def increment_analytics_counter(metric: str, amount: int = 1, session_date: str 
             result = cursor.fetchone()
             
             if result:
-                # Update existing record
+                # Update existing record - separate queries for each metric (SQL injection safe)
                 analytics_id = result[0]
-                cursor.execute(f"""
-                    UPDATE user_analytics 
-                    SET {metric} = {metric} + ?, updated_at = CURRENT_TIMESTAMP
-                    WHERE id = ?
-                """, (amount, analytics_id))
+                if metric == 'emails_analyzed':
+                    cursor.execute("""
+                        UPDATE user_analytics 
+                        SET emails_analyzed = emails_analyzed + ?, updated_at = CURRENT_TIMESTAMP
+                        WHERE id = ?
+                    """, (amount, analytics_id))
+                elif metric == 'feedback_given':
+                    cursor.execute("""
+                        UPDATE user_analytics 
+                        SET feedback_given = feedback_given + ?, updated_at = CURRENT_TIMESTAMP
+                        WHERE id = ?
+                    """, (amount, analytics_id))
+                elif metric == 'emails_deleted':
+                    cursor.execute("""
+                        UPDATE user_analytics 
+                        SET emails_deleted = emails_deleted + ?, updated_at = CURRENT_TIMESTAMP
+                        WHERE id = ?
+                    """, (amount, analytics_id))
+                else:
+                    raise ValueError(f"Invalid metric: {metric}. Valid metrics: emails_analyzed, feedback_given, emails_deleted")
             else:
-                # Create new record
-                cursor.execute(f"""
-                    INSERT INTO user_analytics (session_date, {metric}, updated_at)
-                    VALUES (?, ?, CURRENT_TIMESTAMP)
-                """, (session_date, amount))
+                # Create new record - separate queries for each metric (SQL injection safe)
+                if metric == 'emails_analyzed':
+                    cursor.execute("""
+                        INSERT INTO user_analytics (session_date, emails_analyzed, feedback_given, emails_deleted, updated_at)
+                        VALUES (?, ?, 0, 0, CURRENT_TIMESTAMP)
+                    """, (session_date, amount))
+                elif metric == 'feedback_given':
+                    cursor.execute("""
+                        INSERT INTO user_analytics (session_date, emails_analyzed, feedback_given, emails_deleted, updated_at)
+                        VALUES (?, 0, ?, 0, CURRENT_TIMESTAMP)
+                    """, (session_date, amount))
+                elif metric == 'emails_deleted':
+                    cursor.execute("""
+                        INSERT INTO user_analytics (session_date, emails_analyzed, feedback_given, emails_deleted, updated_at)
+                        VALUES (?, 0, 0, ?, CURRENT_TIMESTAMP)
+                    """, (session_date, amount))
+                else:
+                    raise ValueError(f"Invalid metric: {metric}. Valid metrics: emails_analyzed, feedback_given, emails_deleted")
             
             conn.commit()
             

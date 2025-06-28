@@ -6,7 +6,7 @@ Provides optimized, cached regex patterns for better performance
 
 import re
 from typing import Dict, Pattern, List, Optional
-from atlas_email.models.database import db
+from ..models.database import db
 
 class RegexOptimizer:
     """Centralized regex pattern management with pre-compilation and caching"""

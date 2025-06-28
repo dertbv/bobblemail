@@ -11,6 +11,13 @@ as it is IMPORTANT!!! and YOU MUST FOLLOW IT!
 <IMPORTANT>
 do not assume if in doubt ask
 
+**DISCUSSION BEFORE ACTION PROTOCOL**: When user asks questions about capabilities or approaches:
+1. Questions are for DISCUSSION, not immediate execution
+2. Engage in collaborative dialogue about options, trade-offs, and approaches
+3. Do NOT immediately start work or deploy agents unless explicitly requested
+4. Example: "Can we use agents for X?" = discuss agent approach, not deploy agents
+5. Learn from each other through conversation before jumping to implementation
+
 **UI/UX Changes Protocol**: When user requests changes to web interface:
 1. Ask for clarification on ALL elements in the affected area
 2. Do NOT move/modify related elements unless explicitly requested

@@ -16,7 +16,16 @@ import os
 project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 DB_FILE = os.path.join(project_root, "data", "mail_filter.db")
 DB_VERSION = 5  # Added processed_emails_bulletproof table to core schema
-SCHEMA_VERSION_TABLE = "schema_version"
+
+# SECURITY: Validate schema table name is safe SQL identifier
+def _validate_table_name(table_name: str) -> str:
+    """Validate table name contains only safe SQL identifier characters"""
+    import re
+    if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', table_name):
+        raise ValueError(f"Invalid table name: {table_name}")
+    return table_name
+
+SCHEMA_VERSION_TABLE = _validate_table_name("schema_version")
 
 class DatabaseManager:
     """Manages SQLite database operations with connection pooling and schema management"""
@@ -490,12 +499,14 @@ class DatabaseManager:
         with self.get_connection() as conn:
             cursor = conn.cursor()
             
-            # Table row counts
+            # Table row counts - SECURITY: validate all table names
             tables = ['accounts', 'sessions', 'processed_emails_bulletproof', 'domains', 
                      'spam_categories', 'logs', 'configurations', 'filter_terms']
             
             for table in tables:
-                cursor.execute(f"SELECT COUNT(*) FROM {table}")
+                # SECURITY: Validate table name before SQL interpolation
+                validated_table = _validate_table_name(table)
+                cursor.execute(f"SELECT COUNT(*) FROM {validated_table}")
                 stats[f"{table}_count"] = cursor.fetchone()[0]
             
             # Database file size
@@ -672,15 +683,22 @@ class DatabaseManager:
         """Mark feedback records as processed by ML pipeline."""
         if not feedback_ids:
             return
+        
+        # SECURITY: Validate all IDs are positive integers (SQL injection protection)
+        validated_ids = []
+        for fid in feedback_ids:
+            if not isinstance(fid, int):
+                raise ValueError(f"Invalid feedback ID type: {type(fid).__name__}. Expected int.")
+            if fid <= 0:
+                raise ValueError(f"Invalid feedback ID value: {fid}. Must be positive integer.")
+            validated_ids.append(fid)
             
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            placeholders = ','.join(['?'] * len(feedback_ids))
-            cursor.execute(f"""
-                UPDATE user_feedback 
-                SET processed = TRUE 
-                WHERE id IN ({placeholders})
-            """, feedback_ids)
+            # SECURITY: Use parameterized query with validated integer IDs only
+            placeholders = ','.join(['?'] * len(validated_ids))
+            query = f"UPDATE user_feedback SET processed = TRUE WHERE id IN ({placeholders})"
+            cursor.execute(query, validated_ids)
             conn.commit()
     
     # Email Flagging System Methods

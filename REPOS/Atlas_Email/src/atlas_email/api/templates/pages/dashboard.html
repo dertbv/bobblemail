@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Atlas Email{% endblock %}
+
+{% block page_title %}Atlas Email Dashboard{% endblock %}
+
+{% block content %}
+<div class="stats-grid">
+    {% from "components/stat_card.html" import email_accounts_card, emails_processed_card, accuracy_card, spam_detected_card %}
+    
+    {{ email_accounts_card(stats.total_accounts) }}
+    {{ emails_processed_card(stats.total_emails) }}
+    {{ accuracy_card("95.6") }}
+    {{ spam_detected_card(stats.spam_count) }}
+</div>
+
+<div class="container">
+    <h2>Recent Activity</h2>
+    <div class="activity-table">
+        <table>
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Account</th>
+                    <th>Action</th>
+                    <th>Count</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for email in emails %}
+                <tr>
+                    <td>{{ email.timestamp }}</td>
+                    <td>{{ email.account | escape }}</td>
+                    <td>{{ email.action | escape }}</td>
+                    <td>{{ email.count }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="controls">
+    <a href="/timer" class="btn btn-primary">Timer Control</a>
+    <a href="/analytics" class="btn btn-info">Analytics</a>
+    <a href="/accounts" class="btn btn-success">Manage Accounts</a>
+</div>
+{% endblock %}

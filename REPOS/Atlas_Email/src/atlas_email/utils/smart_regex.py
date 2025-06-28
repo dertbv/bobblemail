@@ -7,7 +7,7 @@ Chooses optimal approach based on keyword count, text length, and pattern comple
 import re
 import time
 from typing import List, Union, Pattern, Tuple
-from atlas_email.models.database import db
+from ..models.database import db
 
 class SmartRegexSelector:
     """Intelligently selects between regex and keyword matching for optimal performance"""

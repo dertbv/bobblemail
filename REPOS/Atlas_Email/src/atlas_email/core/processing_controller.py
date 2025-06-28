@@ -12,7 +12,11 @@ from atlas_email.models.database import db
 from atlas_email.models.db_logger import logger, write_log, LogCategory
 from config.credentials import db_credentials
 from atlas_email.models.analytics import DatabaseAnalyticsMenu
-from atlas_email.api.email_action_viewer import BulletproofEmailActionViewer
+# Conditional import - may not be available if FastAPI not installed
+try:
+    from atlas_email.api.email_action_viewer import BulletproofEmailActionViewer
+except ImportError:
+    BulletproofEmailActionViewer = None
 
 # Import original modules
 from config.auth import IMAPConnectionManager
@@ -596,6 +600,12 @@ def analytics_reporting():
 def email_action_viewer():
     """Handle email action viewer and export"""
     try:
+        if BulletproofEmailActionViewer is None:
+            print("❌ Email action viewer requires FastAPI dependencies")
+            print("💡 Install with: pip install fastapi uvicorn")
+            input("Press Enter to continue...")
+            return
+            
         viewer = BulletproofEmailActionViewer()
         viewer.run()
     except Exception as e:

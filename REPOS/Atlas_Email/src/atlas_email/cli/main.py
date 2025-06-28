@@ -69,8 +69,14 @@ def main():
             elif choice == 6:
                 clear_screen()
                 # Import and run web app management
-                from atlas_email.api.app_manager import web_app_management_menu
-                web_app_management_menu()
+                try:
+                    from atlas_email.api.app_manager import web_app_management_menu
+                    web_app_management_menu()
+                except ImportError as e:
+                    print("❌ Web app management requires FastAPI dependencies")
+                    print("💡 Install with: pip install fastapi uvicorn")
+                    print(f"📝 Error details: {e}")
+                    input("\nPress Enter to continue...")
                 clear_screen()
             elif choice == 0:
                 clear_screen()
