@@ -17,7 +17,7 @@ sys.path.insert(0, str(project_root))
 # Check dependencies
 try:
     from fastapi import FastAPI, Request, Form
-    from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
+    from fastapi.responses import HTMLResponse, JSONResponse
     import uvicorn
 except ImportError:
     print("❌ Missing dependencies: pip install fastapi uvicorn")
@@ -25,16 +25,14 @@ except ImportError:
 
 # Import your existing modules
 from atlas_email.models.database import db
-from atlas_email.models.db_logger import logger, LogCategory
+from atlas_email.models.db_logger import logger
 from config.credentials import db_credentials
 from atlas_email.utils.batch_timer import AutoBatchTimer
 from atlas_email.ml.ensemble_classifier import EnsembleHybridClassifier
-from atlas_email.ml.feature_extractor import MLFeatureExtractor
 # get_filters will be imported locally when needed
 
 # ML Training Integration
 import threading
-import asyncio
 
 # Initialize classifier for re-classification
 hybrid_classifier = None
@@ -295,7 +293,7 @@ def build_dashboard_html(stats, accounts, emails):
     <html>
     <head>
         <title>Mail Filter Dashboard - Fresh</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, user-scalable=yes">
         <meta http-equiv="refresh" content="30">
         <style>
             * {{ margin: 0; padding: 0; box-sizing: border-box; }}
@@ -455,10 +453,123 @@ def build_dashboard_html(stats, accounts, emails):
                 font-size: 0.9em;
                 box-shadow: 0 5px 15px rgba(0,0,0,0.2);
             }}
-            @media (max-width: 768px) {{
-                .stats-grid, .controls {{ grid-template-columns: 1fr; }}
-                .container {{ padding: 15px; }}
-                h1 {{ font-size: 2em; }}
+            /* ===== MOBILE-RESPONSIVE CSS ===== */
+            
+            /* Table container for horizontal scroll */
+            .table-container {{
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                margin: 15px 0;
+                border-radius: 8px;
+            }}
+            
+            /* iOS input fixes */
+            input, select {{
+                font-size: 16px; /* Prevents iOS zoom */
+                -webkit-appearance: none;
+            }}
+            
+            /* Touch-friendly buttons */
+            .btn {{
+                min-height: 44px; /* iOS/Android touch standard */
+                min-width: 44px;
+                -webkit-tap-highlight-color: transparent;
+            }}
+            
+            /* Small phones: 320px - 480px */
+            @media (max-width: 480px) {{
+                body {{
+                    padding: 5px;
+                }}
+                
+                .container {{ 
+                    padding: 10px; 
+                    border-radius: 8px;
+                }}
+                
+                h1 {{ 
+                    font-size: 1.5em;
+                    margin-bottom: 15px;
+                }}
+                
+                .stats-grid {{ 
+                    grid-template-columns: 1fr;
+                    gap: 15px;
+                }}
+                
+                .controls {{ 
+                    grid-template-columns: 1fr;
+                    gap: 10px;
+                }}
+                
+                .stat-card {{ 
+                    padding: 15px; 
+                    flex-direction: column; 
+                    text-align: center; 
+                    gap: 10px; 
+                }}
+                
+                .stat-icon {{ 
+                    font-size: 2em; 
+                }}
+                
+                .stat-value {{ 
+                    font-size: 1.8em; 
+                }}
+                
+                .btn {{ 
+                    padding: 12px 15px; 
+                    font-size: 0.9em; 
+                }}
+                
+                .activity-table th,
+                .activity-table td {{
+                    padding: 8px 6px;
+                    font-size: 0.8em;
+                }}
+                
+                .status-indicator {{
+                    position: static;
+                    display: block;
+                    text-align: center;
+                    margin-bottom: 15px;
+                    top: auto;
+                    right: auto;
+                }}
+            }}
+            
+            /* Large phones/small tablets: 481px - 768px */
+            @media (min-width: 481px) and (max-width: 768px) {{
+                .container {{ 
+                    padding: 15px; 
+                }}
+                
+                h1 {{ 
+                    font-size: 2em; 
+                }}
+                
+                .stats-grid {{ 
+                    grid-template-columns: repeat(2, 1fr);
+                    gap: 20px;
+                }}
+                
+                .controls {{ 
+                    grid-template-columns: repeat(2, 1fr);
+                    gap: 15px;
+                }}
+            }}
+            
+            /* Tablets: 769px - 1024px */
+            @media (min-width: 769px) and (max-width: 1024px) {{
+                .stats-grid {{ 
+                    grid-template-columns: repeat(3, 1fr);
+                    gap: 25px;
+                }}
+                
+                .controls {{ 
+                    grid-template-columns: repeat(3, 1fr);
+                    gap: 20px;
+                }}
             }}
         </style>
     </head>
@@ -515,7 +626,8 @@ def build_dashboard_html(stats, accounts, emails):
             
             <div class="recent-activity">
                 <h2 style="color: #2c3e50; margin-bottom: 20px;">📋 Latest Email Activity</h2>
-                <table class="activity-table">
+                <div class="table-container">
+                    <table class="activity-table">
                     <thead>
                         <tr>
                             <th>Date</th>
@@ -529,7 +641,8 @@ def build_dashboard_html(stats, accounts, emails):
                     <tbody>
                         {email_rows}
                     </tbody>
-                </table>
+                    </table>
+                </div>
             </div>
             
             <div style="text-align: center; margin-top: 40px; color: #666;">
@@ -4151,11 +4264,94 @@ async def single_account_page(account_id: str):
                     0% {{ transform: rotate(0deg); }}
                     100% {{ transform: rotate(360deg); }}
                 }}
+                /* Mobile responsive styles */
                 @media (max-width: 768px) {{
                     .actions-grid {{ grid-template-columns: 1fr; }}
                     .stats-grid {{ grid-template-columns: 1fr; }}
                     .account-header {{ flex-direction: column; text-align: center; }}
                     .account-icon {{ margin-right: 0; margin-bottom: 15px; }}
+                    
+                    /* Mobile email table improvements */
+                    .email-table-container {{
+                        overflow-x: auto;
+                        -webkit-overflow-scrolling: touch;
+                    }}
+                    
+                    .email-table {{
+                        min-width: 100%;
+                        font-size: 0.85em;
+                    }}
+                    
+                    .email-cell {{
+                        max-width: none !important;
+                        min-width: 0;
+                        white-space: normal !important;
+                        overflow: visible !important;
+                        text-overflow: initial !important;
+                        padding: 8px 6px !important;
+                        line-height: 1.4;
+                    }}
+                    
+                    .email-cell-sender {{
+                        max-width: 120px;
+                        word-break: break-word;
+                    }}
+                    
+                    .email-cell-subject {{
+                        max-width: 150px;
+                        word-break: break-word;
+                    }}
+                    
+                    .email-cell-compact {{
+                        padding: 6px 4px !important;
+                        font-size: 0.8em;
+                    }}
+                    
+                    .email-cell-account {{
+                        max-width: 100px;
+                        word-break: break-word;
+                    }}
+                }}
+                
+                @media (max-width: 480px) {{
+                    /* iPhone specific optimizations */
+                    .container {{
+                        margin: 0 10px;
+                        border-radius: 10px;
+                    }}
+                    
+                    .content {{
+                        padding: 15px;
+                    }}
+                    
+                    .account-header {{
+                        padding: 15px;
+                    }}
+                    
+                    .email-table {{
+                        font-size: 0.8em;
+                    }}
+                    
+                    .email-cell {{
+                        padding: 6px 4px !important;
+                    }}
+                    
+                    .email-cell-sender {{
+                        max-width: 100px;
+                    }}
+                    
+                    .email-cell-subject {{
+                        max-width: 120px;
+                    }}
+                    
+                    .email-cell-account {{
+                        max-width: 80px;
+                    }}                    
+                    /* Hide less critical columns on very small screens */
+                    .email-column-confidence,
+                    .email-column-date {{
+                        display: none;
+                    }}
                 }}
             </style>
         </head>
@@ -4717,47 +4913,47 @@ async def single_account_page(account_id: str):
                     
                     tableDiv.innerHTML = `
                         <div style="background: white; border: 1px solid #dee2e6; border-radius: 8px; overflow: hidden;">
-                            <div style="overflow-x: auto;">
-                                <table style="width: 100%; border-collapse: collapse;">
+                            <div class="email-table-container" style="overflow-x: auto;">
+                                <table class="email-table" style="width: 100%; border-collapse: collapse;">
                                     <thead>
                                         <tr style="background: #f8f9fa; border-bottom: 2px solid #dee2e6;">
                                             <th style="padding: 12px; text-align: center; border-right: 1px solid #dee2e6; font-weight: 600; width: 80px;">🔍 Research</th>
                                             <th style="padding: 12px; text-align: left; border-right: 1px solid #dee2e6; font-weight: 600;">Sender</th>
                                             <th style="padding: 12px; text-align: left; border-right: 1px solid #dee2e6; font-weight: 600;">Subject</th>
                                             <th style="padding: 12px; text-align: left; border-right: 1px solid #dee2e6; font-weight: 600;">Category</th>
-                                            <th style="padding: 12px; text-align: center; border-right: 1px solid #dee2e6; font-weight: 600;">Confidence</th>
+                                            <th class="email-column-confidence" style="padding: 12px; text-align: center; border-right: 1px solid #dee2e6; font-weight: 600;">Confidence</th>
                                             <th style="padding: 12px; text-align: center; border-right: 1px solid #dee2e6; font-weight: 600;">Protection</th>
                                             <th style="padding: 12px; text-align: center; border-right: 1px solid #dee2e6; font-weight: 600;">Action</th>
-                                            <th style="padding: 12px; text-align: center; font-weight: 600;">Date</th>
+                                            <th class="email-column-date" style="padding: 12px; text-align: center; font-weight: 600;">Date</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         ${{emails.map(email => `
                                             <tr style="border-bottom: 1px solid #eee;">
-                                                <td style="padding: 10px; border-right: 1px solid #eee; text-align: center; width: 80px;">
+                                                <td class="email-cell email-cell-compact" style="padding: 10px; border-right: 1px solid #eee; text-align: center; width: 80px;">
                                                     <input type="checkbox" 
                                                            onchange="toggleResearchFlag('${{email.uid || ''}}', '${{email.folder_name || ''}}', ${{email.account_id || 0}}, this)"
                                                            ${{email.is_research_flagged ? 'checked' : ''}}
                                                            style="cursor: pointer; transform: scale(1.2);"
                                                            title="Flag for research investigation">
                                                 </td>
-                                                <td style="padding: 10px; border-right: 1px solid #eee; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${{email.sender}}">
+                                                <td class="email-cell email-cell-sender" style="padding: 10px; border-right: 1px solid #eee; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${{email.sender}}">
                                                     ${{email.sender}}
                                                 </td>
-                                                <td style="padding: 10px; border-right: 1px solid #eee; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${{email.subject}}">
+                                                <td class="email-cell email-cell-subject" style="padding: 10px; border-right: 1px solid #eee; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${{email.subject}}">
                                                     ${{email.subject}}
                                                 </td>
-                                                <td style="padding: 10px; border-right: 1px solid #eee;">
+                                                <td class="email-cell" style="padding: 10px; border-right: 1px solid #eee;">
                                                     <span style="background: ${{getCategoryColor(email.category)}}; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.85em; font-weight: 500;">
                                                         ${{email.category}}
                                                     </span>
                                                 </td>
-                                                <td style="padding: 10px; border-right: 1px solid #eee; text-align: center;">
+                                                <td class="email-cell email-column-confidence" style="padding: 10px; border-right: 1px solid #eee; text-align: center;">
                                                     <span style="font-weight: 500; color: ${{email.confidence >= 70 ? '#28a745' : email.confidence >= 40 ? '#ffc107' : '#dc3545'}};">
                                                         ${{Math.round(email.confidence)}}%
                                                     </span>
                                                 </td>
-                                                <td style="padding: 10px; border-right: 1px solid #eee; text-align: center;">
+                                                <td class="email-cell" style="padding: 10px; border-right: 1px solid #eee; text-align: center;">
                                                     <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
                                                         <span style="font-size: 0.8em; color: #6c757d; font-weight: 500;">
                                                             ${{email.is_protected ? 'Protected' : (email.action === 'DELETED' && !email.is_protected) || email.is_flagged_for_deletion ? 'Delete' : ''}}
@@ -4775,12 +4971,12 @@ async def single_account_page(account_id: str):
                                                         `}}
                                                     </div>
                                                 </td>
-                                                <td style="padding: 10px; border-right: 1px solid #eee; text-align: center;">
+                                                <td class="email-cell" style="padding: 10px; border-right: 1px solid #eee; text-align: center;">
                                                     <span style="background: ${{email.action === 'DELETED' ? '#dc3545' : '#28a745'}}; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.85em; font-weight: 500;">
                                                         ${{email.action}}
                                                     </span>
                                                 </td>
-                                                <td style="padding: 10px; text-align: center; font-size: 0.85em; color: #6c757d;">
+                                                <td class="email-cell email-column-date" style="padding: 10px; text-align: center; font-size: 0.85em; color: #6c757d;">
                                                     ${{new Date(email.timestamp).toLocaleDateString()}}
                                                 </td>
                                             </tr>
@@ -5051,8 +5247,8 @@ async def single_account_page(account_id: str):
                     
                     tableDiv.innerHTML = `
                         <div style="background: white; border: 1px solid #dee2e6; border-radius: 8px; overflow: hidden;">
-                            <div style="overflow-x: auto;">
-                                <table style="width: 100%; border-collapse: collapse;">
+                            <div class="email-table-container" style="overflow-x: auto;">
+                                <table class="email-table" style="width: 100%; border-collapse: collapse;">
                                     <thead>
                                         <tr style="background: #f8f9fa; border-bottom: 2px solid #dee2e6;">
                                             <th style="padding: 12px; text-align: center; border-right: 1px solid #dee2e6; font-weight: 600; width: 80px;">🔍 Research</th>
@@ -5060,42 +5256,42 @@ async def single_account_page(account_id: str):
                                             <th style="padding: 12px; text-align: left; border-right: 1px solid #dee2e6; font-weight: 600; width: 180px;">Sender</th>
                                             <th style="padding: 12px; text-align: left; border-right: 1px solid #dee2e6; font-weight: 600; width: 250px;">Subject</th>
                                             <th style="padding: 12px; text-align: center; border-right: 1px solid #dee2e6; font-weight: 600; width: 140px;">Category</th>
-                                            <th style="padding: 12px; text-align: center; border-right: 1px solid #dee2e6; font-weight: 600; width: 90px;">Confidence</th>
+                                            <th style="padding: 12px; text-align: center; border-right: 1px solid #dee2e6; font-weight: 600; width: 90px;" class="email-column-confidence">Confidence</th>
                                             <th style="padding: 12px; text-align: center; border-right: 1px solid #dee2e6; font-weight: 600; width: 110px;">Protection</th>
                                             <th style="padding: 12px; text-align: center; border-right: 1px solid #dee2e6; font-weight: 600; width: 100px;">Action</th>
-                                            <th style="padding: 12px; text-align: center; font-weight: 600; width: 100px;">Date</th>
+                                            <th style="padding: 12px; text-align: center; font-weight: 600; width: 100px;" class="email-column-date">Date</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         ${{emails.map(email => `
                                             <tr style="border-bottom: 1px solid #eee;">
-                                                <td style="padding: 10px; border-right: 1px solid #eee; text-align: center; width: 80px;">
+                                                <td class="email-cell email-cell-compact" style="padding: 10px; border-right: 1px solid #eee; text-align: center; width: 80px;">
                                                     <input type="checkbox" 
                                                            onchange="toggleResearchFlag('${{email.uid || ''}}', '${{email.folder_name || ''}}', ${{email.account_id || 0}}, this)"
                                                            ${{email.is_research_flagged ? 'checked' : ''}}
                                                            style="cursor: pointer; transform: scale(1.2);"
                                                            title="Flag for research investigation">
                                                 </td>
-                                                <td style="padding: 10px; border-right: 1px solid #eee; width: 140px; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.85em; color: #6c757d;" title="${{email.account_email}}">
+                                                <td class="email-cell email-cell-account" style="padding: 10px; border-right: 1px solid #eee; width: 140px; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.85em; color: #6c757d;" title="${{email.account_email}}">
                                                     ${{email.account_email}}
                                                 </td>
-                                                <td style="padding: 10px; border-right: 1px solid #eee; width: 180px; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${{email.sender}}">
+                                                <td class="email-cell email-cell-sender" style="padding: 10px; border-right: 1px solid #eee; width: 180px; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${{email.sender}}">
                                                     ${{email.sender}}
                                                 </td>
-                                                <td style="padding: 10px; border-right: 1px solid #eee; width: 250px; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${{email.subject}}">
+                                                <td class="email-cell email-cell-subject" style="padding: 10px; border-right: 1px solid #eee; width: 250px; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${{email.subject}}">
                                                     ${{email.subject}}
                                                 </td>
-                                                <td style="padding: 10px; border-right: 1px solid #eee; width: 140px; text-align: center;">
+                                                <td class="email-cell" style="padding: 10px; border-right: 1px solid #eee; width: 140px; text-align: center;">
                                                     <span style="background: ${{getCategoryColor(email.category)}}; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.85em; font-weight: 500;">
                                                         ${{email.category}}
                                                     </span>
                                                 </td>
-                                                <td style="padding: 10px; border-right: 1px solid #eee; width: 90px; text-align: center;">
+                                                <td class="email-cell email-column-confidence" style="padding: 10px; border-right: 1px solid #eee; width: 90px; text-align: center;">
                                                     <span style="font-weight: 500; color: ${{email.confidence >= 70 ? '#28a745' : email.confidence >= 40 ? '#ffc107' : '#dc3545'}};">
                                                         ${{Math.round(email.confidence)}}%
                                                     </span>
                                                 </td>
-                                                <td style="padding: 10px; border-right: 1px solid #eee; width: 110px; text-align: center;">
+                                                <td class="email-cell" style="padding: 10px; border-right: 1px solid #eee; width: 110px; text-align: center;">
                                                     <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
                                                         <span style="font-size: 0.8em; color: #6c757d; font-weight: 500;">
                                                             ${{email.is_protected ? 'Protected' : (email.action === 'DELETED' && !email.is_protected) || email.is_flagged_for_deletion ? 'Delete' : ''}}
@@ -5113,12 +5309,12 @@ async def single_account_page(account_id: str):
                                                         `}}
                                                     </div>
                                                 </td>
-                                                <td style="padding: 10px; border-right: 1px solid #eee; width: 100px; text-align: center;">
+                                                <td class="email-cell" style="padding: 10px; border-right: 1px solid #eee; width: 100px; text-align: center;">
                                                     <span style="background: ${{email.action === 'DELETED' ? '#dc3545' : '#28a745'}}; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.85em; font-weight: 500;">
                                                         ${{email.action}}
                                                     </span>
                                                 </td>
-                                                <td style="padding: 10px; width: 100px; text-align: center; font-size: 0.85em; color: #6c757d;">
+                                                <td class="email-cell email-column-date" style="padding: 10px; width: 100px; text-align: center; font-size: 0.85em; color: #6c757d;">
                                                     ${{new Date(email.timestamp).toLocaleDateString()}}
                                                 </td>
                                             </tr>

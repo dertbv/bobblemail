@@ -20,4 +20,6 @@ do not assume if in doubt ask
 **Email Research Command**: When user mentions researching emails (any variation), run the research tool:
 
 Command: `cd /Users/Badman/Desktop/email/REPOS/Atlas_Email && python3 tools/analyzers/email_classification_analyzer.py`
+
+**DO NOT ASK TO ADD TO WHITELIST**: Never suggest or ask to add domains/emails to ANY lists (whitelist, blacklist, etc.). If user wants something added to lists, they will ask directly.
 </IMPORTANT>

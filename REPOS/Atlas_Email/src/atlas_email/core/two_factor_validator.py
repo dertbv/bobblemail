@@ -13,7 +13,7 @@ This will change email classification forever!
 import re
 from atlas_email.filters.business_prefixes import is_legitimate_business_prefix, get_prefix_confidence_explanation
 from atlas_email.utils.domain_validator import DomainValidator, is_gibberish_email, detect_provider_from_sender
-from atlas_email.core.spam_classifier import is_legitimate_company_domain
+from atlas_email.core.classification_utils import is_authenticated_domain
 
 class TwoFactorEmailValidator:
     """
@@ -200,7 +200,7 @@ class TwoFactorEmailValidator:
         Examples: CEO names, department codes, etc.
         """
         # Known legitimate domain gets more lenient treatment
-        if is_legitimate_company_domain(f"test@{domain}"):
+        if is_authenticated_domain(f"test@{domain}"):
             return True
         
         # Professional name patterns

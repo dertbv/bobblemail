@@ -11,7 +11,7 @@ import sqlite3
 from typing import Dict, List, Tuple, Optional, Any
 from atlas_email.filters.keyword_processor import KeywordProcessor
 from atlas_email.core.spam_classifier import (
-    check_all_keywords, is_legitimate_company_domain, detect_provider_from_sender
+    check_all_keywords, is_authenticated_domain, detect_provider_from_sender
 )
 try:
     import tldextract
@@ -197,7 +197,7 @@ class MLFeatureExtractor:
         
         # Use modular processor for domain analysis
         features['suspicious_domain'] = int(self.keyword_processor.is_suspicious_domain(domain, sender_provider))
-        features['legitimate_domain'] = int(is_legitimate_company_domain(domain))
+        features['legitimate_domain'] = int(is_authenticated_domain(domain))
         
         # Domain structure features
         if domain:

@@ -111,11 +111,12 @@ class Settings:
     WHITELIST = {
         "custom_whitelist": [
             "unraid.net",
-            "inova.org", 
+            "inova.org",
             "aetna.com",
             "dertbv@gmail.com",
             "genesismotorsamerica.comm",
-            "statements.myaccountviewonline@lplfinancial.com"
+            "statements.myaccountviewonline@lplfinancial.com",
+            "anthropic.com"
         ],
         "custom_keyword_whitelist": []
     }

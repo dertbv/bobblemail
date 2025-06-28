@@ -906,7 +906,7 @@ class DatabaseManager:
                 cursor.execute("""
                     SELECT id FROM email_flags 
                     WHERE email_uid = ? AND folder_name = ? AND account_id = ? 
-                    AND flag_type = 'PROTECT' AND is_active = TRUE
+                    AND flag_type IN ('PROTECT', 'RESEARCH') AND is_active = TRUE
                 """, (email_uid, folder_name, account_id))
                 
                 return cursor.fetchone() is not None

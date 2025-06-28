@@ -1,4 +1,22 @@
-# TODO - Email Project Refactoring
+# TODO - Email Project
+
+## Priority 1 - Recently Completed ✅
+
+### KISS Vendor Relationship Detection - June 27, 2025:
+- [x] **Vendor Relationship Detection System** - ✅ COMPLETED
+  - ✅ Created `vendor_relationship_detector.py` with KISS algorithm using email history as ground truth
+  - ✅ Integrated with ensemble classifier at correct performance position (after cheap filters)
+  - ✅ Fixed database path to use Atlas_Email data source for vendor relationship queries
+  - ✅ Enhanced digest/notification pattern recognition for forum summaries
+  - ✅ Added vendor relationship check to fallback classification path (critical missing piece)
+  - ✅ Fixed method preservation in `_format_classification_result()` to show vendor_relationship method
+  - ✅ Successfully restored transactional classification for bambulab.com forum digests
+
+- [x] **Bambu Lab Test Case Resolution** - ✅ COMPLETED  
+  - ✅ Verified 7 preserved emails from bambulab.com in Atlas_Email database
+  - ✅ Forum digest `[Bambu Lab Community Forum] Summary` now correctly preserved
+  - ✅ Vendor relationship algorithm: 7 preserved emails → relationship confirmed → digest pattern → transactional classification
+  - ✅ Performance optimized: only checks vendor relationships for emails with spam_probability < 0.8
 
 ## Priority 1 - Must Fix This Sprint ⚡
 

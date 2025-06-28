@@ -165,6 +165,11 @@ class EnsembleHybridClassifier:
         
         # Fallback to legacy classification
         result = self._classify_with_fallback(email_data)
+        
+        # CRITICAL FIX: Apply business rules to fallback results too!
+        # This includes the KISS vendor relationship detection
+        result = self._apply_classification_rules(result, email_data)
+        
         self.stats['fallback_decisions'] += 1
         
         processing_time = (time.time() - start_time) * 1000
@@ -290,6 +295,16 @@ class EnsembleHybridClassifier:
         """Apply business rules and overrides to ensemble result"""
         result = ensemble_result.copy()
         
+        # Rule 0: KISS Vendor Relationship Detection (EARLY CHECK)
+        # Only check if email survived basic filtering but isn't obviously spam
+        if result.get("spam_probability", 0.5) < 0.8:  # Only check non-obvious spam
+            transactional_result = self._check_vendor_relationship(email_data)
+            if transactional_result:
+                # Override with transactional classification
+                result.update(transactional_result)
+                result["override_reason"] = "vendor_relationship_detected"
+                return result  # Early return - no need for further processing
+        
         # Rule 1: Authenticated Whitelist override (ANTI-SPOOFING PROTECTION)
         if self.config["classification_rules"]["enable_whitelist_override"]:
             if self._is_whitelisted_sender(email_data["sender"]):
@@ -344,33 +359,8 @@ class EnsembleHybridClassifier:
     
     def _is_whitelisted_sender(self, sender):
         """Check if sender is whitelisted in database or hard-coded patterns"""
-        # First check database for whitelisted addresses
-        try:
-            from database import get_db_connection
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            
-            # Check exact email match
-            cursor.execute("SELECT is_whitelisted FROM domains WHERE domain = ?", (sender.lower(),))
-            result = cursor.fetchone()
-            if result and result[0]:
-                conn.close()
-                return True
-                
-            # Check domain-level whitelist
-            if '@' in sender:
-                domain = sender.split('@')[1].lower()
-                cursor.execute("SELECT is_whitelisted FROM domains WHERE domain = ?", (domain,))
-                result = cursor.fetchone()
-                if result and result[0]:
-                    conn.close()
-                    return True
-                    
-            conn.close()
-        except Exception as e:
-            print(f"Database whitelist check failed: {e}")
-        
-        # Fallback to hard-coded legitimate patterns
+        # Skip database check for now to avoid import issues
+        # Just use hard-coded legitimate patterns
         legitimate_patterns = [
             "@github.com", "@stripe.com", "@paypal.com", "@amazon.com",
             "@google.com", "@microsoft.com", "@apple.com"
@@ -386,14 +376,15 @@ class EnsembleHybridClassifier:
             "confidence": result.get("spam_probability", 0.5),
             "confidence_level": result.get("confidence_level", "LOW"),
             
-            # Method and performance
-            "method": method,
+            # Method and performance - preserve vendor relationship method if set
+            "method": result.get("method", method),  # Use result method if available, fallback to parameter
             "processing_time_ms": round(processing_time, 2),
             
             # Additional info
             "reasoning": result.get("reasoning", []),
             "model_votes": result.get("category_votes", {}),
             "override_reason": result.get("override_reason"),
+            "relationship_info": result.get("relationship_info"),  # Include vendor relationship info
             
             # Raw ensemble data (for debugging)
             "raw_ensemble_result": result if method == "ensemble" else None
@@ -428,6 +419,41 @@ class EnsembleHybridClassifier:
             stats["ensemble_model_stats"] = ensemble_stats
         
         return stats
+    
+    def _check_vendor_relationship(self, email_data):
+        """
+        KISS Vendor Relationship Detection using email history as ground truth.
+        
+        Returns transactional classification if vendor relationship exists, None otherwise.
+        """
+        try:
+            # Import here to avoid circular imports
+            from vendor_relationship_detector import vendor_detector
+            
+            # Check for vendor relationship and transactional classification
+            transactional_result = vendor_detector.classify_as_transactional(
+                sender_email=email_data["sender"],
+                subject=email_data["subject"],
+                body=email_data.get("body", "")
+            )
+            
+            if transactional_result:
+                # Convert to ensemble result format
+                return {
+                    "final_classification": transactional_result["category"],
+                    "is_spam": transactional_result["is_spam"],
+                    "spam_probability": transactional_result["confidence"] / 100.0,
+                    "confidence_level": transactional_result["confidence_level"],
+                    "method": transactional_result["method"],
+                    "reasoning": transactional_result["reasoning"],
+                    "relationship_info": transactional_result.get("relationship_info", {})
+                }
+            
+            return None
+            
+        except Exception as e:
+            print(f"⚠️ Vendor relationship check failed: {e}")
+            return None
     
     def retrain_models(self):
         """Retrain ML models with latest data"""

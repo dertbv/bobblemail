@@ -41,33 +41,52 @@ class MLSettingsManager:
     def save_settings(self) -> bool:
         """Save current settings to centralized settings.py"""
         try:
-            from config.settings import Settings
+            # Update the actual Python file with new whitelist
+            if 'custom_whitelist' in self.settings or 'custom_keyword_whitelist' in self.settings:
+                self._update_settings_file()
             
-            # Update the whitelist in settings.py
-            if 'custom_whitelist' in self.settings:
-                # Update the Settings class whitelist
-                Settings.WHITELIST['custom_whitelist'] = self.settings['custom_whitelist']
-            
-            if 'custom_keyword_whitelist' in self.settings:
-                Settings.WHITELIST['custom_keyword_whitelist'] = self.settings['custom_keyword_whitelist']
-            
-            # Update ML settings if needed
-            for key, value in self.settings.items():
-                if key in Settings.ML_SETTINGS:
-                    Settings.ML_SETTINGS[key] = value
-            
-            # Also save to JSON for backward compatibility
-            safe_json_save(self.settings_file, self.settings)
-            
-            print("✅ Settings saved to centralized configuration!")
+            print("✅ Settings saved to config/settings.py!")
             return True
         except Exception as e:
             print(f"❌ Error saving settings: {e}")
-            # Fallback to JSON only
-            if safe_json_save(self.settings_file, self.settings):
-                print("✅ Settings saved to JSON file (fallback)")
-                return True
             return False
+    
+    def _update_settings_file(self) -> None:
+        """Update the actual config/settings.py file with new whitelist data"""
+        import os
+        
+        # Get the correct path to config/settings.py
+        current_dir = os.path.dirname(__file__)  # src/atlas_email/ml/
+        atlas_root = os.path.dirname(os.path.dirname(os.path.dirname(current_dir)))  # go up to Atlas_Email/
+        settings_file_path = os.path.join(atlas_root, 'config', 'settings.py')
+        
+        # Read current file
+        with open(settings_file_path, 'r') as f:
+            content = f.read()
+        
+        # Update whitelist section
+        if 'custom_whitelist' in self.settings:
+            whitelist = self.settings['custom_whitelist']
+            whitelist_str = ',\n            '.join(f'"{item}"' for item in whitelist)
+            
+            # Find and replace the custom_whitelist section
+            import re
+            pattern = r'("custom_whitelist": \[)[^]]*(\])'
+            replacement = f'\\1\n            {whitelist_str}\n        \\2'
+            content = re.sub(pattern, replacement, content, flags=re.DOTALL)
+        
+        if 'custom_keyword_whitelist' in self.settings:
+            keyword_whitelist = self.settings['custom_keyword_whitelist']
+            keyword_str = ',\n            '.join(f'"{item}"' for item in keyword_whitelist)
+            
+            # Find and replace the custom_keyword_whitelist section
+            pattern = r'("custom_keyword_whitelist": \[)[^]]*(\])'
+            replacement = f'\\1\n            {keyword_str}\n        \\2' if keyword_whitelist else '\\1\\2'
+            content = re.sub(pattern, replacement, content, flags=re.DOTALL)
+        
+        # Write updated content back
+        with open(settings_file_path, 'w') as f:
+            f.write(content)
     
     def reset_to_defaults(self) -> bool:
         """Reset all settings to defaults"""

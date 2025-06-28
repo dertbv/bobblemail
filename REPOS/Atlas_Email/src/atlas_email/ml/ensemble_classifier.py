@@ -16,7 +16,7 @@ from datetime import datetime
 
 # Import core components
 from atlas_email.filters.keyword_processor import KeywordProcessor, classify_spam_type_with_processor
-from atlas_email.core.spam_classifier import is_legitimate_company_domain, detect_provider_from_sender
+from atlas_email.core.spam_classifier import is_authenticated_domain, detect_provider_from_sender
 # Temporarily disabled due to import issues: from atlas_email.ml.category_classifier import MLCategoryClassifier
 
 class EnsembleHybridClassifier:
@@ -363,7 +363,7 @@ class EnsembleHybridClassifier:
         # Rule 2: Provider override (legitimate company domains)
         # Only protect legitimate business emails, NOT marketing spam
         if self.config["classification_rules"]["enable_provider_override"]:
-            if is_legitimate_company_domain(email_data["sender"]):
+            if is_authenticated_domain(email_data["sender"]):
                 # Only override for legitimate business categories, not marketing spam
                 legitimate_business_categories = [
                     "Legitimate", "TRANSACTIONAL", "ORDER_CONFIRMATION", 

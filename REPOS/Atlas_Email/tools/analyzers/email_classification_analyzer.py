@@ -36,7 +36,7 @@ def list_flagged_emails():
     SELECT DISTINCT pe.uid, pe.sender_email, pe.subject, pe.category
     FROM processed_emails_bulletproof pe
     JOIN email_flags ef ON pe.uid = ef.email_uid
-    WHERE ef.flag_type = 'RESEARCH'
+    WHERE ef.flag_type = 'RESEARCH' AND ef.is_active = TRUE
     ''')
     
     results = cursor.fetchall()

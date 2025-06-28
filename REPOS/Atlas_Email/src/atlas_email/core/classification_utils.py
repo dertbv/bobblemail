@@ -6,7 +6,7 @@ This module contains shared classification functions that were causing circular
 dependencies between keyword_processor and spam_classifier modules.
 
 Extracted functions:
-- is_legitimate_company_domain
+- is_authenticated_domain
 - is_community_email  
 - is_transactional_email
 - is_account_notification
@@ -26,175 +26,27 @@ from atlas_email.utils.domain_validator import detect_provider_from_sender
 # LEGITIMATE DOMAIN CHECKING
 # ============================================================================
 
-def is_legitimate_company_domain(domain):
-    """Check if domain belongs to a legitimate company"""
+def is_authenticated_domain(domain, auth_results=None):
+    """Check if domain is authenticated (SPF/DKIM/DMARC validation)"""
     if not domain:
         return False
         
     domain = domain.lower().strip()
     
-    # Major legitimate company domains and their subdomains
-    legitimate_domains = {
-        # E-commerce & Retail
-        'amazon.com', 'amazon.co.uk', 'amazon.ca', 'amazon.de', 'amazon.fr',
-        'walmart.com', 'target.com', 'costco.com', 'bestbuy.com', 'homedepot.com', 'homedepotcustomersupport.com', 'lowes.com',
-        'etsy.com', 'shopify.com', 'wayfair.com',
-        'chargriller.com', 'char-griller.com', 'ecobee.com',
-        'skechers.com', 'emails.skechers.com', 'tacticaltraps.com',
-        'internetbrandsauto.com', 'clublexus.com',
+    # Use authentication results if provided
+    if auth_results:
+        spf_pass = auth_results.get('spf', {}).get('pass', False)
+        dkim_pass = auth_results.get('dkim', {}).get('pass', False) 
+        dmarc_pass = auth_results.get('dmarc', {}).get('pass', False)
         
-        # Financial Services
-        'experian.com', 'equifax.com', 'transunion.com', 'creditkarma.com',
-        'chase.com', 'bankofamerica.com', 'wellsfargo.com', 'citi.com',
-        'penfed.org', 'usaa.com', 'capitalone.com', 'discover.com',
-        'americanexpress.com', 'visa.com', 'mastercard.com', 'robinhood.com',
-        
-        # Technology
-        'apple.com', 'microsoft.com', 'google.com', 'facebook.com', 'meta.com',
-        'twitter.com', 'linkedin.com', 'adobe.com', 'salesforce.com',
-        'oracle.com', 'ibm.com', 'intel.com', 'nvidia.com', 'tesla.com',
-        'samsung.com', 'bambulab.com', 'lectron.com', 'ev-lectron.com',
-        'gazelle.com', 'schmidtbrothers.com', 'unraid.com', 'unraid.net',
-        
-        # Social & Community Platforms
-        'nextdoor.com', 'email.nextdoor.com', 'ss.email.nextdoor.com', 
-        'rs.email.nextdoor.com', 'is.email.nextdoor.com', 'ms.email.nextdoor.com',
-        'facebookmail.com', 'pinterest.com',
-        
-        # Telecom & Utilities
-        'verizon.com', 'att.com', 't-mobile.com', 'sprint.com', 'comcast.com',
-        'xfinity.com', 'spectrum.com', 'directv.com', 'dish.com',
-        'siriusxm.com', 'e.siriusxm.com',
-        
-        # Streaming & Entertainment
-        'netflix.com', 'disney.com', 'hulu.com', 'hbo.com', 'paramount.com',
-        'spotify.com', 'youtube.com', 'twitch.com', 'steam.com',
-        
-        # Government & Official
-        'irs.gov', 'usps.com', 'fedex.com', 'ups.com', 'dhl.com',
-        'socialsecurity.gov', 'medicare.gov',
-        
-        # Airlines & Travel
-        'delta.com', 'united.com', 'american.com', 'southwest.com',
-        'booking.com', 'expedia.com', 'hotels.com', 'airbnb.com',
-        
-        # Food & Services  
-        'mcdonalds.com', 'starbucks.com', 'subway.com', 'doordash.com',
-        'grubhub.com', 'ubereats.com', 'instacart.com',
-        'firebirdswoodfiredgrill.com', 'firebirds.fbmta.com', 'firebirds.com',
-        'seatgeek.com', 'zenni.com', 'zennioptical.com',
-        
-        # Home & Kitchen Products
-        'hexclad.com', 'hexcladcookware.com', 'traegergrills.com',
-        'yeti.com', 'oxo.com', 'cuisinart.com', 'kitchenaid.com', 'vitamix.com',
-        
-        # Home Improvement & Windows
-        'andersenwindows.com', 'renewalbyandersen.com', 'pella.com',
-        'milgard.com', 'marvin.com', 'jeldwen.com',
-        
-        # Safety & Emergency Equipment
-        'lifevac.net', 'lifevac.com', 'first-aid-product.com', 'zoll.com',
-        
-        # Healthcare & Insurance
-        'aetna.com', 'anthem.com', 'bluecross.com', 'humana.com',
-        'unitedhealth.com', 'kaiserpermanente.org', 'inova.org',
-        
-        # Auto Services & Home Security
-        'carshield.com', 'vivint.com', 'vivintinc.com',
-        
-        # Education & Non-profit
-        'khanacademy.org', 'wikipedia.org', 'redcross.org', 'salvation.org',
-        
-        # Sports & Entertainment Companies
-        'dcunited.com', 'indigo.ca', 'pledgebox.com', 'spiritedvirginia.com',
-        
-        # Additional E-commerce & Retail Domains
-        'oldnavy.com', 'gap.com', 'bananarepublic.com', 'athleta.com',
-        'nordstrom.com', 'nordstromrack.com', 'macys.com', 'bloomingdales.com',
-        'kohls.com', 'jcpenney.com', 'dillards.com', 'saksfifthavenue.com',
-        'loft.com',
-        'rh.com', 'restorationhardware.com', 'williams-sonoma.com', 'potterybarn.com',
-        
-        # Clothing & Fashion Brands
-        'nike.com', 'adidas.com', 'underarmour.com', 'puma.com', 'reebok.com',
-        'lululemon.com', 'patagonia.com', 'northface.com', 'columbia.com',
-        'rei.com', 'dickssportinggoods.com', 'footlocker.com', 'finishline.com',
-        
-        # Additional Tech & Services
-        'dropbox.com', 'slack.com', 'zoom.us', 'github.com', 'atlassian.com',
-        'mailchimp.com', 'constantcontact.com', 'surveymonkey.com',
-        'squarespace.com', 'wix.com', 'godaddy.com', 'bluehost.com',
-        'energysage.com',
-        
-        # Email Marketing Services
-        'mailgun.com', 'sendgrid.com', 'mandrill.com', 'campaignmonitor.com',
-        'aweber.com', 'getresponse.com', 'convertkit.com', 'activecampaign.com',
-        
-        # Apple Services & Pharmacy/Healthcare (added for security email fix)
-        'icloud.com', 'me.com', 'mac.com',  # Apple email services
-        'cvs.com', 'walgreens.com', 'riteaid.com', 'pharmacydirect.com',  # Pharmacy services
-        
-        # Major Email Providers (for account notifications)
-        'gmail.com', 'googlemail.com', 'google.com',  # Google email services
-        'outlook.com', 'hotmail.com', 'live.com', 'msn.com',  # Microsoft email services
-        'yahoo.com', 'yahoomail.com', 'ymail.com',  # Yahoo email services
-        'protonmail.com', 'aol.com', 'mail.com',  # Other major providers
-        
-        # Pet & Animal Care
-        'petco.com', 'petsmart.com', 'chewy.com', 'petflow.com',
-        
-        # Media & News
-        'consumerreports.org', 'nytimes.com', 'washingtonpost.com', 'wsj.com',
-        'cnn.com', 'bbc.com', 'reuters.com', 'ap.org',
-        
-        # Retail Department Stores & Brands
-        'bedbathandbeyond.com', 'jcrew.com', 'anntaylor.com', 'loft.com',
-        'bananarepublic.com', 'gap.com', 'oldnavy.com', 'athleta.com',
-        'alamodeintimates.com',  # A la mode intimates
-        
-        # Social Networks & Communication
-        'facebookmail.com', 'facebookemail.com', 'instagrammail.com',
-        'nextdoor.com', 'linkedin.com', 'twittermail.com',
-        
-        # Third-Party Email Marketing Services
-        'qualtrics-survey.com', 'qualtrics.com', 'surveymonkey.com',
-        'typeform.com', 'mailchimp.com', 'constantcontact.com',
-        'campaignmonitor.com', 'aweber.com', 'getresponse.com',
-        'convertkit.com', 'activecampaign.com', 'klaviyo.com',
-        'omnisend.com', 'drip.com', 'sendinblue.com', 'mailerlite.com',
-        
-        # Email Infrastructure Services
-        'sendgrid.com', 'mailgun.com', 'mandrill.com', 'postmarkapp.com',
-        'sparkpost.com', 'ses.amazonaws.com', 'amazonses.com',
-        
-        # Survey & Feedback Services
-        'locationrater.com', 'trustpilot.com', 'yelp.com', 'google.com',
-        'surveyedapp.com', 'podium.com', 'birdeye.com',
-        
-        # Newsletter & Content Platforms
-        'substack.com', 'medium.com', 'wordpress.com', 'blogger.com',
-        'tumblr.com', 'ghost.org',
-        
-        # Additional Legitimate Business Domains
-        'salesforce.com', 'hubspot.com', 'zendesk.com', 'freshworks.com',
-        'intercom.com', 'drift.com', 'olark.com', 'livechat.com'
-    }
+        # Domain is authenticated if it passes authentication checks
+        return spf_pass or dkim_pass or dmarc_pass
     
-    # Direct domain match
-    if domain in legitimate_domains:
+    # Check for educational and government domains (inherently trustworthy)
+    if domain.endswith(('.edu', '.gov')) and len(domain.split('.')) <= 3:
         return True
     
-    # Check if it's a subdomain of a legitimate domain
-    for legit_domain in legitimate_domains:
-        if domain.endswith('.' + legit_domain):
-            return True
-    
-    # Check for educational and government domains
-    if domain.endswith(('.edu', '.gov', '.org')) and len(domain.split('.')) <= 3:
-        return True
-    
-    # BRAND IMPERSONATION PROTECTION: Block suspicious domains that might impersonate major brands
-    # This must be checked BEFORE professional business domain detection
+    # BRAND IMPERSONATION PROTECTION: Block suspicious domains
     if _is_brand_impersonation_attempt(domain):
         return False
     
@@ -444,13 +296,9 @@ def is_community_email(subject, sender, headers=""):
     combined_text = f"{subject} {sender} {headers}".lower()
     
     # Community platform domains
-    community_domains = [
-        'nextdoor.com', 'email.nextdoor.com', 'ss.email.nextdoor.com',
-        'rs.email.nextdoor.com', 'is.email.nextdoor.com', 'ms.email.nextdoor.com'
-    ]
-    
-    # Check if from recognized community platform
-    is_community_domain = any(domain in sender_lower for domain in community_domains)
+    # Check for community platform patterns in content (not hardcoded domain lists)
+    community_patterns = ['neighbor', 'community', 'local', 'nearby', 'nextdoor']
+    is_community_domain = any(pattern in combined_text for pattern in community_patterns)
     
     if is_community_domain:
         return True
@@ -539,7 +387,7 @@ def is_transactional_email(subject, sender, headers=""):
     if '@' in sender_lower:
         domain = sender_lower.split('@')[1].replace('>', '').strip()
     
-    if domain and is_legitimate_company_domain(domain):
+    if domain and is_authenticated_domain(domain):
         confidence_score += 0.2
     
     # Penalize promotional language (reduces transactional confidence)
@@ -601,7 +449,7 @@ def is_account_notification(subject, sender, headers=""):
     if '@' in sender_lower:
         domain = sender_lower.split('@')[1].replace('>', '').strip()
     
-    is_legitimate_domain = domain and is_legitimate_company_domain(domain)
+    is_legitimate_domain = domain and is_authenticated_domain(domain)
     
     # CRITICAL FIX: Account notifications MUST come from legitimate domains
     # If sender claims to be from Google, AOL, etc. but uses fake domain, reject immediately
@@ -665,7 +513,7 @@ def is_subscription_management(subject, sender, headers=""):
     if '@' in sender_lower:
         domain = sender_lower.split('@')[1].replace('>', '').strip()
     
-    is_legitimate_domain = domain and is_legitimate_company_domain(domain)
+    is_legitimate_domain = domain and is_authenticated_domain(domain)
     
     # CRITICAL SECURITY FIX: Block consumer email services for subscription management
     # Legitimate subscriptions come from company domains, not Gmail/Yahoo/Hotmail
@@ -986,7 +834,7 @@ def classify_encoded_spam_content(headers, sender, subject):
 
 # Export all functions
 __all__ = [
-    'is_legitimate_company_domain',
+    'is_authenticated_domain',
     'is_community_email', 
     'is_transactional_email',
     'is_account_notification',

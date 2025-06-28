@@ -9,10 +9,10 @@ Refactored to use classification_utils to break circular dependencies.
 
 import re
 import email.header
-from atlas_email.utils.domain_validator import detect_provider_from_sender
-from atlas_email.models.database import db
-from atlas_email.core.classification_utils import (
-    is_legitimate_company_domain, is_community_email, is_transactional_email,
+from ..utils.domain_validator import detect_provider_from_sender
+from ..models.database import db
+from .classification_utils import (
+    is_authenticated_domain, is_community_email, is_transactional_email,
     is_account_notification, is_subscription_management, classify_encoded_spam_content,
     get_all_keywords_for_category, check_all_keywords, check_keywords_simple
 )
@@ -102,41 +102,8 @@ def is_legitimate_billing_delivery(subject, sender, headers=""):
     sender_lower = sender.lower()
     combined_text = f"{subject} {sender} {headers}".lower()
     
-    # Legitimate billing/delivery domains (high confidence)
-    trusted_billing_domains = [
-        # Order/shipping specific domains
-        'oes.macys.com',           # Macy's order/shipping
-        'customerservice@oes.macys.com', 
-        'orders.amazon.com',       # Amazon orders
-        'shipping.amazon.com',     # Amazon shipping
-        'digital-no-reply@amazon.com', # Amazon digital orders
-        'auto-confirm@amazon.com', # Amazon confirmations
-        'receipts@emails.macys.com', # Macy's receipts
-        
-        # Customer service domains
-        'customerservice.target.com',
-        'orders.kohls.com',
-        'billing.petco.com',
-        'orders.petco.com',
-        
-        # Legitimate service patterns
-        'customerservice@',
-        'billing@',
-        'orders@',
-        'shipping@'
-    ]
-    
-    # Broader legitimate retail domains (medium confidence for transactional content)
-    legitimate_retail_domains = [
-        'emails.macys.com',
-        'e.petco.com', 
-        'e.kohls.com',
-        'amazon.com',
-        'apple.com',
-        'insideapple.apple.com',
-        'target.com',
-        'email.target.com'
-    ]
+    # Check for transactional email patterns in content (not domain-based)
+    # These patterns indicate legitimate business communications regardless of sender domain
     
     # Known scam domain patterns to exclude
     scam_domain_patterns = [
@@ -314,7 +281,7 @@ def classify_spam_type_legacy(headers, sender, subject, matched_term):
             sender_provider = detect_provider_from_sender(sender_lower)
 
     # Check if this is a legitimate company domain for special handling
-    is_legitimate_domain = is_legitimate_company_domain(domain)
+    is_legitimate_domain = is_authenticated_domain(domain)
 
     # Enhanced suspicious domain detection with legitimate company protection
     suspicious_domain = False
@@ -419,24 +386,14 @@ def classify_spam_type_legacy(headers, sender, subject, matched_term):
     if check_keywords_simple(all_text, "Financial & Investment Spam"):
         return "Financial & Investment Spam"
 
-    # Check for investment domain patterns with provider context (using database keywords)
-    investment_domains = [
-        "invest", "trading", "forex", "crypto", "bitcoin", "finance", "wealth", "profit",
-        "money", "rich", "capital", "fund", "market", "stock", "bond", "gold", "silver",
-        "currency", "dollar", "euro", "yen", "pound", "economy", "financial"
-    ]
-    if any(investment_term in domain for investment_term in investment_domains) and sender_provider == 'unknown':
-        return "Financial & Investment Spam"
+    # Check for investment spam using content analysis (not domain patterns)
+    # Content-based detection is more reliable than domain name checking
 
     # Gambling Spam Detection using database keywords
     if check_keywords_simple(all_text, "Gambling Spam"):
         return "Gambling Spam"
 
-    # Check for gambling domain patterns (only for unknown providers)
-    gambling_domains = ["casino", "bet", "poker", "slots", "gambling", "lottery", "jackpot", "spin",
-                        "win", "lucky", "fortune", "mega", "bonus", "odds", "game", "play"]
-    if any(gambling_term in domain for gambling_term in gambling_domains) and sender_provider == 'unknown':
-        return "Gambling Spam"
+    # Gambling spam detection uses content keywords, not domain patterns
 
     # Legal Settlement Scam Detection using database keywords
     if check_keywords_simple(all_text, "Legal Settlement Scam"):

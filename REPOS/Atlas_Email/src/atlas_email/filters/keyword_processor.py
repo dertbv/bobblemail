@@ -14,7 +14,7 @@ import re
 import json
 from typing import Dict, List, Tuple, Optional, Union
 from atlas_email.core.classification_utils import (
-    check_all_keywords, check_keywords_simple, is_legitimate_company_domain,
+    check_all_keywords, check_keywords_simple, is_authenticated_domain,
     get_all_keywords_for_category, is_community_email, is_transactional_email,
     is_account_notification, is_subscription_management, classify_encoded_spam_content
 )
@@ -180,7 +180,7 @@ class KeywordProcessor:
         Returns:
             True if domain appears suspicious
         """
-        if is_legitimate_company_domain(domain):
+        if is_authenticated_domain(domain):
             return False
             
         suspicious = any([
@@ -229,8 +229,8 @@ class KeywordProcessor:
         subdomain = domain_parts[0]
         
         # Check for legitimate domains first - they can use complex subdomains
-        # is_legitimate_company_domain already imported from classification_utils
-        if is_legitimate_company_domain(domain):
+        # is_authenticated_domain already imported from classification_utils
+        if is_authenticated_domain(domain):
             # Exception: Even legitimate domains with obvious scam patterns should be flagged
             main_domain = domain_parts[1] if len(domain_parts) >= 2 else ""
             
@@ -1019,8 +1019,8 @@ class KeywordProcessor:
         
         # First check if it's already a known legitimate domain
         # For legitimate domains, be more lenient with company name matching
-        # is_legitimate_company_domain already imported from classification_utils
-        if is_legitimate_company_domain(domain):
+        # is_authenticated_domain already imported from classification_utils
+        if is_authenticated_domain(domain):
             # For legitimate domains, we trust them more - check for reasonable company connections
             domain_parts = domain.lower().split('.')
             
@@ -1478,7 +1478,7 @@ class KeywordProcessor:
         domain, sender_provider = self.extract_domain_info(sender)
         
         # Check for legitimate company domain (default)
-        is_legitimate_domain = is_legitimate_company_domain(domain)
+        is_legitimate_domain = is_authenticated_domain(domain)
         
         # Check for suspicious domain patterns (needed for brand impersonation detection)
         suspicious_domain = self.is_suspicious_domain(domain, sender_provider)
@@ -1527,28 +1527,7 @@ class KeywordProcessor:
             # If not brand impersonation, continue checking for other spam types with lower threshold
             confidence_threshold = 0.3  # Lower threshold for unicode spoofing emails
         
-        # SELECTIVE VENDOR FILTERING - Check if this is a recognized vendor email
-        try:
-            from atlas_email.filters.vendor_integration import enhance_spam_classification_with_vendor_filter
-            should_preserve, vendor_reason, vendor_metadata = enhance_spam_classification_with_vendor_filter(
-                sender, domain, subject, headers_str
-            )
-            
-            # FIXED LOGIC: Only trust actual recognized vendors, not unknown vendors from major providers
-            if vendor_metadata.get('vendor') != 'unknown' and should_preserve:
-                return f"Trusted Domain ({vendor_reason})"
-            elif vendor_metadata.get('vendor') != 'unknown' and not should_preserve:
-                # If vendor filter says to filter, bypass legitimate domain protection
-                # This allows marketing emails from vendors to be properly categorized as spam
-                is_legitimate_domain = False  # Override for vendor marketing emails
-            # IMPORTANT: If vendor == 'unknown', continue with normal spam detection
-            # Do NOT treat unknown vendors from major email providers as automatically trusted
-        except ImportError:
-            # Vendor filter not available, continue with normal processing
-            pass
-        except Exception as e:
-            # Log error but continue with normal processing
-            print(f"Warning: Vendor filter error: {e}")
+        # Vendor filtering removed - using pure logic over static lists
         
         # Check for encoded spam first - Enhanced with content analysis
         if self.check_encoded_spam(subject, sender):

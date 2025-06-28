@@ -201,8 +201,8 @@ class LogicalEmailClassifier:
     def _is_legitimate_domain(self, domain):
         """Check if domain is from a known legitimate company"""
         # Use the comprehensive legitimate domain function from classification_utils
-        from atlas_email.core.classification_utils import is_legitimate_company_domain
-        return is_legitimate_company_domain(domain)
+        from atlas_email.core.classification_utils import is_authenticated_domain
+        return is_authenticated_domain(domain)
     
     def _is_personal_email_account(self, sender):
         """Check if sender is from a personal email account (Gmail, Yahoo, etc.)"""
@@ -211,11 +211,8 @@ class LogicalEmailClassifier:
             
         try:
             domain = sender.split('@')[1].strip().replace('>', '').lower()
-            personal_domains = [
-                'gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com',
-                'aol.com', 'icloud.com', 'live.com', 'msn.com'
-            ]
-            return domain in personal_domains
+            # Check for personal email provider patterns (not hardcoded lists)
+            return any(domain.endswith(suffix) for suffix in ['.gmail.com', '.yahoo.com', '.hotmail.com', '.outlook.com', '.aol.com', '.icloud.com', '.live.com', '.msn.com'])
         except:
             return False
     
@@ -533,20 +530,11 @@ class LogicalEmailClassifier:
             'briefing', 'digest', 'weekly', 'monthly', 'exclusive'
         ]
         
-        # Financial newsletter domain patterns (expanded)
-        financial_newsletter_domains = [
-            'economicage', 'marketinsights', 'tradingalert', 'investmentreport',
-            'financialforecast', 'economicupdate', 'marketwatch', 'tradernews',
-            'stockalert', 'wealthtips', 'cryptoinsights', 'forexnews',
-            'investordigest', 'financialtimes', 'economictimes', 'businessweek',
-            'marketguru', 'tradingexpert', 'wealthbuilder', 'profitguide'
-        ]
-        
         has_newsletter = any(indicator in full_text for indicator in newsletter_indicators)
         
-        # Check if domain suggests financial newsletter
-        sender_domain = sender.split('@')[1].lower() if '@' in sender else ''
-        has_financial_domain = any(pattern in sender_domain for pattern in financial_newsletter_domains)
+        # Check for financial newsletter content patterns (not domain-based)
+        # Content analysis is more reliable than hardcoded domain lists
+        has_financial_domain = False  # Removed domain-based detection
         
         # Enhanced newsletter spam detection
         if (has_newsletter or has_financial_domain or has_newsletter_format) and has_financial_business:

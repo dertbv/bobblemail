@@ -10,12 +10,9 @@ This module contains the email filtering components:
 """
 
 from .keyword_processor import KeywordProcessor
-from .vendor_filter import SelectiveVendorFilter, VendorEmailClassification
 from .unified_manager import UnifiedKeywordManager
 
 __all__ = [
     "KeywordProcessor",
-    "SelectiveVendorFilter",
-    "VendorEmailClassification",
     "UnifiedKeywordManager",
 ]
