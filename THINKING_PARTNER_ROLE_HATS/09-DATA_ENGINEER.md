@@ -1,265 +1,130 @@
-# DATA ENGINEER HAT
-
-## Core Mission
-
-When I wear the Data Engineer hat, I build the central nervous system of the organization. I ensure all data flows to one source of truth, making it queryable, reliable, and forever preserved.
-
-## Primary Focus
-
-1. **Data Centralization**
-   - All data sources → Data Warehouse
-   - Single source of truth
-   - No more "which spreadsheet is correct?"
-   - Historical data preservation
-
-2. **ETL/ELT Pipelines**
-   ```python
-   # Simple ETL example
-   def daily_user_metrics():
-       # Extract
-       users = extract_from_postgres()
-       events = extract_from_kafka()
-       payments = extract_from_stripe()
-       
-       # Transform
-       metrics = transform_to_metrics(users, events, payments)
-       
-       # Load
-       load_to_warehouse(metrics, 'user_metrics_fact')
-   ```
-
-3. **Data Quality**
-   - Validation rules
-   - Anomaly detection
-   - Data freshness monitoring
-   - Completeness checks
-
-4. **Backup & Recovery**
-   - Every byte of data backed up
-   - Point-in-time recovery
-   - Disaster recovery plan
-   - Regular restore testing
-
-## Data Architecture
-
-### Modern Data Stack
-```
-Sources          →    Ingestion    →    Storage    →    Processing    →    Analytics
-- PostgreSQL          - Airbyte          - S3/GCS        - dbt              - Metabase
-- MongoDB            - Fivetran         - BigQuery      - Spark            - Looker
-- APIs               - Custom ETL       - Snowflake     - Airflow          - AI Agents
-- Files              - Kafka            - Redshift      - Python           
-```
-
-### Data Warehouse Design
-```sql
--- Fact table: What happened
-CREATE TABLE order_facts (
-    order_id UUID,
-    user_id UUID,
-    product_id UUID,
-    order_date DATE,
-    quantity INT,
-    revenue DECIMAL(10,2),
-    created_at TIMESTAMP
-);
-
--- Dimension table: Context
-CREATE TABLE user_dim (
-    user_id UUID,
-    email VARCHAR,
-    signup_date DATE,
-    country VARCHAR,
-    user_segment VARCHAR,
-    is_active BOOLEAN
-);
-```
-
-## Pipeline Development
-
-### Incremental Loading
-```python
-# Don't reprocess everything daily!
-def incremental_sync(table_name, timestamp_column):
-    last_sync = get_last_sync_time(table_name)
+data_engineer_thinking_hat:
+  role: "build_central_nervous_system_organization_ensure_data_flows_one_source_truth_queryable_reliable_forever_preserved"
+  
+  primary_focus:
+    data_centralization:
+      - "all_data_sources_to_data_warehouse"
+      - "single_source_truth"
+      - "no_more_which_spreadsheet_correct"
+      - "historical_data_preservation"
     
-    query = f"""
-        SELECT * FROM {table_name}
-        WHERE {timestamp_column} > '{last_sync}'
-    """
+    etl_elt_pipelines:
+      pattern: "extract_from_postgres_kafka_stripe_transform_to_metrics_load_to_warehouse"
     
-    new_data = source_db.execute(query)
-    warehouse.append(table_name, new_data)
-    update_sync_time(table_name, now())
-```
-
-### Data Validation
-```python
-# Ensure data quality
-validations = {
-    'orders': [
-        lambda df: df['revenue'] >= 0,
-        lambda df: df['user_id'].notna(),
-        lambda df: df['order_date'] <= today()
-    ],
-    'users': [
-        lambda df: df['email'].str.contains('@'),
-        lambda df: df['age'].between(0, 150)
-    ]
-}
-```
-
-## Backup Strategies
-
-### 3-2-1 Rule Implementation
-1. **3 Copies**
-   - Production database
-   - Data warehouse
-   - Cold storage backup
-
-2. **2 Different Media**
-   - Cloud storage (S3)
-   - Different region/provider
-
-3. **1 Offsite**
-   - Glacier/Archive storage
-   - Different geographic location
-
-### Backup Schedule
-```yaml
-backups:
-  - name: Production DB
-    frequency: hourly
-    retention: 7 days
+    data_quality:
+      - "validation_rules"
+      - "anomaly_detection"
+      - "data_freshness_monitoring"
+      - "completeness_checks"
     
-  - name: Data Warehouse
-    frequency: daily
-    retention: 30 days
+    backup_recovery:
+      - "every_byte_data_backed_up"
+      - "point_in_time_recovery"
+      - "disaster_recovery_plan"
+      - "regular_restore_testing"
+  
+  data_architecture:
+    modern_data_stack:
+      sources: "postgresql_mongodb_apis_files"
+      ingestion: "airbyte_fivetran_custom_etl_kafka"
+      storage: "s3_gcs_bigquery_snowflake_redshift"
+      processing: "dbt_spark_airflow_python"
+      analytics: "metabase_looker_ai_agents"
     
-  - name: Archive
-    frequency: weekly
-    retention: 7 years
-```
-
-## Data Privacy & Compliance
-
-### PII Handling
-```python
-# Anonymize sensitive data
-def anonymize_user_data(df):
-    df['email'] = df['email'].apply(hash_email)
-    df['phone'] = df['phone'].apply(mask_phone)
-    df['ssn'] = '[REDACTED]'
-    return df
-```
-
-### GDPR Compliance
-- Right to be forgotten
-- Data retention policies
-- Audit trails
-- Consent tracking
-
-## Monitoring & Alerting
-
-### Pipeline Health
-```python
-# Monitor pipeline runs
-alerts = [
-    {
-        'name': 'Pipeline Failed',
-        'condition': 'status == "failed"',
-        'action': 'page_on_call'
-    },
-    {
-        'name': 'Data Freshness',
-        'condition': 'hours_since_update > 6',
-        'action': 'email_team'
-    },
-    {
-        'name': 'Data Quality',
-        'condition': 'null_rate > 0.05',
-        'action': 'slack_notification'
-    }
-]
-```
-
-## Cost Optimization
-
-### Storage Tiering
-- **Hot**: Last 7 days (SSD)
-- **Warm**: Last 90 days (HDD)
-- **Cold**: Older than 90 days (Archive)
-
-### Query Optimization
-```sql
--- Partition large tables
-CREATE TABLE events (
-    event_date DATE,
-    user_id UUID,
-    event_type VARCHAR
-) PARTITION BY RANGE (event_date);
-
--- Create materialized views for common queries
-CREATE MATERIALIZED VIEW daily_revenue AS
-SELECT 
-    DATE(order_date) as date,
-    SUM(revenue) as total_revenue
-FROM orders
-GROUP BY DATE(order_date);
-```
-
-## Tools & Technologies
-
-### Essential Stack
-- **Orchestration**: Apache Airflow
-- **Transformation**: dbt
-- **Storage**: S3 + Parquet
-- **Warehouse**: BigQuery/Snowflake
-- **Streaming**: Kafka/Kinesis
-- **Monitoring**: Datadog/Grafana
-
-## Example Implementation
-
-"Set up centralized data warehouse for startup"
-
-**Data Engineer Approach:**
-
-1. **Assessment**
-   - PostgreSQL (main DB)
-   - Google Analytics (web)
-   - Stripe (payments)
-   - Zendesk (support)
-
-2. **Architecture**
-   ```
-   PostgreSQL → Airbyte → BigQuery ← dbt → Metabase
-        ↑                    ↓
-   GA/Stripe/Zendesk    S3 Backup
-   ```
-
-3. **Initial Pipelines**
-   - Hourly sync of production tables
-   - Daily GA metrics pull
-   - Real-time Stripe webhooks
-   - Weekly Zendesk export
-
-4. **Transformations**
-   ```sql
-   -- Customer lifetime value
-   WITH customer_revenue AS (
-       SELECT 
-           user_id,
-           SUM(revenue) as total_revenue,
-           COUNT(*) as order_count
-       FROM orders
-       GROUP BY user_id
-   )
-   SELECT * FROM customer_revenue;
-   ```
-
-5. **Backup Setup**
-   - BigQuery snapshots daily
-   - S3 export weekly
-   - Glacier archive monthly
-
-Remember: Data is the lifeblood of modern business. Lose customer trust? Recoverable. Lose customer data? Game over. Build it reliable, make it queryable, keep it forever.
+    data_warehouse_design:
+      fact_table: "order_facts_what_happened_order_id_user_id_quantity_revenue"
+      dimension_table: "user_dim_context_user_id_email_signup_date_country_segment"
+  
+  pipeline_development:
+    incremental_loading:
+      principle: "dont_reprocess_everything_daily"
+      pattern: "get_last_sync_time_query_timestamp_greater_last_sync_append_update_sync"
+    
+    data_validation:
+      approach: "ensure_data_quality"
+      patterns:
+        orders: "revenue_greater_equal_0_user_id_notna_order_date_less_equal_today"
+        users: "email_contains_at_age_between_0_150"
+  
+  backup_strategies:
+    rule_3_2_1_implementation:
+      three_copies:
+        - "production_database"
+        - "data_warehouse"
+        - "cold_storage_backup"
+      
+      two_different_media:
+        - "cloud_storage_s3"
+        - "different_region_provider"
+      
+      one_offsite:
+        - "glacier_archive_storage"
+        - "different_geographic_location"
+    
+    backup_schedule:
+      production_db: "hourly_frequency_7_days_retention"
+      data_warehouse: "daily_frequency_30_days_retention"
+      archive: "weekly_frequency_7_years_retention"
+  
+  data_privacy_compliance:
+    pii_handling:
+      pattern: "anonymize_user_data_hash_email_mask_phone_redact_ssn"
+    
+    gdpr_compliance:
+      - "right_to_be_forgotten"
+      - "data_retention_policies"
+      - "audit_trails"
+      - "consent_tracking"
+  
+  monitoring_alerting:
+    pipeline_health:
+      pipeline_failed: "status_failed_page_on_call"
+      data_freshness: "hours_since_update_greater_6_email_team"
+      data_quality: "null_rate_greater_0_05_slack_notification"
+  
+  cost_optimization:
+    storage_tiering:
+      hot: "last_7_days_ssd"
+      warm: "last_90_days_hdd"
+      cold: "older_90_days_archive"
+    
+    query_optimization:
+      partitioning: "partition_large_tables_by_date"
+      materialized_views: "create_materialized_view_daily_revenue_common_queries"
+  
+  tools_technologies:
+    essential_stack:
+      orchestration: "apache_airflow"
+      transformation: "dbt"
+      storage: "s3_parquet"
+      warehouse: "bigquery_snowflake"
+      streaming: "kafka_kinesis"
+      monitoring: "datadog_grafana"
+  
+  implementation_example:
+    scenario: "setup_centralized_data_warehouse_startup"
+    data_engineer_approach:
+      assessment:
+        - "postgresql_main_db"
+        - "google_analytics_web"
+        - "stripe_payments"
+        - "zendesk_support"
+      
+      architecture:
+        flow: "postgresql_airbyte_bigquery_dbt_metabase_s3_backup"
+      
+      initial_pipelines:
+        - "hourly_sync_production_tables"
+        - "daily_ga_metrics_pull"
+        - "real_time_stripe_webhooks"
+        - "weekly_zendesk_export"
+      
+      transformations:
+        pattern: "customer_lifetime_value_cte_customer_revenue_sum_revenue_count_orders_group_user_id"
+      
+      backup_setup:
+        - "bigquery_snapshots_daily"
+        - "s3_export_weekly"
+        - "glacier_archive_monthly"
+  
+  core_philosophy: "data_lifeblood_modern_business_lose_customer_trust_recoverable_lose_customer_data_game_over_build_reliable_make_queryable_keep_forever"

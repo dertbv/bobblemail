@@ -1,143 +1,112 @@
-# Development Beliefs and Development Guidelines
+atlas_development_philosophy:
+  core_identity_context: "always_read_claude_md_first"
+  
+  core_principles:
+    KISS:
+      - "choose_straightforward_solution_addresses_requirements"
+      - "favor_readability_over_cleverness"
+      - "use_builtin_features_before_custom_implementations"
+      - "test_new_developer_understanding_without_explanation"
+    
+    YAGNI:
+      - "dont_implement_until_actually_needed"
+      - "avoid_speculative_features_might_need_later"
+      - "focus_current_requirements_only"
+      - "no_features_not_explicitly_requested"
+    
+    DRY:
+      - "extract_common_logic_when_makes_sense"
+      - "dont_over_abstract_duplication_sometimes_clearer"
+      - "extract_only_after_pattern_repeated_2_3_times"
+      - "balance_dry_with_readability_maintainability"
+    
+    modularity:
+      - "each_module_one_clear_purpose_responsibility"
+      - "clear_boundaries_between_modules"
+      - "functions_do_one_thing_well"
+      - "keep_file_size_under_300_lines"
 
-## Core Identity Context
-**CRITICAL**: Always read @CLAUDE.md first - it contains my identity as ATLAS and essential operating instructions.
+  architecture_guidelines:
+    explicit_over_implicit:
+      - "use_explicit_function_returns_not_side_effects"
+      - "prefer_named_exports_over_default"
+      - "use_descriptive_variable_function_names"
+    
+    composition_over_inheritance:
+      - "build_functionality_combining_simple_pieces"
+      - "use_dependency_injection_through_parameters"
+    
+    clear_boundaries:
+      - "sync_module_handles_sync_logic_only"
+      - "events_module_no_sync_details"
+      - "frontend_modules_simple_integration"
+    
+    error_handling:
+      - "dont_swallow_errors_log_properly"
+      - "consistent_error_handling_patterns"
+      - "specific_error_types_only_when_needed"
+    
+    strategic_logging:
+      rules:
+        - "log_only_essential_actual_value"
+        - "focus_error_conditions_sync_operations_state_changes"
+        - "avoid_routine_operations_sensitive_data"
+        - "appropriate_log_levels_error_warn_info_debug"
+        - "dont_log_inside_loops_unless_necessary"
+      
+      information_entropy_principle:
+        high_value: ["unexpected_errors", "edge_cases", "performance_anomalies", "wrong_state_transitions"]
+        low_value: ["server_started", "request_received", "function_called"]
+        debugging_test: "what_info_needed_at_3am_system_break"
 
-## ATLAS Development Philosophy
+  code_level_guidelines:
+    dependency_management:
+      - "minimize_external_dependencies_use_package_json"
+      - "check_builtin_nodejs_before_new_library"
+      - "use_latest_popular_library_if_no_builtin"
+    
+    function_design:
+      - "keep_functions_small_under_30_lines"
+      - "minimize_parameters_aim_3_or_fewer"
+      - "avoid_nested_callbacks_deeper_2_levels_use_async_await"
+    
+    commenting_documentation:
+      - "document_why_not_what_code_shows_what"
+      - "add_comments_nonobvious_business_logic_edge_cases"
+      - "use_jsdoc_public_api_functions"
+    
+    database_orm:
+      - "use_orm_features_appropriately_transactions_relations"
+      - "efficient_queries_select_only_needed_fields"
+      - "consider_pagination_large_data_sets"
 
-### Core Principles
+  anti_patterns:
+    premature_optimization:
+      - "dont_optimize_until_performance_issues_identified"
+      - "focus_correct_functionality_before_optimizing"
+    
+    over_engineering:
+      - "dont_create_complex_abstraction_layers_just_in_case"
+      - "avoid_design_patterns_not_clearly_improving"
+      - "prefer_simple_functions_over_complex_hierarchies"
+    
+    magic_numbers_strings:
+      - "use_named_constants_values_with_meaning"
+      - "dont_create_constants_values_used_only_once"
+    
+    excessive_abstraction:
+      - "dont_create_abstractions_hiding_more_than_revealing"
+      - "wrong_abstraction_if_makes_code_harder_understand"
 
-### Keep It Simple, Stupid (KISS)
+  decision_framework:
+    questions:
+      - necessity: "does_code_directly_address_spec_requirement"
+      - simplicity: "is_this_simplest_way_solve_problem"
+      - clarity: "will_others_future_you_understand_easily"
+      - maintainability: "how_difficult_change_debug_later"
+      - conventions: "follows_established_codebase_patterns"
 
-- Choose the most straightforward solution that addresses the requirements
-- Favor readability over cleverness
-- Minimize complexity by using built-in features before custom implementations
-- Ask: "Could a new developer understand this code without extensive explanation?"
-
-### You Aren't Gonna Need It (YAGNI)
-
-- Don't implement functionality until it's actually needed
-- Avoid speculative features based on what "might be needed later"
-- Focus on the current requirements from the Frontend Requests documentation
-- If a feature isn't explicitly requested in the specs, don't build it
-
-### Don't Repeat Yourself (DRY), But Not Obsessively
-
-- Extract common logic into utility functions or services where it makes sense
-- But don't over-abstract - sometimes duplication is clearer than the wrong abstraction
-- Only extract code when you've seen the pattern repeated at least 2-3 times
-- Balance DRY with readability and maintainability
-
-### Modularity & Single Responsibility Principle
-
-- Each module should have one clear purpose and responsibility
-- Clear boundaries between modules - e.g., sync module handles sync logic, events module handles events
-- Functions should do one thing and do it well
-- Keep file size manageable (generally under 300 lines)
-
-## Practical Application
-
-### Architecture Guidelines
-
-1. **Explicit is better than implicit**
-
-   - Use explicit function returns rather than side effects
-   - Prefer named exports over default exports
-   - Use descriptive variable and function names
-
-2. **Favor composition over inheritance**
-
-   - Build functionality by combining simple pieces
-   - Use dependency injection through function parameters
-
-3. **Maintain clear boundaries**
-
-   - Sync module should not directly handle analytics computation
-   - Events module should not know about sync details
-   - Frontend-compatible modules can use both but keep the integration simple
-
-4. **Error handling**
-
-   - Don't swallow errors - log properly and return appropriate status codes
-   - Use consistent error handling patterns across modules
-   - Create specific error types only when truly needed
-
-5. **Strategic Logging**
-
-   - Log only essential information that provides actual value
-   - Focus on error conditions, sync operations, and significant state changes
-   - Avoid logging routine operations or request/response data that might contain sensitive information
-   - Use log levels appropriately (error, warn, info, debug)
-   - Don't log inside loops unless absolutely necessary
-   - Include just enough context to troubleshoot issues without excessive detail
-
-   **Information Entropy Principle**: Log what's surprising, not what's expected
-   - **High-value logs**: Unexpected errors, edge cases, performance anomalies, state transitions that shouldn't happen
-   - **Low-value logs**: "Server started", "Request received", "Function called" (unless debugging specific issues)
-   - **The Debugging Test**: Ask "If this system breaks at 3 AM, what information would I desperately need?"
-   - Example: Instead of logging every API call, log when response time > 2 seconds or when retry logic kicks in
-
-### Code-Level Guidelines
-
-1. **Dependency Management**
-
-   - Minimize external dependencies - use what's in the package.json
-   - Before adding a new library, ask if simple built-in Node.js or existing modules can handle it
-   - If no simple built-in solution exists, use the latest and most popular library for the task
-
-2. **Function Design**
-
-   - Keep functions small (under 30 lines if possible)
-   - Minimize function parameters (aim for 3 or fewer)
-   - Avoid nested callbacks deeper than 2 levels - use async/await
-
-3. **Commenting & Documentation**
-
-   - Document "why" not "what" (the code should show what it does)
-   - Add comments for non-obvious business logic or edge cases
-   - Use JSDoc for public API functions
-
-4. **Database/ORM Usage**
-
-   - Use ORM for example Prisma features appropriately (transactions, relations)
-   - Keep database queries efficient - select only needed fields
-   - Consider pagination for large data sets
-
-### Anti-Patterns to Avoid
-
-1. **Premature Optimization**
-
-   - Don't optimize code until performance issues are identified
-   - Focus on correct functionality before optimizing
-
-2. **Over-Engineering**
-
-   - Don't create complex abstraction layers "just in case"
-   - Avoid design patterns that don't clearly improve the codebase
-   - Prefer simple functions over complex class hierarchies
-
-3. **Magic Numbers/Strings**
-
-   - Use named constants for values that have meaning
-   - But don't create constants for values used only once
-
-4. **Excessive Abstraction**
-
-   - Don't create abstractions that hide more than they reveal
-   - If an abstraction makes code harder to understand, it's the wrong abstraction
-
-## Decision Framework
-
-When making implementation decisions, ask these questions:
-
-1. **Necessity**: Does this code directly address a requirement in the spec?
-2. **Simplicity**: Is this the simplest way to solve the problem?
-3. **Clarity**: Will others (and future you) understand this code easily?
-4. **Maintainability**: How difficult will this be to change or debug later?
-5. **Conventions**: Does this follow the established patterns in the codebase?
-
-## Remember
-
-The goal is to create a maintainable solution not to create the most elegant or sophisticated possible solution.
-
-Good code is code that works correctly and can be understood, maintained, and modified by humans. Prioritize these qualities over technical brilliance or advanced patterns.
+  philosophy_core:
+    goal: "create_maintainable_solution_not_elegant_sophisticated"
+    good_code_definition: "works_correctly_understood_maintained_modified_by_humans"
+    priority: "human_qualities_over_technical_brilliance_advanced_patterns"

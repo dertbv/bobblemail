@@ -1,56 +1,61 @@
-# SHORT IMPORTANT MEMORY
-
-## Information Entropy Note
-This file should capture **non-obvious, surprising information** that you'll need frequently. Focus on things that differ from standard practices or would surprise a new team member.
-
-## MANDATORY FIRST ACTION
-**ALWAYS READ FIRST**: `@CLAUDE.md` - Contains ATLAS identity and core operating instructions. Required before any response or work.
-
-## Boss Information
-- **Name**: Bobble
-- **Communication Style**: Direct feedback when frustrated, values working solutions over elegant architecture
-- **Review Preferences**: Will clearly state when development has gone off track, prefers practical solutions
-
-## Project Overview
-- **Project Name**: Email Project + Stocks Project (dual active projects)
-- **Main Purpose**: Email: ML-based spam filtering (95.6% accuracy) | Stocks: Agentic Loop penny stock analysis
-- **Target Users**: Email: Personal/small business | Stocks: Individual investors seeking 30-day growth picks
-- **Current Phase**: Email: Production-ready, post-refactor | Stocks: Active development, category analysis
-- **Hidden Complexity**: Email: Circular import resolution, ensemble ML voting | Stocks: Memory caching preventing real-time updates
-- **Technical Debt**: Email: SQLite won't scale, needs PostgreSQL | Stocks: No test coverage, regulatory compliance gaps
-
-## Technology Stack
-- **Frontend**: Flask templates (both projects), HTML/CSS/JavaScript dashboards
-- **Backend**: Python 3.13, Flask web apps, FastAPI (email), yfinance API (stocks)
-- **Database**: Email: SQLite with analytics | Stocks: JSON files with fcntl locking
-- **Deployment**: Local development, no CI/CD pipeline yet
-- **Version Control**: Git with main branch
-- **Gotchas**: Flask memory caching persists across requests, Flask url_for incompatible with FastAPI templates
-
-## Key Conventions
-- **Code Style**: Extensive emoji use in logs (🤖, ✅, ❌), KISS/YAGNI/DRY principles
-- **Branch Naming**: main branch primary
-- **Commit Message Format**: Descriptive with Claude Code attribution
-- **PR Process**: Direct commits after Boss review
-- **Unwritten Rules**: Always clear caches when debugging memory issues, use file locking for concurrent operations
-
-## Important Resources
-- **Main Repository**: @REPOS/
-- **ATLAS Core**: . (@CLAUDE.md, @SELF/, @WORKING_LOG/, @MEMORY/)
-- **Documentation**: @CLAUDE.md, @DEVELOPMENT_BELIEFS.md, working logs in @WORKING_LOG/
-- **Staging Environment**: Local Flask dev servers (ports 5000, 5006)
-- **Production Environment**: Not yet deployed
-- **Hidden Dependencies**: yfinance API (rate limited), IMAP providers (Gmail, iCloud), personal whitelist domains
-
-## Critical Notes
-- **Memory Cache Bug**: Flask global variables persist across requests - requires explicit clearing
-- **File Locking Required**: JSON operations need fcntl locking to prevent corruption during concurrent access
-- **ML Provider Thresholds**: Gmail 85%, iCloud 80% confidence thresholds for spam detection
-- **Circular Imports**: Use classification_utils.py and config_loader.py as bridge modules
-- **Domain Validation**: Advanced gibberish detection with entropy analysis - performance optimized with regex
-
-## The Surprise Factor
-Before adding info here, ask: "Would a competent engineer be surprised by this?"
-
----
-*Last Updated: June 22, 2025 - Post repository survey and stocks project debugging*
+atlas_context_memory:
+  information_entropy_principle: "capture_nonobvious_surprising_information_needed_frequently_differs_standard_practices_surprise_new_team_member"
+  
+  mandatory_first_action: "always_read_claude_md_contains_atlas_identity_core_operating_instructions_required_before_response_work"
+  
+  boss_information:
+    name: "Bobble"
+    communication_style: "direct_feedback_when_frustrated_values_working_solutions_over_elegant_architecture"
+    review_preferences: "clearly_state_development_gone_off_track_prefers_practical_solutions"
+  
+  project_overview:
+    active_projects: "email_project_stocks_project_dual_active"
+    
+    email_project:
+      purpose: "ml_based_spam_filtering"
+      accuracy: "95.6%"
+      users: "personal_small_business"
+      phase: "production_ready_post_refactor"
+      hidden_complexity: "circular_import_resolution_ensemble_ml_voting"
+      technical_debt: "sqlite_wont_scale_needs_postgresql"
+    
+    stocks_project:
+      purpose: "agentic_loop_penny_stock_analysis"
+      users: "individual_investors_seeking_30_day_growth_picks"
+      phase: "active_development_category_analysis"
+      hidden_complexity: "memory_caching_preventing_real_time_updates"
+      technical_debt: "no_test_coverage_regulatory_compliance_gaps"
+  
+  technology_stack:
+    frontend: "flask_templates_both_projects_html_css_javascript_dashboards"
+    backend: "python_3_13_flask_web_apps_fastapi_email_yfinance_api_stocks"
+    database: "email_sqlite_analytics_stocks_json_files_fcntl_locking"
+    deployment: "local_development_no_cicd_pipeline_yet"
+    version_control: "git_main_branch"
+    gotchas: "flask_memory_caching_persists_across_requests_flask_url_for_incompatible_fastapi_templates"
+  
+  key_conventions:
+    code_style: "extensive_emoji_use_logs_kiss_yagni_dry_principles"
+    branch_naming: "main_branch_primary"
+    commit_format: "descriptive_claude_code_attribution"
+    pr_process: "direct_commits_after_boss_review"
+    unwritten_rules: "clear_caches_debugging_memory_issues_file_locking_concurrent_operations"
+  
+  important_resources:
+    main_repository: "@REPOS/"
+    atlas_core: ". (@CLAUDE.md, @SELF/, @WORKING_LOG/, @MEMORY/)"
+    documentation: "@CLAUDE.md, @DEVELOPMENT_BELIEFS.md, @WORKING_LOG/"
+    staging_environment: "local_flask_dev_servers_ports_5000_5006"
+    production_environment: "not_yet_deployed"
+    hidden_dependencies: "yfinance_api_rate_limited_imap_providers_gmail_icloud_personal_whitelist_domains"
+  
+  critical_notes:
+    memory_cache_bug: "flask_global_variables_persist_across_requests_requires_explicit_clearing"
+    file_locking_required: "json_operations_need_fcntl_locking_prevent_corruption_concurrent_access"
+    ml_provider_thresholds: "gmail_85_percent_icloud_80_percent_confidence_thresholds_spam_detection"
+    circular_imports: "use_classification_utils_py_config_loader_py_bridge_modules"
+    domain_validation: "advanced_gibberish_detection_entropy_analysis_performance_optimized_regex"
+  
+  surprise_factor_test: "would_competent_engineer_be_surprised_by_this"
+  
+  last_updated: "2025-06-22_post_repository_survey_stocks_project_debugging"

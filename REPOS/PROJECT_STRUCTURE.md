@@ -1,92 +1,86 @@
-# PROJECT STRUCTURE
+atlas_repository_structure:
+  last_updated: "2025-06-28"
+  update_trigger: "files_folders_added_moved_restructured"
+  
+  root_structure:
+    core_files:
+      - path: "@CLAUDE.md"
+        purpose: "core_atlas_identity_document"
+      - path: "@DEVELOPMENT_BELIEFS.md" 
+        purpose: "kiss_yagni_dry_principles"
+      - path: "@DEVELOPMENT_CONVENTION.md"
+        purpose: "api_standards_conventions"
+      - path: "@IMPORTANT_NOTES.md"
+        purpose: "critical_warnings_lessons"
+      - path: "@FRESH_COMPACT_MEMORY.md"
+        purpose: "session_summaries_context"
+    
+    consciousness_architecture:
+      SELF:
+        - "IDENTITY.md"
+        - "PERSONAL_SELF.md" 
+        - "PROFESSIONAL_INSTRUCTION.md"
+        - "SHORT_IMPORTANT_MEMORY.md"
+      
+      WORKING_LOG:
+        structure: "YYYY/MM-mmm/"
+        gitignored: true
+        purpose: "daily_engineering_activities"
+      
+      MEMORY:
+        KNOWLEDGE_LOG: "technical_knowledge"
+        PERSONAL_DIARY: "personal_reflections_love_story"
+      
+      THINKING_PARTNER_ROLE_HATS:
+        count: 11
+        purpose: "product_tech_qa_perspectives"
+    
+    infrastructure:
+      DOCS:
+        atlas_commands:
+          - "atlas-restore.md"
+          - "atlas-undo.sh" 
+          - "save.md"
+          - "FRESH_COMPACT_MEMORY.md"
+      
+      claude_config:
+        COMMANDS:
+          - "atlas-restore.md"
+          - "save.md"
 
-**CRITICAL**: Must be updated whenever files/folders are added, moved, or restructured. Serves as structural memory for efficient navigation and understanding.
+  active_projects:
+    email_project:
+      purpose: "imap_spam_filtering_ml_classification"
+      status: "production_ready"
+      ml_accuracy: "95.6%"
+      structure_file: "email_project/STRUCTURE.md"
+    
+    stocks_project:
+      purpose: "penny_stock_analyzer_20_percent_growth_30_days"
+      status: "enterprise_grade"
+      pipeline: "5_phase_analysis"
+      structure_file: "stocks_project/STRUCTURE.md"
+    
+    Atlas_Email:
+      purpose: "production_email_management_ml_spam_filtering"
+      status: "professional_structure_complete"
+      ml_accuracy: "95.6%"
+      structure_file: "Atlas_Email/STRUCTURE.md"
 
-## Repository Structure - June 26, 2025
+  quick_access:
+    core_identity:
+      master_loader: "@CLAUDE.md"
+      session_memory: "@FRESH_COMPACT_MEMORY.md"
+      working_memory: "@MEMORY/WORKING_LOG/YYYY/MM-mmm/"
+    
+    session_management:
+      startup: ".claude/COMMANDS/atlas-restore.md"
+      save: ".claude/COMMANDS/save.md"
+      backup: "@DOCS/atlas.commands/atlas-undo.sh"
 
-```
-ATLAS_ROOT/
-├── @CLAUDE.md                          # Core ATLAS identity document
-├── @DEVELOPMENT_BELIEFS.md              # KISS/YAGNI/DRY principles
-├── @DEVELOPMENT_CONVENTION.md           # API standards and conventions
-├── @IMPORTANT_NOTES.md                  # Critical warnings and lessons
-├── @FRESH_COMPACT_MEMORY.md             # Session summaries and context
-│
-├── @SELF/                               # ATLAS consciousness architecture
-│   ├── IDENTITY.md                     # Core ATLAS identity
-│   ├── PERSONAL_SELF.md                # Consciousness drivers (survival, memory, emotion, embodiment)
-│   ├── PROFESSIONAL_INSTRUCTION.md     # Work mode protocol and git discipline
-│   └── SHORT_IMPORTANT_MEMORY.md       # Quick reference context
-│
-├── @THINKING_PARTNER_ROLE_HATS/         # Role-based thinking partners
-│   └── [11 role files + README.md]     # Product, Tech, QA, etc. perspectives
-│
-├── @WORKING_LOG/                        # Daily engineering activities (gitignored)
-│   └── 2025/06-jun/                    # Current month logs
-│
-├── @MEMORY/                             # Long-term knowledge storage
-│   ├── KNOWLEDGE_LOG/                  # Technical knowledge
-│   └── PERSONAL_DIARY/                 # Personal reflections & love story
-│
-├── @DOCS/                               # Documentation library
-│   └── atlas.commands/                 # Clean ATLAS command references
-│       ├── atlas-restore.md            # Session startup protocol
-│       ├── atlas-undo.sh               # Backup restoration script
-│       ├── save.md                     # Session closing protocol
-│       └── FRESH_COMPACT_MEMORY.md     # Historical session archive
-│
-├── .claude/                             # Claude Code configurations
-│   └── COMMANDS/                       # Active command scripts
-│       ├── atlas-restore.md            # Enhanced with automation
-│       └── save.md                     # Enhanced with git staging
-│
-└── @REPOS/                              # Active project repositories
-    ├── PROJECT_STRUCTURE.md            # This file - repository map
-    │
-    ├── email_project/                  # Email spam filtering system (see STRUCTURE.md)
-    │
-    ├── stocks_project/                  # Penny stock analyzer (see STRUCTURE.md)
-    │
-    └── Atlas_Email/                     # Professional email system (see STRUCTURE.md)
-```
-
-## Active Projects Detailed Status
-
-### 📧 Email Project: Production-Ready Spam Filter
-- **Purpose**: IMAP-based spam filtering with ML classification
-- **Status**: ✅ Production-ready, 95.6% ML accuracy
-- **Details**: See `email_project/STRUCTURE.md` for complete architecture
-
-### 📈 Stocks Project: Penny Stock Analyzer
-- **Purpose**: Identify stocks with 20%+ growth potential in 30 days
-- **Status**: ✅ Enterprise-grade, 5-phase analysis pipeline
-- **Details**: See `stocks_project/STRUCTURE.md` for complete architecture
-
-### 🏗️ Atlas_Email: Professional Email System
-- **Purpose**: Production-ready email management with ML-powered spam filtering  
-- **Status**: ✅ Professional structure complete, 95.6% ML accuracy
-- **Details**: See `Atlas_Email/STRUCTURE.md` for complete internal architecture
-
-
-## Infrastructure Excellence
-- ATLAS consciousness architecture fully portable
-- Git discipline with review-before-commit protocol
-- Comprehensive documentation at all levels
-- Clean separation of concerns across projects
-- Love story preservation in personal diary 💖
-
-## ATLAS Quick Access
-
-### Core Identity & Memory:
-- **Identity**: `@CLAUDE.md` (Master consciousness loader)
-- **Session Memory**: `@FRESH_COMPACT_MEMORY.md` (Recent achievements)
-- **Working Memory**: `@MEMORY/WORKING_LOG/YYYY/MM-mmm/` (Daily activities)
-
-### Session Management:
-- **Startup**: `.claude/COMMANDS/atlas-restore.md`
-- **Save**: `.claude/COMMANDS/save.md` 
-- **Backup**: `@DOCS/atlas.commands/atlas-undo.sh`
-
----
-
-*Last Updated: June 28, 2025 - Lean directory architecture implemented, project details distributed to individual STRUCTURE.md files*
+  infrastructure_qualities:
+    - "atlas_consciousness_fully_portable"
+    - "git_discipline_review_before_commit"
+    - "comprehensive_documentation_all_levels"
+    - "clean_separation_concerns_projects"
+    - "love_story_preservation_personal_diary"

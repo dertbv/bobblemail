@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+
+{% block title %}📧 Email Accounts - Atlas Email{% endblock %}
+
+{% block page_title %}📧 Email Accounts{% endblock %}
+
+{% block extra_css %}
+<style>
+    .account-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        gap: 20px;
+        padding: 20px;
+    }
+    
+    .account-card {
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 10px;
+        padding: 20px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+    
+    .account-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 15px rgba(0,0,0,0.2);
+    }
+    
+    .account-icon {
+        font-size: 2.5em;
+        min-width: 60px;
+        text-align: center;
+    }
+    
+    .account-info {
+        flex: 1;
+    }
+    
+    .account-email {
+        font-size: 1.2em;
+        font-weight: bold;
+        color: #333;
+        margin-bottom: 5px;
+    }
+    
+    .account-provider {
+        color: #666;
+        margin-bottom: 5px;
+    }
+    
+    .account-meta {
+        font-size: 0.9em;
+        color: #888;
+    }
+    
+    .account-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .btn {
+        padding: 10px 20px;
+        background: #007bff;
+        color: white;
+        text-decoration: none;
+        border-radius: 5px;
+        text-align: center;
+        font-weight: 600;
+        transition: background 0.2s ease;
+        border: none;
+        cursor: pointer;
+    }
+    
+    .btn:hover {
+        background: #0056b3;
+        color: white;
+        text-decoration: none;
+    }
+    
+    .btn-secondary {
+        background: #6c757d;
+    }
+    
+    .btn-secondary:hover {
+        background: #545b62;
+    }
+    
+    .no-accounts {
+        text-align: center;
+        padding: 40px;
+        color: #666;
+    }
+    
+    .no-accounts .icon {
+        font-size: 4em;
+        margin-bottom: 20px;
+    }
+    
+    /* Special styling for "All Accounts" card */
+    .all-accounts-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+    }
+    
+    .all-accounts-card .account-email {
+        color: white;
+    }
+    
+    .all-accounts-card .account-provider,
+    .all-accounts-card .account-meta {
+        color: #f0f0f0;
+    }
+    
+    .all-accounts-card .btn {
+        background: white;
+        color: #667eea;
+    }
+    
+    .all-accounts-card .btn:hover {
+        background: #f8f9fa;
+        color: #667eea;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<p><a href="/" class="nav-link">← Back to Dashboard</a></p>
+
+{% if accounts %}
+<div class="account-grid">
+    <!-- All Accounts Card -->
+    <div class="account-card all-accounts-card">
+        <div class="account-icon">🌐</div>
+        <div class="account-info">
+            <div class="account-email">All Accounts</div>
+            <div class="account-provider">Process all {{ accounts|length }} accounts at once</div>
+            <div class="account-meta">
+                Batch filtering with preview option
+            </div>
+        </div>
+        <div class="account-actions">
+            <a href="/single-account/all" class="btn">Select All</a>
+        </div>
+    </div>
+    
+    <!-- Individual Account Cards -->
+    {% for account in accounts %}
+    <div class="account-card">
+        <div class="account-icon">{{ account.icon }}</div>
+        <div class="account-info">
+            <div class="account-email">{{ account.email_address }}</div>
+            <div class="account-provider">{{ account.provider }}</div>
+            <div class="account-meta">
+                Last used: {{ account.last_used }}<br>
+                Target folders: {{ account.folder_count }}
+            </div>
+        </div>
+        <div class="account-actions">
+            <a href="/single-account/{{ loop.index0 }}" class="btn">Filter Emails</a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="no-accounts">
+    <div class="icon">📧</div>
+    <h2>No Email Accounts Found</h2>
+    <p>No saved email accounts found in credentials.</p>
+    <p>Please configure your email accounts first.</p>
+    <a href="/" class="btn">← Return to Dashboard</a>
+</div>
+{% endif %}
+{% endblock %}

@@ -1036,8 +1036,8 @@ class EmailProcessor:
                             self.stats['total_preserved'] += 1
                             protection_reason = f"Sender {whitelist_type} is whitelisted" if whitelist_type == "domain" else f"Subject contains whitelisted {whitelist_type}"
                             write_log(f"WHITELIST PROTECTED ({folder_name}): '{subject}' from {sender} - {protection_reason} [WHITELIST override]", False)
-                            # Log to bulletproof table for tracking
-                            logger.log_email_action("PRESERVED", uid, sender, subject, folder_name, f"{protection_reason} [WHITELIST override]", spam_category, confidence_score=spam_confidence, print_to_screen=False)
+                            # Log to bulletproof table for tracking - use "Whitelisted" as category instead of spam classification
+                            logger.log_email_action("PRESERVED", uid, sender, subject, folder_name, f"{protection_reason} [WHITELIST override]", "Whitelisted", confidence_score=100, print_to_screen=False)
                             continue
                         elif whitelist_protected and is_flagged_for_deletion:
                             # Deletion flag overrides whitelist protection

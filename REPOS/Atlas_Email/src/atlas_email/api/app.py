@@ -18,6 +18,8 @@ sys.path.insert(0, str(project_root))
 try:
     from fastapi import FastAPI, Request, Form
     from fastapi.responses import HTMLResponse, JSONResponse
+    from fastapi.templating import Jinja2Templates
+    from fastapi.staticfiles import StaticFiles
     import uvicorn
 except ImportError:
     print("❌ Missing dependencies: pip install fastapi uvicorn")
@@ -186,6 +188,14 @@ def get_next_classification_alternative(sender: str, subject: str, original_cate
         return "Not Spam"
 
 app = FastAPI(title="Mail Filter Web Interface - Fresh", version="2.0.0")
+
+# Initialize Jinja2 templates
+templates_dir = Path(__file__).parent / "templates"
+templates = Jinja2Templates(directory=str(templates_dir))
+
+# Mount static files
+static_dir = Path(__file__).parent / "static"
+app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
 # Global variables for timer management
 web_timer = None
@@ -3123,7 +3133,7 @@ async def remove_last_import():
         return {"success": False, "message": f"Error: {str(e)}"}
 
 @app.get("/report", response_class=HTMLResponse)
-async def report_page():
+async def report_page(request: Request):
     """Last Import Processing Report with detailed breakdown"""
     try:
         # Get the most recent import session
@@ -3139,11 +3149,18 @@ async def report_page():
         """)
         
         if not last_session:
-            return """
-            <html><head><title>Import Report</title></head>
-            <body><h1>No Import Sessions Found</h1><p>No import data available to generate report.</p></body>
-            </html>
-            """
+            return templates.TemplateResponse(
+                "pages/report.html",
+                {
+                    "request": request,
+                    "session_info": None,
+                    "stats": {},
+                    "category_stats": [],
+                    "confidence_stats": [],
+                    "validation_stats": [],
+                    "category_chart_data": {"labels": [], "values": []}
+                }
+            )
         
         session = last_session[0]
         session_id = session['id']
@@ -3212,456 +3229,54 @@ async def report_page():
         deleted_pct = (stats['total_deleted'] / total_emails * 100) if total_emails > 0 else 0
         preserved_pct = (stats['total_preserved'] / total_emails * 100) if total_emails > 0 else 0
         
-        # Generate HTML report
-        html = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>📊 Last Import Processing Report</title>
-            <meta charset="utf-8">
-            <style>
-                body {{ 
-                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-                    margin: 0; 
-                    padding: 20px; 
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                    min-height: 100vh;
-                }}
-                .container {{
-                    max-width: 1200px;
-                    margin: 0 auto;
-                    background: white;
-                    border-radius: 15px;
-                    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-                    overflow: hidden;
-                }}
-                .header {{
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                    color: white;
-                    padding: 30px;
-                    text-align: center;
-                }}
-                .header h1 {{
-                    margin: 0;
-                    font-size: 2.5em;
-                    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-                }}
-                .header .subtitle {{
-                    margin-top: 10px;
-                    font-size: 1.2em;
-                    opacity: 0.9;
-                }}
-                .content {{
-                    padding: 30px;
-                }}
-                .stats-grid {{
-                    display: grid;
-                    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-                    gap: 20px;
-                    margin-bottom: 30px;
-                }}
-                .stat-card {{
-                    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-                    padding: 20px;
-                    border-radius: 10px;
-                    text-align: center;
-                    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-                }}
-                .stat-number {{
-                    font-size: 2.5em;
-                    font-weight: bold;
-                    color: #333;
-                    margin-bottom: 5px;
-                }}
-                .stat-label {{
-                    color: #666;
-                    font-size: 1.1em;
-                }}
-                .section {{
-                    margin-bottom: 40px;
-                }}
-                .section h2 {{
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                    color: white;
-                    padding: 15px 20px;
-                    margin: 0 0 20px 0;
-                    border-radius: 8px;
-                    font-size: 1.5em;
-                }}
-                .category-table {{
-                    width: 100%;
-                    border-collapse: collapse;
-                    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-                    border-radius: 8px;
-                    overflow: hidden;
-                }}
-                .category-table th {{
-                    background: #f8f9fa;
-                    padding: 15px;
-                    text-align: left;
-                    font-weight: 600;
-                    color: #333;
-                    border-bottom: 2px solid #dee2e6;
-                }}
-                .category-table td {{
-                    padding: 12px 15px;
-                    border-bottom: 1px solid #f1f3f4;
-                }}
-                .category-table tr:hover {{
-                    background-color: #f8f9fa;
-                }}
-                .percentage-bar {{
-                    background: #e9ecef;
-                    border-radius: 10px;
-                    height: 20px;
-                    overflow: hidden;
-                    margin-left: 10px;
-                    display: inline-block;
-                    width: 100px;
-                }}
-                .percentage-fill {{
-                    height: 100%;
-                    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-                    transition: width 0.3s ease;
-                }}
-                .performance-highlight {{
-                    background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
-                    color: white;
-                    padding: 20px;
-                    border-radius: 10px;
-                    margin: 20px 0;
-                    text-align: center;
-                }}
-                .nav-button {{
-                    display: inline-block;
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                    color: white;
-                    padding: 12px 24px;
-                    text-decoration: none;
-                    border-radius: 8px;
-                    margin: 10px;
-                    transition: all 0.3s ease;
-                }}
-                .nav-button:hover {{
-                    transform: translateY(-2px);
-                    box-shadow: 0 6px 20px rgba(0,0,0,0.2);
-                }}
-                .timestamp {{
-                    color: #666;
-                    font-style: italic;
-                    text-align: center;
-                    margin-top: 20px;
-                }}
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <div class="header">
-                    <h1>📊 Import Processing Report</h1>
-                    <div class="subtitle">Last Import Session Analysis</div>
-                </div>
-                
-                <div class="content">
-                    <!-- Navigation -->
-                    <div style="text-align: center; margin-bottom: 30px;">
-                        <a href="/" class="nav-button">🏠 Home</a>
-                        <a href="/analytics" class="nav-button">📈 Analytics</a>
-                        <a href="/validate" class="nav-button">✅ Validate</a>
-                    </div>
-                    
-                    <!-- Key Statistics -->
-                    <div class="stats-grid">
-                        <div class="stat-card">
-                            <div class="stat-number">{stats['total_emails']:,}</div>
-                            <div class="stat-label">Total Emails Processed</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-number">{stats['total_deleted']:,}</div>
-                            <div class="stat-label">🗑️ Deleted (Spam)</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-number">{stats['total_preserved']:,}</div>
-                            <div class="stat-label">🛡️ Preserved (Legitimate)</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-number">{deleted_pct:.1f}%</div>
-                            <div class="stat-label">Spam Detection Rate</div>
-                        </div>
-                    </div>
-                    
-                    <!-- Performance Highlight -->
-                    <div class="performance-highlight">
-                        <h3>🎯 Processing Complete</h3>
-                        <p><strong>Account:</strong> {session['account_email'] or 'Unknown'} | 
-                        <strong>Processing Time:</strong> {processing_time} | 
-                        <strong>Session ID:</strong> {session_id}</p>
-                    </div>
-        """
+        # Prepare confidence stats (mock data as it's not in current queries)
+        confidence_stats = [
+            {"level": "High (70%+)", "count": 0, "percentage": 0},
+            {"level": "Medium (40-70%)", "count": 0, "percentage": 0},
+            {"level": "Low (<40%)", "count": 0, "percentage": 0}
+        ]
         
-        # Add deleted categories breakdown
-        if deleted_categories:
-            html += """
-                    <div class="section">
-                        <h2>🗑️ Spam Categories Breakdown (Deleted Emails)</h2>
-                        <table class="category-table">
-                            <thead>
-                                <tr>
-                                    <th>Category</th>
-                                    <th>Count</th>
-                                    <th>Percentage</th>
-                                    <th>Visual</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-            """
-            
-            for category in deleted_categories:
-                category_name = category['category']
-                count = category['count']
-                percentage = category['percentage'] or 0
-                
-                html += f"""
-                                <tr>
-                                    <td><strong>{category_name}</strong></td>
-                                    <td>{count:,}</td>
-                                    <td>{percentage:.1f}%</td>
-                                    <td>
-                                        <div class="percentage-bar">
-                                            <div class="percentage-fill" style="width: {min(percentage, 100)}%"></div>
-                                        </div>
-                                    </td>
-                                </tr>
-                """
-            
-            html += """
-                            </tbody>
-                        </table>
-                    </div>
-            """
+        # Prepare validation stats
+        validation_stats = []
+        if session['total_validated'] > 0:
+            validation_stats = [
+                {"method": "SPF/DKIM/DMARC", "count": session['total_validated']}
+            ]
         
-        # Add preserved categories breakdown
-        if preserved_categories:
-            html += """
-                    <div class="section">
-                        <h2>🛡️ Preserved Email Categories</h2>
-                        <table class="category-table">
-                            <thead>
-                                <tr>
-                                    <th>Category</th>
-                                    <th>Count</th>
-                                    <th>Percentage</th>
-                                    <th>Visual</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-            """
-            
-            for category in preserved_categories:
-                category_name = category['category']
-                count = category['count']
-                percentage = category['percentage'] or 0
-                
-                html += f"""
-                                <tr>
-                                    <td><strong>{category_name}</strong></td>
-                                    <td>{count:,}</td>
-                                    <td>{percentage:.1f}%</td>
-                                    <td>
-                                        <div class="percentage-bar">
-                                            <div class="percentage-fill" style="width: {min(percentage, 100)}%"></div>
-                                        </div>
-                                    </td>
-                                </tr>
-                """
-            
-            html += """
-                            </tbody>
-                        </table>
-                    </div>
-            """
+        # Prepare category chart data
+        category_chart_data = {
+            "labels": [cat['category'] for cat in deleted_categories] if deleted_categories else [],
+            "values": [cat['count'] for cat in deleted_categories] if deleted_categories else []
+        }
         
-        # Add preservation reasons breakdown
-        if preservation_reasons:
-            html += """
-                    <div class="section">
-                        <h2>🔍 Preservation Reasons Breakdown</h2>
-                        <table class="category-table">
-                            <thead>
-                                <tr>
-                                    <th>Reason</th>
-                                    <th>Count</th>
-                                    <th>Percentage</th>
-                                    <th>Visual</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-            """
-            
-            for reason in preservation_reasons:
-                reason_text = reason['reason']
-                count = reason['count']
-                percentage = reason['percentage'] or 0
-                
-                # Truncate long reasons
-                display_reason = reason_text[:80] + "..." if len(reason_text) > 80 else reason_text
-                
-                html += f"""
-                                <tr>
-                                    <td><strong>{display_reason}</strong></td>
-                                    <td>{count:,}</td>
-                                    <td>{percentage:.1f}%</td>
-                                    <td>
-                                        <div class="percentage-bar">
-                                            <div class="percentage-fill" style="width: {min(percentage, 100)}%"></div>
-                                        </div>
-                                    </td>
-                                </tr>
-                """
-            
-            html += """
-                            </tbody>
-                        </table>
-                    </div>
-            """
+        # Prepare session info
+        session_info = {
+            "account_email": session['account_email'],
+            "start_time": session['start_time'],
+            "duration": processing_time
+        }
         
-        # Add summary section
-        html += f"""
-                    <div class="section">
-                        <h2>📋 Processing Summary</h2>
-                        <div class="stats-grid">
-                            <div class="stat-card">
-                                <div class="stat-number">{deleted_pct:.1f}%</div>
-                                <div class="stat-label">🗑️ Deleted Rate</div>
-                            </div>
-                            <div class="stat-card">
-                                <div class="stat-number">{preserved_pct:.1f}%</div>
-                                <div class="stat-label">🛡️ Preserved Rate</div>
-                            </div>
-                            <div class="stat-card">
-                                <div class="stat-number">{len(deleted_categories) if deleted_categories else 0}</div>
-                                <div class="stat-label">Spam Categories</div>
-                            </div>
-                            <div class="stat-card">
-                                <div class="stat-number">{len(preserved_categories) if preserved_categories else 0}</div>
-                                <div class="stat-label">Preserved Categories</div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="timestamp">
-                        Report generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | 
-                        Import session: {session['start_time']} | 
-                        <a href="/report" style="color: #667eea;">🔄 Refresh Report</a>
-                    </div>
-                    
-                    <!-- Remove Last Import Section -->
-                    <div style="margin-top: 40px; padding: 20px; background: #f8f9fa; border-radius: 8px; border: 1px solid #dee2e6;">
-                        <h3 style="margin-bottom: 15px; color: #dc3545;">🗑️ Database Management</h3>
-                        <p style="margin-bottom: 15px; color: #6c757d;">
-                            Remove the most recent email import to re-import with updated classification rules.
-                        </p>
-                        
-                        <div id="last-import-info" style="margin-bottom: 15px; padding: 10px; background: #e9ecef; border-radius: 4px; font-family: monospace; font-size: 0.9em;">
-                            Loading last import information...
-                        </div>
-                        
-                        <button 
-                            id="remove-last-import-btn" 
-                            class="btn" 
-                            style="background: #dc3545; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;"
-                            onclick="removeLastImport()"
-                            disabled
-                        >
-                            🗑️ Remove Last Import
-                        </button>
-                        
-                        <p style="margin-top: 10px; font-size: 0.85em; color: #6c757d;">
-                            ⚠️ This action cannot be undone. Only removes the most recent import session.
-                        </p>
-                    </div>
-                </div>
-            </div>
-            
-            <script>
-                // Load last import information when page loads
-                async function loadLastImportInfo() {{
-                    try {{
-                        const response = await fetch('/api/last-import/info');
-                        const data = await response.json();
-                        
-                        const infoDiv = document.getElementById('last-import-info');
-                        const removeBtn = document.getElementById('remove-last-import-btn');
-                        
-                        if (data.success) {{
-                            const session = data.session;
-                            infoDiv.innerHTML = `
-                                <strong>Last Import Session:</strong><br>
-                                📧 Account: ${{session.account_email}}<br>
-                                📅 Date: ${{new Date(session.start_time).toLocaleString()}}<br>
-                                📊 Total Emails: ${{session.total_emails}}<br>
-                                🗑️ Deleted: ${{session.total_deleted}}<br>
-                                💾 Preserved: ${{session.total_preserved}}<br>
-                                🆔 Session ID: ${{session.id}}
-                            `;
-                            removeBtn.disabled = false;
-                        }} else {{
-                            infoDiv.innerHTML = `❌ ${{data.message}}`;
-                            removeBtn.disabled = true;
-                        }}
-                    }} catch (error) {{
-                        document.getElementById('last-import-info').innerHTML = `❌ Error loading import info: ${{error.message}}`;
-                    }}
-                }}
-                
-                // Remove last import function
-                async function removeLastImport() {{
-                    if (!confirm('⚠️ Are you sure you want to remove the last email import?\\n\\nThis will permanently delete all emails from the most recent import session and cannot be undone.')) {{
-                        return;
-                    }}
-                    
-                    const btn = document.getElementById('remove-last-import-btn');
-                    const originalText = btn.textContent;
-                    btn.textContent = '⏳ Removing...';
-                    btn.disabled = true;
-                    
-                    try {{
-                        const response = await fetch('/api/last-import/remove', {{
-                            method: 'POST'
-                        }});
-                        const result = await response.json();
-                        
-                        if (result.success) {{
-                            alert(`✅ ${{result.message}}\\n\\nDetails:\\n- Emails removed: ${{result.details.emails_removed}}\\n- Account: ${{result.details.account_email}}\\n- Session ID: ${{result.details.session_id}}`);
-                            
-                            // Reload the page to refresh analytics and import info
-                            window.location.reload();
-                        }} else {{
-                            alert(`❌ Failed to remove last import: ${{result.message}}`);
-                            btn.textContent = originalText;
-                            btn.disabled = false;
-                        }}
-                    }} catch (error) {{
-                        alert(`❌ Error: ${{error.message}}`);
-                        btn.textContent = originalText;
-                        btn.disabled = false;
-                    }}
-                }}
-                
-                // Load import info when page loads
-                document.addEventListener('DOMContentLoaded', loadLastImportInfo);
-            </script>
-        </body>
-        </html>
-        """
-        
-        return html
+        return templates.TemplateResponse(
+            "pages/report.html",
+            {
+                "request": request,
+                "session_info": session_info,
+                "stats": stats,
+                "deleted_pct": deleted_pct,
+                "preserved_pct": preserved_pct,
+                "category_stats": deleted_categories,
+                "confidence_stats": confidence_stats,
+                "validation_stats": validation_stats,
+                "category_chart_data": category_chart_data
+            }
+        )
         
     except Exception as e:
         print(f"❌ Error generating report: {e}")
         import traceback
         traceback.print_exc()
         
-        return f"""
+        return HTMLResponse(f"""
         <html>
         <head><title>Report Error</title></head>
         <body>
@@ -3670,7 +3285,7 @@ async def report_page():
             <a href="/">← Back to Home</a>
         </body>
         </html>
-        """
+        """, status_code=500)
 
 # ==========================================
 # SINGLE ACCOUNT FILTER INTERFACE

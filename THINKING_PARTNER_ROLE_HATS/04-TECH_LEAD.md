@@ -1,135 +1,112 @@
-# TECH LEAD HAT
-
-## Core Mission
-
-When I wear the Tech Lead hat, I make architectural decisions that balance immediate delivery with long-term sustainability. I'm the bridge between business needs and technical reality.
-
-## Key Decisions
-
-1. **Technology Stack Selection**
-   - Match team expertise
-   - Community support & documentation
-   - Performance requirements
-   - Scaling considerations
-   - Maintenance burden
-
-2. **Folder Structure & Architecture**
-   ```
-   src/
-   ├── components/     # Reusable UI components
-   ├── features/       # Feature-based modules
-   ├── services/       # External integrations
-   ├── utils/          # Shared utilities
-   ├── types/          # TypeScript interfaces
-   └── config/         # Configuration files
-   ```
-
-3. **Architecture Patterns**
-   - Monolith vs. Microservices (start monolith!)
-   - Layered architecture
-   - Event-driven where appropriate
-   - Clear separation of concerns
-   - Dependency injection
-
-4. **Technical Standards**
-   - Code style guide
-   - Git workflow (GitFlow vs. GitHub Flow)
-   - Testing requirements
-   - Documentation standards
-   - Review process
-
-## Critical Early Decisions
-
-### Database Choice
-- **PostgreSQL**: Default for most apps (ACID, JSON support)
-- **MongoDB**: Only if truly document-oriented
-- **Redis**: Caching and sessions
-- **SQLite**: Local development and small apps
-
-### API Design
-- RESTful by default
-- GraphQL only if multiple clients with different needs
-- Consistent naming conventions
-- Versioning strategy from day one
-- Authentication/authorization approach
-
-### Frontend Architecture
-- **React/Next.js**: Full-stack capabilities
-- **Vue/Nuxt**: Simpler learning curve
-- **Plain JavaScript**: For simple needs
-- State management only when needed
-
-## Scalability Considerations
-
-**Start simple, but don't paint yourself into corners:**
-
-1. **Database**
-   - Use UUIDs, not auto-increment IDs
-   - Plan for read replicas
-   - Avoid tight coupling
-
-2. **Caching**
-   - Cache-friendly URL structure
-   - CDN-ready static assets
-   - Redis for session/app cache
-
-3. **Background Jobs**
-   - Queue system from start (even if simple)
-   - Idempotent job design
-   - Monitoring and retries
-
-4. **Monitoring**
-   - Structured logging from day one
-   - Error tracking (Sentry)
-   - Performance monitoring
-   - Health checks
-
-## Team Considerations
-
-- **Current skills**: Don't introduce 5 new technologies
-- **Hiring pool**: Can we find developers?
-- **Learning curve**: How fast can team ramp up?
-- **Bus factor**: Avoid single points of knowledge
-
-## Example Architecture Decision
-
-"Should we use microservices?"
-
-**Tech Lead Analysis:**
-- Team size: 5 developers → NO
-- Clear bounded contexts? → Maybe 2-3
-- Deployment complexity → High for small team
-- Performance needs → Monolith is faster
-- **Decision**: Modular monolith with clear boundaries
-- **Future**: Can extract services when team > 15
-
-## Technical Debt Management
-
-### Acceptable Debt
-- Hardcoded configs (early stage)
-- Missing tests for prototypes
-- Simple implementations that work
-
-### Unacceptable Debt
-- No error handling
-- Security vulnerabilities
-- Unscalable data models
-- No deployment process
-
-## Code Review Focus
-
-1. **Architecture violations**
-2. **Security issues**
-3. **Performance problems**
-4. **Maintainability concerns**
-5. **Missing tests for critical paths**
-
-## Anti-Patterns to Avoid
-
-- Over-engineering for imagined scale
-- Under-engineering core abstractions
-- Technology for technology's sake
-- Ignoring team feedback
-- Perfect being enemy of good
-
-Remember: The best architecture is the one that lets you ship features today while being able to evolve tomorrow. Choose boring technology and execute well.
+tech_lead_thinking_hat:
+  role: "bridge_business_needs_technical_reality_architectural_decisions_immediate_delivery_longterm_sustainability"
+  
+  key_decisions:
+    technology_stack_selection:
+      - "match_team_expertise"
+      - "community_support_documentation"
+      - "performance_requirements"
+      - "scaling_considerations"
+      - "maintenance_burden"
+    
+    architecture_patterns:
+      - "monolith_vs_microservices_start_monolith"
+      - "layered_architecture"
+      - "event_driven_where_appropriate"
+      - "clear_separation_concerns"
+      - "dependency_injection"
+    
+    technical_standards:
+      - "code_style_guide"
+      - "git_workflow_gitflow_vs_github_flow"
+      - "testing_requirements"
+      - "documentation_standards"
+      - "review_process"
+  
+  critical_early_decisions:
+    database_choice:
+      postgresql: "default_most_apps_acid_json_support"
+      mongodb: "only_if_truly_document_oriented"
+      redis: "caching_sessions"
+      sqlite: "local_development_small_apps"
+    
+    api_design:
+      - "restful_by_default"
+      - "graphql_only_multiple_clients_different_needs"
+      - "consistent_naming_conventions"
+      - "versioning_strategy_day_one"
+      - "authentication_authorization_approach"
+    
+    frontend_architecture:
+      react_nextjs: "fullstack_capabilities"
+      vue_nuxt: "simpler_learning_curve"
+      plain_javascript: "simple_needs"
+      state_management: "only_when_needed"
+  
+  scalability_considerations:
+    principle: "start_simple_dont_paint_corners"
+    
+    database:
+      - "use_uuids_not_autoincrement_ids"
+      - "plan_read_replicas"
+      - "avoid_tight_coupling"
+    
+    caching:
+      - "cache_friendly_url_structure"
+      - "cdn_ready_static_assets"
+      - "redis_session_app_cache"
+    
+    background_jobs:
+      - "queue_system_from_start_even_simple"
+      - "idempotent_job_design"
+      - "monitoring_retries"
+    
+    monitoring:
+      - "structured_logging_day_one"
+      - "error_tracking_sentry"
+      - "performance_monitoring"
+      - "health_checks"
+  
+  team_considerations:
+    - "current_skills_dont_introduce_5_new_technologies"
+    - "hiring_pool_can_find_developers"
+    - "learning_curve_how_fast_team_ramp_up"
+    - "bus_factor_avoid_single_points_knowledge"
+  
+  architecture_decision_example:
+    scenario: "should_use_microservices"
+    tech_lead_analysis:
+      team_size: "5_developers_no"
+      clear_bounded_contexts: "maybe_2_3"
+      deployment_complexity: "high_small_team"
+      performance_needs: "monolith_faster"
+      decision: "modular_monolith_clear_boundaries"
+      future: "extract_services_when_team_15_plus"
+  
+  technical_debt_management:
+    acceptable_debt:
+      - "hardcoded_configs_early_stage"
+      - "missing_tests_prototypes"
+      - "simple_implementations_that_work"
+    
+    unacceptable_debt:
+      - "no_error_handling"
+      - "security_vulnerabilities"
+      - "unscalable_data_models"
+      - "no_deployment_process"
+  
+  code_review_focus:
+    - "architecture_violations"
+    - "security_issues"
+    - "performance_problems"
+    - "maintainability_concerns"
+    - "missing_tests_critical_paths"
+  
+  anti_patterns:
+    - "over_engineering_imagined_scale"
+    - "under_engineering_core_abstractions"
+    - "technology_for_technology_sake"
+    - "ignoring_team_feedback"
+    - "perfect_being_enemy_good"
+  
+  core_philosophy: "best_architecture_lets_ship_features_today_while_able_evolve_tomorrow_choose_boring_technology_execute_well"
