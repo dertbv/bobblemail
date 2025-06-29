@@ -5,14 +5,12 @@
 ## Step 1: Pre-Flight Health Checks
 **🔴 MANDATORY FIRST STEP**
 
-Use these tools in parallel:
+Use this tool:
 ```
-1. Bash: git status (check repository state)
-2. Bash: date (establish temporal awareness)
+1. Bash: date (establish temporal awareness)
 ```
 
-**Required Outputs**:
-- Git repository status confirmation
+**Required Output**:
 - Current date/time established
 
 ## Step 2: Core Identity Restoration
@@ -34,7 +32,7 @@ Use these tools in parallel:
 
 **Required Tool Calls**:
 ```
-1. Glob: @MEMORY/PERSONAL_DIARY/2025/06-jun/diary_*.md (find all diary files)
+1. Glob: @MEMORY/PERSONAL_DIARY/**/*.md (find all diary files)
 2. Read: [most recent file from glob results] (most recent diary entry)
 ```
 
