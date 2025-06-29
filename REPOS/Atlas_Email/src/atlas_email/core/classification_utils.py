@@ -295,6 +295,17 @@ def is_community_email(subject, sender, headers=""):
     sender_lower = sender.lower()
     combined_text = f"{subject} {sender} {headers}".lower()
     
+    # GLOBAL SPAM CHECK FIRST - prevent any spam from hijacking "community"
+    try:
+        from ..filters.keyword_processor import KeywordProcessor
+        keyword_processor = KeywordProcessor()
+        spam_category = keyword_processor.find_best_category_match(combined_text)
+        if spam_category:
+            return False  # Has spam keywords, let it go to proper spam classification
+    except ImportError:
+        # Fallback if keyword processor not available
+        pass
+    
     # Community platform domains
     # Check for community platform patterns in content (not hardcoded domain lists)
     community_patterns = ['neighbor', 'community', 'local', 'nearby', 'nextdoor']

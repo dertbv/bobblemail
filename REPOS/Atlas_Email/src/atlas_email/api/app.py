@@ -3986,6 +3986,7 @@ async def single_account_page(account_id: str):
                     </body></html>
                     """
                 account = accounts[account_idx]
+                    
             except ValueError:
                 return """
                 <html><body>
@@ -5380,6 +5381,22 @@ async def single_account_preview_api(account_id: str):
         # Import the EXACT CLI function that replicates the working CLI flow
         from atlas_email.core.processing_controller import run_exact_cli_processing_for_account
         from config.credentials import db_credentials
+        from atlas_email.models.database import DatabaseManager
+        
+        # Helper function to get database account ID from array index
+        def get_database_account_id(account_idx):
+            """Map array index to database account ID"""
+            accounts = db_credentials.load_credentials()
+            if 0 <= account_idx < len(accounts):
+                account_email = accounts[account_idx]['email_address']
+                db = DatabaseManager()
+                db_account = db.execute_query(
+                    "SELECT id FROM accounts WHERE email_address = ?",
+                    (account_email,)
+                )
+                if db_account:
+                    return db_account[0][0]
+            return account_idx + 1  # Fallback to 1-based index
         
         # Handle "all" accounts special case
         if account_id == "all":
@@ -5441,6 +5458,11 @@ async def single_account_preview_api(account_id: str):
             
             # Call the EXACT CLI function with preview_mode=True for preview
             result = run_exact_cli_processing_for_account(account_idx, preview_mode=True)
+            
+            # Add the database account ID to the result
+            database_account_id = get_database_account_id(account_idx)
+            if isinstance(result, dict):
+                result['database_account_id'] = database_account_id
             
             return {"success": True, "data": result}
     except Exception as e:

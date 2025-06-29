@@ -113,9 +113,9 @@ You Must merge approved Specialist outputs, remove duplication, and ensure:
 ```
 
 ✅ Created/updated: ./docs/<TASK>/context.md
-✅ Created/updated: ./.claude/commands/<TASK>.md   # Orchestrator
-✅ Created/updated: ./docs/<TASK>/specialist.md    # Mercury
-✅ Created/updated: ./docs/<TASK>/evaluator.md     # Apollo
+✅ Created/updated: ./.claude/commands/<TASK>.md   # Moe
+✅ Created/updated: ./docs/<TASK>/specialist.md    # Larry
+✅ Created/updated: ./docs/<TASK>/evaluator.md     # Curly
 
 📁 Runtime outputs: ./outputs/<TASK>\_<TIMESTAMP>/
 

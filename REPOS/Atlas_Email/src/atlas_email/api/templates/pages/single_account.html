@@ -857,7 +857,7 @@
                                 <tr style="border-bottom: 1px solid #eee;">
                                     <td class="email-cell email-cell-compact" style="padding: 10px; border-right: 1px solid #eee; text-align: center; width: 80px;">
                                         <input type="checkbox" 
-                                               onchange="toggleResearchFlag('${email.id || ''}', '${email.folder_name || ''}', ${email.account_id || 0}, this)"
+                                               onchange="toggleResearchFlag('${email.uid || ''}', '${email.folder_name || ''}', ${email.account_id || 0}, this)"
                                                ${email.is_research_flagged ? 'checked' : ''}
                                                style="cursor: pointer; transform: scale(1.0); accent-color: #28a745; width: 16px; height: 16px; aspect-ratio: 1/1;"
                                                title="Flag for research investigation">
@@ -1200,7 +1200,7 @@
                                 <tr style="border-bottom: 1px solid #eee;">
                                     <td class="email-cell email-cell-compact" style="padding: 10px; border-right: 1px solid #eee; text-align: center; width: 80px;">
                                         <input type="checkbox" 
-                                               onchange="toggleResearchFlag('${email.id || ''}', '${email.folder_name || ''}', ${email.account_id || 0}, this)"
+                                               onchange="toggleResearchFlag('${email.uid || ''}', '${email.folder_name || ''}', ${email.account_id || 0}, this)"
                                                ${email.is_research_flagged ? 'checked' : ''}
                                                style="cursor: pointer; transform: scale(1.0); accent-color: #28a745; width: 16px; height: 16px; aspect-ratio: 1/1;"
                                                title="Flag for research investigation">
