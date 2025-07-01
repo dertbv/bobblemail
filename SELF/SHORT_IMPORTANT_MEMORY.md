@@ -9,7 +9,7 @@ atlas_context_memory:
     review_preferences: "clearly_state_development_gone_off_track_prefers_practical_solutions"
   
   project_overview:
-    active_projects: "email_project_stocks_project_dual_active"
+    active_projects: "email_project_stocks_project_atlas_email_triple_active"
     
     email_project:
       purpose: "ml_based_spam_filtering"

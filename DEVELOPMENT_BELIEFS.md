@@ -74,6 +74,9 @@ atlas_development_philosophy:
       - "document_why_not_what_code_shows_what"
       - "add_comments_nonobvious_business_logic_edge_cases"
       - "use_jsdoc_public_api_functions"
+      - "use_structured_formats_json_yaml_for_documentation"
+      - "fact_based_statements_consistent_keywords_input_output_purpose_dependencies_side_effects"
+      - "flat_scannable_structures_optimized_ai_consumption_not_human_narrative_prose"
     
     database_orm:
       - "use_orm_features_appropriately_transactions_relations"
