@@ -5,49 +5,7 @@
 {% block page_title %}📊 Analytics & Reports{% endblock %}
 
 {% block extra_css %}
-<style>
-    /* Analytics-specific styles that override or extend common.css */
-    .container {
-        max-width: 1400px; /* Wider for analytics */
-    }
-    
-    /* Remove the default body background for analytics page */
-    body {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 20px;
-    }
-    
-    /* Additional account breakdown card styles */
-    .analytics-card.accounts-total-card {
-        border-top-color: #17a2b8;
-    }
-    
-    .analytics-card.accounts-spam-card {
-        border-top-color: #dc3545;
-    }
-    
-    /* Spam-specific bar styling */
-    .bar-fill.spam-bar {
-        background: #dc3545 !important;
-    }
-    
-    .bar-value.spam-value {
-        color: #dc3545 !important;
-    }
-    
-    /* Auto-refresh notice */
-    .refresh-notice {
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        background: rgba(0, 0, 0, 0.7);
-        color: white;
-        padding: 8px 15px;
-        border-radius: 15px;
-        font-size: 0.8em;
-        z-index: 1000;
-    }
-</style>
+<link rel="stylesheet" href="/static/css/pages/analytics.css">
 {% endblock %}
 
 {% block content %}

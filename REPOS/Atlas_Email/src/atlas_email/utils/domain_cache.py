@@ -37,7 +37,12 @@ class DomainValidationCache:
                     whois_age_days INTEGER,
                     whois_creation_date TIMESTAMP,
                     access_count INTEGER DEFAULT 1,
-                    last_accessed TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    last_accessed TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    geo_country_code TEXT,
+                    geo_country_name TEXT,
+                    geo_risk_score REAL DEFAULT 0.0,
+                    geo_registrar TEXT,
+                    geo_analysis_timestamp TIMESTAMP
                 )
             """)
             
@@ -72,7 +77,9 @@ class DomainValidationCache:
             cursor.execute("""
                 SELECT validation_result, validation_reason, is_suspicious, 
                        provider_hint, whois_age_days, whois_creation_date,
-                       cached_timestamp, access_count
+                       cached_timestamp, access_count, geo_country_code,
+                       geo_country_name, geo_risk_score, geo_registrar,
+                       geo_analysis_timestamp
                 FROM domain_validation_cache 
                 WHERE domain = ? AND cached_timestamp > ?
             """, (domain.lower(), cutoff_time.isoformat()))
@@ -98,6 +105,11 @@ class DomainValidationCache:
                     'whois_creation_date': result['whois_creation_date'],
                     'cached_timestamp': result['cached_timestamp'],
                     'access_count': result['access_count'],
+                    'geo_country_code': result['geo_country_code'],
+                    'geo_country_name': result['geo_country_name'],
+                    'geo_risk_score': result['geo_risk_score'],
+                    'geo_registrar': result['geo_registrar'],
+                    'geo_analysis_timestamp': result['geo_analysis_timestamp'],
                     'cache_hit': True
                 }
         
@@ -106,7 +118,8 @@ class DomainValidationCache:
     def cache_validation_result(self, domain: str, validation_result: str, 
                               validation_reason: str, is_suspicious: bool,
                               provider_hint: str = None, whois_age_days: int = None,
-                              whois_creation_date: datetime = None):
+                              whois_creation_date: datetime = None,
+                              geo_metadata: dict = None):
         """
         Cache domain validation result for future use
         
@@ -118,17 +131,33 @@ class DomainValidationCache:
             provider_hint: Provider context for the validation
             whois_age_days: Age of domain in days from WHOIS
             whois_creation_date: Domain creation date from WHOIS
+            geo_metadata: Geographic metadata dict (country_code, country_name, risk_score, registrar)
         """
         with self.db.get_connection() as conn:
             cursor = conn.cursor()
+            
+            # Extract geographic metadata if provided
+            geo_country_code = None
+            geo_country_name = None
+            geo_risk_score = 0.0
+            geo_registrar = None
+            
+            if geo_metadata:
+                geo_country_code = geo_metadata.get('country_code')
+                geo_country_name = geo_metadata.get('country_name')
+                geo_risk_score = geo_metadata.get('risk_score', 0.0)
+                geo_registrar = geo_metadata.get('registrar')
             
             # Use REPLACE to handle both insert and update cases
             cursor.execute("""
                 REPLACE INTO domain_validation_cache 
                 (domain, validation_result, validation_reason, is_suspicious, 
                  provider_hint, whois_age_days, whois_creation_date, 
-                 cached_timestamp, access_count, last_accessed)
-                VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, 1, CURRENT_TIMESTAMP)
+                 cached_timestamp, access_count, last_accessed,
+                 geo_country_code, geo_country_name, geo_risk_score, 
+                 geo_registrar, geo_analysis_timestamp)
+                VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, 1, CURRENT_TIMESTAMP,
+                        ?, ?, ?, ?, CURRENT_TIMESTAMP)
             """, (
                 domain.lower(),
                 validation_result,
@@ -136,7 +165,11 @@ class DomainValidationCache:
                 is_suspicious,
                 provider_hint,
                 whois_age_days,
-                whois_creation_date.isoformat() if whois_creation_date else None
+                whois_creation_date.isoformat() if whois_creation_date else None,
+                geo_country_code,
+                geo_country_name,
+                geo_risk_score,
+                geo_registrar
             ))
             
             conn.commit()
@@ -230,6 +263,34 @@ class DomainValidationCache:
             conn.commit()
             
         return removed_count
+    
+    def update_geographic_metadata(self, domain: str, geo_metadata: dict):
+        """
+        Update geographic metadata for cached domain
+        
+        Args:
+            domain: Domain to update
+            geo_metadata: Geographic data (country_code, country_name, risk_score, registrar)
+        """
+        with self.db.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE domain_validation_cache
+                SET geo_country_code = ?,
+                    geo_country_name = ?,
+                    geo_risk_score = ?,
+                    geo_registrar = ?,
+                    geo_analysis_timestamp = CURRENT_TIMESTAMP
+                WHERE domain = ?
+            """, (
+                geo_metadata.get('country_code'),
+                geo_metadata.get('country_name'),
+                geo_metadata.get('risk_score', 0.0),
+                geo_metadata.get('registrar'),
+                domain.lower()
+            ))
+            conn.commit()
+            return cursor.rowcount > 0
 
 # Global cache instance
 domain_cache = DomainValidationCache()

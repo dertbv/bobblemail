@@ -5,19 +5,15 @@
 {% block page_title %}⏰ Timer Control{% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="/static/css/pages/timer.css">
 <style>
-    /* Timer-specific status card styling */
+    /* Dynamic styling based on timer state - requires template variables */
     .status-card {
         border-left-color: {{ '#28a745' if timer_active else '#dc3545' }};
     }
     
     .status-value {
         color: {{ '#28a745' if timer_active else '#dc3545' }};
-    }
-    
-    /* Override container max-width for timer page */
-    .container {
-        max-width: 800px;
     }
 </style>
 {% endblock %}

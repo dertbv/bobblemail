@@ -19,6 +19,136 @@ body {
     margin: 0;
 }
 
+/* ===== DASHBOARD SPECIFIC STYLES ===== */
+.status-indicator {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #28a745;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 20px;
+    font-size: 0.9em;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 25px;
+    margin-bottom: 40px;
+}
+
+.stat-card {
+    background: rgba(255,255,255,0.95);
+    padding: 30px;
+    border-radius: 20px;
+    text-align: left;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+    transform: translateY(0);
+    transition: all 0.3s ease;
+    border: 1px solid rgba(255,255,255,0.2);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+}
+
+.stat-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 25px 50px rgba(0,0,0,0.2);
+}
+
+.stat-card.email-accounts::before { background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%); }
+.stat-card.emails-processed::before { background: linear-gradient(90deg, #43e97b 0%, #38f9d7 100%); }
+.stat-card.total-sessions::before { background: linear-gradient(90deg, #fa709a 0%, #fee140 100%); }
+.stat-card.database-size::before { background: linear-gradient(90deg, #a8edea 0%, #fed6e3 100%); }
+
+.stat-icon {
+    font-size: 3em;
+    opacity: 0.8;
+    flex-shrink: 0;
+}
+
+.stat-content {
+    flex: 1;
+}
+
+.stat-value {
+    font-size: 2.5em;
+    font-weight: 700;
+    margin-bottom: 5px;
+    color: #2c3e50;
+    line-height: 1;
+}
+
+.stat-label {
+    font-size: 1.1em;
+    color: #34495e;
+    font-weight: 600;
+    margin-bottom: 3px;
+}
+
+.stat-sublabel {
+    font-size: 0.85em;
+    color: #7f8c8d;
+    opacity: 0.8;
+}
+
+.controls {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin: 30px 0;
+}
+
+.recent-activity {
+    margin-top: 40px;
+    background: white;
+    border-radius: 15px;
+    padding: 25px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+}
+
+.activity-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+.activity-table th {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 15px 10px;
+    text-align: left;
+    border: none;
+    font-weight: 600;
+}
+
+.activity-table th:first-child { border-top-left-radius: 10px; }
+.activity-table th:last-child { border-top-right-radius: 10px; }
+
+.activity-table td {
+    padding: 12px 10px;
+    border-bottom: 1px solid #eee;
+    vertical-align: top;
+}
+
+.activity-table tbody tr:hover {
+    background: #f8f9fa;
+}
+
 .main-content {
     margin-top: 0;
 }
@@ -866,5 +996,124 @@ select:focus {
         animation-duration: 0.01ms !important;
         animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;
+    }
+}
+
+/* ===== DASHBOARD MOBILE-RESPONSIVE CSS ===== */
+
+/* Table container for horizontal scroll */
+.table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin: 15px 0;
+    border-radius: 8px;
+}
+
+/* iOS input fixes */
+input, select {
+    font-size: 16px; /* Prevents iOS zoom */
+    -webkit-appearance: none;
+}
+
+/* Touch-friendly buttons */
+.btn {
+    min-height: 44px; /* iOS/Android touch standard */
+    min-width: 44px;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Small phones: 320px - 480px */
+@media (max-width: 480px) {
+    body {
+        padding: 5px;
+    }
+    
+    .container { 
+        padding: 10px; 
+        border-radius: 8px;
+    }
+    
+    h1 { 
+        font-size: 1.5em;
+        margin-bottom: 15px;
+    }
+    
+    .stats-grid { 
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+    
+    .controls { 
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+    
+    .stat-card { 
+        padding: 15px; 
+        flex-direction: column; 
+        text-align: center; 
+        gap: 10px; 
+    }
+    
+    .stat-icon { 
+        font-size: 2em; 
+    }
+    
+    .stat-value { 
+        font-size: 1.8em; 
+    }
+    
+    .btn { 
+        padding: 12px 15px; 
+        font-size: 0.9em; 
+    }
+    
+    .activity-table th,
+    .activity-table td {
+        padding: 8px 6px;
+        font-size: 0.8em;
+    }
+    
+    .status-indicator {
+        position: static;
+        display: block;
+        text-align: center;
+        margin-bottom: 15px;
+        top: auto;
+        right: auto;
+    }
+}
+
+/* Large phones/small tablets: 481px - 768px */
+@media (min-width: 481px) and (max-width: 768px) {
+    .container { 
+        padding: 15px; 
+    }
+    
+    h1 { 
+        font-size: 2em; 
+    }
+    
+    .stats-grid { 
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px;
+    }
+    
+    .controls { 
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
+    }
+}
+
+/* Tablets: 769px - 1024px */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .stats-grid { 
+        grid-template-columns: repeat(3, 1fr);
+        gap: 25px;
+    }
+    
+    .controls { 
+        grid-template-columns: repeat(3, 1fr);
+        gap: 20px;
     }
 }

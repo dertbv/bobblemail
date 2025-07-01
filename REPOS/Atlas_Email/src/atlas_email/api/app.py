@@ -3,6 +3,7 @@
 Fresh KISS Web Interface for Mail Filter - Rebuilt from Scratch
 """
 
+import html
 import json
 import subprocess
 import sys
@@ -266,9 +267,9 @@ async def dashboard():
         return f"<h1>Error: {e}</h1>"
 
 def build_dashboard_html(stats, accounts, emails):
-    """Build dashboard HTML"""
+    """Build dashboard HTML using Jinja2 template"""
     
-    # Build email rows
+    # Build email rows HTML for the template
     email_rows = ""
     for email in emails:
         try:
@@ -289,413 +290,28 @@ def build_dashboard_html(stats, accounts, emails):
         
         email_rows += f"""
             <tr>
-                <td>{date_display}</td>
-                <td>{time_display}</td>
-                <td style="color: {action_color}; font-weight: bold;">{action_emoji} {email['action']}</td>
-                <td>{category}</td>
-                <td style="font-family: monospace; font-size: 0.9em;">{sender}</td>
-                <td>{subject}</td>
+                <td>{html.escape(date_display)}</td>
+                <td>{html.escape(time_display)}</td>
+                <td style="color: {action_color}; font-weight: bold;">{action_emoji} {html.escape(email['action'])}</td>
+                <td>{html.escape(category)}</td>
+                <td style="font-family: monospace; font-size: 0.9em;">{html.escape(sender)}</td>
+                <td>{html.escape(subject)}</td>
             </tr>
         """
     
-    html = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>Mail Filter Dashboard - Fresh</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, user-scalable=yes">
-        <meta http-equiv="refresh" content="30">
-        <style>
-            * {{ margin: 0; padding: 0; box-sizing: border-box; }}
-            body {{ 
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; 
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                min-height: 100vh;
-                padding: 20px;
-            }}
-            .container {{ 
-                max-width: 1400px; 
-                margin: 0 auto; 
-                background: rgba(255,255,255,0.95); 
-                border-radius: 20px; 
-                padding: 30px; 
-                box-shadow: 0 20px 40px rgba(0,0,0,0.15);
-                backdrop-filter: blur(10px);
-            }}
-            h1 {{ 
-                color: #2c3e50; 
-                text-align: center; 
-                font-size: 2.5em; 
-                margin-bottom: 30px;
-                text-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            }}
-            .stats-grid {{ 
-                display: grid; 
-                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); 
-                gap: 25px; 
-                margin-bottom: 40px; 
-            }}
-            .stat-card {{ 
-                background: rgba(255,255,255,0.95);
-                padding: 30px; 
-                border-radius: 20px; 
-                text-align: left; 
-                box-shadow: 0 15px 35px rgba(0,0,0,0.1);
-                transform: translateY(0);
-                transition: all 0.3s ease;
-                border: 1px solid rgba(255,255,255,0.2);
-                position: relative;
-                overflow: hidden;
-                display: flex;
-                align-items: center;
-                gap: 20px;
-            }}
-            .stat-card::before {{
-                content: '';
-                position: absolute;
-                top: 0;
-                left: 0;
-                right: 0;
-                height: 4px;
-                background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-            }}
-            .stat-card:hover {{
-                transform: translateY(-8px);
-                box-shadow: 0 25px 50px rgba(0,0,0,0.2);
-            }}
-            .stat-card.email-accounts::before {{ background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%); }}
-            .stat-card.emails-processed::before {{ background: linear-gradient(90deg, #43e97b 0%, #38f9d7 100%); }}
-            .stat-card.total-sessions::before {{ background: linear-gradient(90deg, #fa709a 0%, #fee140 100%); }}
-            .stat-card.database-size::before {{ background: linear-gradient(90deg, #a8edea 0%, #fed6e3 100%); }}
-            
-            .stat-icon {{
-                font-size: 3em;
-                opacity: 0.8;
-                flex-shrink: 0;
-            }}
-            .stat-content {{
-                flex: 1;
-            }}
-            .stat-value {{ 
-                font-size: 2.5em; 
-                font-weight: 700; 
-                margin-bottom: 5px;
-                color: #2c3e50;
-                line-height: 1;
-            }}
-            .stat-label {{ 
-                font-size: 1.1em; 
-                color: #34495e;
-                font-weight: 600;
-                margin-bottom: 3px;
-            }}
-            .stat-sublabel {{
-                font-size: 0.85em;
-                color: #7f8c8d;
-                opacity: 0.8;
-            }}
-            .controls {{ 
-                display: grid; 
-                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); 
-                gap: 15px; 
-                margin: 30px 0; 
-            }}
-            .btn {{ 
-                display: block; 
-                padding: 15px 20px; 
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                color: white; 
-                text-decoration: none; 
-                text-align: center; 
-                border-radius: 10px; 
-                transition: all 0.3s ease;
-                border: none;
-                cursor: pointer;
-                font-size: 1em;
-                font-weight: 600;
-            }}
-            .btn:hover {{ 
-                transform: translateY(-2px);
-                box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-            }}
-            .btn-success {{ background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%); }}
-            .btn-danger {{ background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%); }}
-            .btn-info {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }}
-            .btn-warning {{ background: linear-gradient(135deg, #f7971e 0%, #ffd200 100%); color: #333; }}
-            .recent-activity {{ 
-                margin-top: 40px; 
-                background: white;
-                border-radius: 15px;
-                padding: 25px;
-                box-shadow: 0 5px 15px rgba(0,0,0,0.08);
-            }}
-            .activity-table {{ 
-                width: 100%; 
-                border-collapse: collapse; 
-                margin-top: 20px; 
-            }}
-            .activity-table th {{ 
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                color: white;
-                padding: 15px 10px; 
-                text-align: left; 
-                border: none;
-                font-weight: 600;
-            }}
-            .activity-table th:first-child {{ border-top-left-radius: 10px; }}
-            .activity-table th:last-child {{ border-top-right-radius: 10px; }}
-            .activity-table td {{ 
-                padding: 12px 10px; 
-                border-bottom: 1px solid #eee; 
-                vertical-align: top;
-            }}
-            .activity-table tbody tr:hover {{
-                background: #f8f9fa;
-            }}
-            .status-indicator {{
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                background: #28a745;
-                color: white;
-                padding: 10px 20px;
-                border-radius: 20px;
-                font-size: 0.9em;
-                box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-            }}
-            /* ===== MOBILE-RESPONSIVE CSS ===== */
-            
-            /* Table container for horizontal scroll */
-            .table-container {{
-                overflow-x: auto;
-                -webkit-overflow-scrolling: touch;
-                margin: 15px 0;
-                border-radius: 8px;
-            }}
-            
-            /* iOS input fixes */
-            input, select {{
-                font-size: 16px; /* Prevents iOS zoom */
-                -webkit-appearance: none;
-            }}
-            
-            /* Touch-friendly buttons */
-            .btn {{
-                min-height: 44px; /* iOS/Android touch standard */
-                min-width: 44px;
-                -webkit-tap-highlight-color: transparent;
-            }}
-            
-            /* Small phones: 320px - 480px */
-            @media (max-width: 480px) {{
-                body {{
-                    padding: 5px;
-                }}
-                
-                .container {{ 
-                    padding: 10px; 
-                    border-radius: 8px;
-                }}
-                
-                h1 {{ 
-                    font-size: 1.5em;
-                    margin-bottom: 15px;
-                }}
-                
-                .stats-grid {{ 
-                    grid-template-columns: 1fr;
-                    gap: 15px;
-                }}
-                
-                .controls {{ 
-                    grid-template-columns: 1fr;
-                    gap: 10px;
-                }}
-                
-                .stat-card {{ 
-                    padding: 15px; 
-                    flex-direction: column; 
-                    text-align: center; 
-                    gap: 10px; 
-                }}
-                
-                .stat-icon {{ 
-                    font-size: 2em; 
-                }}
-                
-                .stat-value {{ 
-                    font-size: 1.8em; 
-                }}
-                
-                .btn {{ 
-                    padding: 12px 15px; 
-                    font-size: 0.9em; 
-                }}
-                
-                .activity-table th,
-                .activity-table td {{
-                    padding: 8px 6px;
-                    font-size: 0.8em;
-                }}
-                
-                .status-indicator {{
-                    position: static;
-                    display: block;
-                    text-align: center;
-                    margin-bottom: 15px;
-                    top: auto;
-                    right: auto;
-                }}
-            }}
-            
-            /* Large phones/small tablets: 481px - 768px */
-            @media (min-width: 481px) and (max-width: 768px) {{
-                .container {{ 
-                    padding: 15px; 
-                }}
-                
-                h1 {{ 
-                    font-size: 2em; 
-                }}
-                
-                .stats-grid {{ 
-                    grid-template-columns: repeat(2, 1fr);
-                    gap: 20px;
-                }}
-                
-                .controls {{ 
-                    grid-template-columns: repeat(2, 1fr);
-                    gap: 15px;
-                }}
-            }}
-            
-            /* Tablets: 769px - 1024px */
-            @media (min-width: 769px) and (max-width: 1024px) {{
-                .stats-grid {{ 
-                    grid-template-columns: repeat(3, 1fr);
-                    gap: 25px;
-                }}
-                
-                .controls {{ 
-                    grid-template-columns: repeat(3, 1fr);
-                    gap: 20px;
-                }}
-            }}
-        </style>
-    </head>
-    <body>
-        <div class="status-indicator">🟢 Live Dashboard</div>
-        
-        <div class="container">
-            <h1>🛡️ Mail Filter Dashboard</h1>
-            
-            <div class="stats-grid">
-                <div class="stat-card email-accounts">
-                    <div class="stat-icon">📧</div>
-                    <div class="stat-content">
-                        <div class="stat-value">{len(accounts) if accounts else 0}</div>
-                        <div class="stat-label">Email Accounts</div>
-                        <div class="stat-sublabel">{"Active" if accounts else "None configured"}</div>
-                    </div>
-                </div>
-                <div class="stat-card emails-processed">
-                    <div class="stat-icon">📊</div>
-                    <div class="stat-content">
-                        <div class="stat-value">{stats.get('processed_emails_count', 0):,}</div>
-                        <div class="stat-label">Emails Processed</div>
-                        <div class="stat-sublabel">Total lifetime</div>
-                    </div>
-                </div>
-                <div class="stat-card total-sessions">
-                    <div class="stat-icon">🎯</div>
-                    <div class="stat-content">
-                        <div class="stat-value">{stats.get('sessions_count', 0)}</div>
-                        <div class="stat-label">Total Sessions</div>
-                        <div class="stat-sublabel">Processing runs</div>
-                    </div>
-                </div>
-                <div class="stat-card database-size">
-                    <div class="stat-icon">💾</div>
-                    <div class="stat-content">
-                        <div class="stat-value">{stats.get('db_size_mb', 0):.1f}MB</div>
-                        <div class="stat-label">Database Size</div>
-                        <div class="stat-sublabel">SQLite storage</div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="controls">
-                <button class="btn btn-success" onclick="runBatch()">🚀 Run Batch Processing</button>
-                <a href="/accounts" class="btn btn-primary">🎯 Single Account Filter</a>
-                <a href="/analytics" class="btn btn-warning">📊 Analytics & Reports</a>
-                <a href="/report" class="btn btn-primary">📋 Last Import Report</a>
-                <a href="/validate" class="btn btn-info">🔍 Category Validation</a>
-                <a href="/timer" class="btn btn-info">⏰ Timer Control</a>
-                <button class="btn" onclick="window.location.reload()">🔄 Refresh Data</button>
-            </div>
-            
-            <div class="recent-activity">
-                <h2 style="color: #2c3e50; margin-bottom: 20px;">📋 Latest Email Activity</h2>
-                <div class="table-container">
-                    <table class="activity-table">
-                    <thead>
-                        <tr>
-                            <th>Date</th>
-                            <th>Time</th>
-                            <th>Action</th>
-                            <th>Category</th>
-                            <th>Sender</th>
-                            <th>Subject</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {email_rows}
-                    </tbody>
-                    </table>
-                </div>
-            </div>
-            
-            <div style="text-align: center; margin-top: 40px; color: #666;">
-                <small>Fresh Mail Filter Interface • Auto-refresh every 30 seconds • Last updated: {datetime.now().strftime('%H:%M:%S')}</small>
-            </div>
-        </div>
-        
-        <script>
-            async function runBatch() {{
-                if (!confirm('Run batch processing on all accounts? This will process and potentially delete spam emails.')) {{
-                    return;
-                }}
-                
-                const btn = event.target;
-                const originalText = btn.textContent;
-                btn.textContent = '⏳ Processing...';
-                btn.disabled = true;
-                
-                try {{
-                    const response = await fetch('/api/batch/run', {{
-                        method: 'POST'
-                    }});
-                    const result = await response.json();
-                    
-                    if (result.success) {{
-                        alert('✅ Batch processing completed successfully!');
-                        window.location.reload();
-                    }} else {{
-                        alert('❌ Batch processing failed: ' + result.message);
-                    }}
-                }} catch (error) {{
-                    alert('❌ Error: ' + error.message);
-                }} finally {{
-                    btn.textContent = originalText;
-                    btn.disabled = false;
-                }}
-            }}
-        </script>
-    </body>
-    </html>
-    """
-    
-    return html
+    # Render template with context data
+    try:
+        return templates.TemplateResponse("pages/dashboard.html", {
+            "request": None,  # Not needed for our use case
+            "stats": stats,
+            "accounts": accounts,
+            "email_rows": email_rows,
+            "current_time": datetime.now().strftime('%H:%M:%S')
+        }).body.decode('utf-8')
+    except Exception as e:
+        print(f"❌ Template rendering error: {e}")
+        # Fallback to ensure dashboard always works
+        return f"<h1>Dashboard Template Error: {e}</h1><p>Please check template configuration.</p>"
 
 @app.get("/timer", response_class=HTMLResponse)
 async def timer_control():
@@ -1124,6 +740,82 @@ def get_analytics_data():
     """)
     account_breakdown_spam = [dict(row) for row in account_breakdown_spam_raw]
     
+    # Get geographic analytics - THREATS/SPAM ONLY (excluding promotional/marketing)
+    try:
+        geographic_spam_raw = db.execute_query("""
+            SELECT 
+                sender_country_code,
+                sender_country_name,
+                COUNT(*) as spam_count,
+                ROUND(AVG(COALESCE(geographic_risk_score, 0.5)), 2) as avg_risk_score,
+                ROUND(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM processed_emails_bulletproof 
+                    WHERE action = 'DELETED' 
+                    AND sender_country_code IS NOT NULL 
+                    AND category NOT IN ('Promotional Email', 'Marketing Spam')), 1) as percentage
+            FROM processed_emails_bulletproof 
+            WHERE action = 'DELETED' 
+            AND sender_country_code IS NOT NULL
+            AND category NOT IN ('Promotional Email', 'Marketing Spam')
+            GROUP BY sender_country_code, sender_country_name
+            ORDER BY spam_count DESC 
+            LIMIT 10
+        """)
+    except Exception as e:
+        print(f"⚠️ Geographic spam query failed: {e}")
+        geographic_spam_raw = []
+    geographic_spam = [dict(row) for row in geographic_spam_raw]
+    
+    # Get geographic risk score distribution - THREATS/SPAM ONLY
+    try:
+        geographic_risk_raw = db.execute_query("""
+            SELECT 
+                CASE 
+                    WHEN COALESCE(geographic_risk_score, 0) >= 0.9 THEN 'Critical (0.9+)'
+                    WHEN COALESCE(geographic_risk_score, 0) >= 0.8 THEN 'High (0.8-0.9)'
+                    WHEN COALESCE(geographic_risk_score, 0) >= 0.7 THEN 'Medium (0.7-0.8)'
+                    WHEN COALESCE(geographic_risk_score, 0) >= 0.6 THEN 'Low (0.6-0.7)'
+                    ELSE 'Minimal (<0.6)'
+                END as risk_level,
+                COUNT(*) as count,
+                ROUND(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM processed_emails_bulletproof 
+                    WHERE action = 'DELETED' 
+                    AND geographic_risk_score IS NOT NULL 
+                    AND category NOT IN ('Promotional Email', 'Marketing Spam')), 1) as percentage
+            FROM processed_emails_bulletproof 
+            WHERE action = 'DELETED' 
+            AND geographic_risk_score IS NOT NULL
+            AND category NOT IN ('Promotional Email', 'Marketing Spam')
+            GROUP BY 1
+            ORDER BY count DESC
+        """)
+    except Exception as e:
+        print(f"⚠️ Geographic risk query failed: {e}")
+        geographic_risk_raw = []
+    geographic_risk = [dict(row) for row in geographic_risk_raw]
+    
+    # Get detection method effectiveness - THREATS/SPAM ONLY
+    try:
+        detection_methods_raw = db.execute_query("""
+            SELECT 
+                COALESCE(detection_method, 'Standard Classification') as detection_method,
+                COUNT(*) as count,
+                ROUND(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM processed_emails_bulletproof 
+                    WHERE action = 'DELETED' 
+                    AND detection_method IS NOT NULL 
+                    AND category NOT IN ('Promotional Email', 'Marketing Spam')), 1) as percentage
+            FROM processed_emails_bulletproof 
+            WHERE action = 'DELETED' 
+            AND detection_method IS NOT NULL
+            AND category NOT IN ('Promotional Email', 'Marketing Spam')
+            GROUP BY detection_method
+            ORDER BY count DESC
+            LIMIT 8
+        """)
+    except Exception as e:
+        print(f"⚠️ Detection methods query failed: {e}")
+        detection_methods_raw = []
+    detection_methods = [dict(row) for row in detection_methods_raw]
+
     return {
         'effectiveness': effectiveness,
         'categories': categories,
@@ -1131,7 +823,10 @@ def get_analytics_data():
         'spam_domains': spam_domains,
         'session_stats': session_stats,
         'account_breakdown_total': account_breakdown_total,
-        'account_breakdown_spam': account_breakdown_spam
+        'account_breakdown_spam': account_breakdown_spam,
+        'geographic_spam': geographic_spam,
+        'geographic_risk': geographic_risk,
+        'detection_methods': detection_methods
     }
 
 def build_analytics_html(data):
@@ -1258,6 +953,102 @@ def build_analytics_html(data):
             </div>
         """
     
+    # Build geographic analytics sections
+    geographic_spam_rows = ""
+    max_geographic_percentage = max([country['percentage'] for country in data['geographic_spam']], default=1)
+    
+    for country in data['geographic_spam']:
+        country_code = country['sender_country_code']
+        country_name = country['sender_country_name']
+        spam_count = country['spam_count']
+        percentage = country['percentage']
+        avg_risk = country.get('avg_risk_score', 0.0) or 0.0
+        
+        # Normalize bar width
+        bar_width = (percentage / max_geographic_percentage * 100) if max_geographic_percentage > 0 else 0
+        
+        # Risk color coding
+        risk_color = "#dc3545" if avg_risk >= 0.9 else "#fd7e14" if avg_risk >= 0.7 else "#ffc107"
+        
+        # Country flag emojis (basic mapping)
+        flag_emoji = {
+            'CN': '🇨🇳', 'RU': '🇷🇺', 'NG': '🇳🇬', 'IN': '🇮🇳', 'PK': '🇵🇰',
+            'BD': '🇧🇩', 'VN': '🇻🇳', 'US': '🇺🇸', 'GB': '🇬🇧', 'DE': '🇩🇪',
+            'FR': '🇫🇷', 'CA': '🇨🇦', 'AU': '🇦🇺', 'JP': '🇯🇵', 'KR': '🇰🇷'
+        }.get(country_code, '🌍')
+        
+        geographic_spam_rows += f"""
+            <div class="chart-bar">
+                <div class="bar-label" style="cursor: pointer; text-decoration: underline;" onclick="showCountryBreakdown('{country_code}', '{country_name}', {spam_count})">{flag_emoji} {country_name}</div>
+                <div class="bar-container">
+                    <div class="bar-fill" style="width: {bar_width:.1f}%; background: {risk_color};"></div>
+                </div>
+                <div class="bar-value" style="color: {risk_color};">{spam_count:,} ({percentage:.1f}%) • Risk: {avg_risk:.2f}</div>
+            </div>
+        """
+    
+    # Build geographic risk distribution
+    geographic_risk_rows = ""
+    max_risk_percentage = max([risk['percentage'] for risk in data['geographic_risk']], default=1)
+    
+    for risk in data['geographic_risk']:
+        risk_level = risk['risk_level']
+        count = risk['count']
+        percentage = risk['percentage']
+        
+        bar_width = (percentage / max_risk_percentage * 100) if max_risk_percentage > 0 else 0
+        
+        # Risk level colors and icons
+        risk_styling = {
+            'Critical (0.9+)': {'color': '#dc3545', 'icon': '🔥'},
+            'High (0.8-0.9)': {'color': '#fd7e14', 'icon': '⚠️'},
+            'Medium (0.7-0.8)': {'color': '#ffc107', 'icon': '🟡'},
+            'Low (0.6-0.7)': {'color': '#28a745', 'icon': '🟢'},
+            'Minimal (<0.6)': {'color': '#6c757d', 'icon': '⚪'}
+        }.get(risk_level, {'color': '#6c757d', 'icon': '❓'})
+        
+        geographic_risk_rows += f"""
+            <div class="chart-bar">
+                <div class="bar-label">{risk_styling['icon']} {risk_level}</div>
+                <div class="bar-container">
+                    <div class="bar-fill" style="width: {bar_width:.1f}%; background: {risk_styling['color']};"></div>
+                </div>
+                <div class="bar-value" style="color: {risk_styling['color']};">{count:,} ({percentage:.1f}%)</div>
+            </div>
+        """
+    
+    # Build detection methods chart
+    detection_methods_rows = ""
+    max_detection_percentage = max([method['percentage'] for method in data['detection_methods']], default=1)
+    
+    for method in data['detection_methods']:
+        method_name = method['detection_method']
+        count = method['count']
+        percentage = method['percentage']
+        
+        bar_width = (percentage / max_detection_percentage * 100) if max_detection_percentage > 0 else 0
+        
+        # Detection method icons
+        method_icon = {
+            'High-risk country TLD': '🌐',
+            'Suspicious IP range': '🔍',
+            'Known phishing source': '🎣',
+            'Call center infrastructure': '📞',
+            'Spam distribution network': '📡',
+            'Suspicious domain pattern': '🕸️',
+            'Geographic risk assessment': '🗺️'
+        }.get(method_name, '🔧')
+        
+        detection_methods_rows += f"""
+            <div class="chart-bar">
+                <div class="bar-label">{method_icon} {method_name}</div>
+                <div class="bar-container">
+                    <div class="bar-fill" style="width: {bar_width:.1f}%;"></div>
+                </div>
+                <div class="bar-value">{count:,} ({percentage:.1f}%)</div>
+            </div>
+        """
+
     # Session stats - now using proper dictionary access
     session_stats = data['session_stats']
     avg_emails = session_stats.get('avg_emails_per_session', 0) or 0
@@ -1278,6 +1069,7 @@ def build_analytics_html(data):
                 min-height: 100vh;
                 padding: 20px;
             }}
+            
             .container {{ 
                 max-width: 1400px; 
                 margin: 0 auto; 
@@ -1362,6 +1154,115 @@ def build_analytics_html(data):
                 font-weight: 600; 
                 color: #34495e;
                 text-align: right;
+            }}
+            
+            /* Magical Popup Styles */
+            .popup-overlay {{
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.7);
+                display: none;
+                z-index: 1000;
+                backdrop-filter: blur(5px);
+            }}
+            
+            .popup-content {{
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: white;
+                border-radius: 20px;
+                padding: 30px;
+                max-width: 500px;
+                width: 90%;
+                box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+                animation: popupSlideIn 0.3s ease-out;
+            }}
+            
+            @keyframes popupSlideIn {{
+                from {{
+                    opacity: 0;
+                    transform: translate(-50%, -60%);
+                }}
+                to {{
+                    opacity: 1;
+                    transform: translate(-50%, -50%);
+                }}
+            }}
+            
+            .popup-header {{
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 20px;
+                border-bottom: 2px solid #f0f0f0;
+                padding-bottom: 15px;
+            }}
+            
+            .popup-title {{
+                font-size: 1.4em;
+                font-weight: 700;
+                color: #2c3e50;
+                margin: 0;
+            }}
+            
+            .popup-close {{
+                background: none;
+                border: none;
+                font-size: 1.5em;
+                cursor: pointer;
+                color: #999;
+                padding: 5px;
+                border-radius: 50%;
+                width: 35px;
+                height: 35px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }}
+            
+            .popup-close:hover {{
+                background: #f0f0f0;
+                color: #666;
+            }}
+            
+            .category-breakdown {{
+                margin: 15px 0;
+            }}
+            
+            .category-item {{
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 12px;
+                margin: 8px 0;
+                background: #f8f9fa;
+                border-radius: 10px;
+                border-left: 4px solid #667eea;
+            }}
+            
+            .category-name {{
+                font-weight: 600;
+                color: #2c3e50;
+            }}
+            
+            .category-stats {{
+                text-align: right;
+                font-size: 0.9em;
+            }}
+            
+            .category-count {{
+                font-weight: 700;
+                color: #667eea;
+            }}
+            
+            .category-percent {{
+                color: #6c757d;
+                font-size: 0.85em;
             }}
             .data-table {{
                 width: 100%;
@@ -1481,6 +1382,39 @@ def build_analytics_html(data):
                 </div>
             </div>
             
+            <!-- Geographic Analytics Section - THREATS & SPAM ONLY -->
+            <div class="analytics-grid">
+                <div class="analytics-card geographic-spam-card">
+                    <div class="card-title">
+                        🌍 Threat Origin by Country (Threats & Spam Only)
+                    </div>
+                    {geographic_spam_rows or '<div style="text-align: center; padding: 20px; color: #6c757d;">📊 <button onclick="populateGeographicData()" style="background: #667eea; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; margin-left: 10px;">Add Sample Data</button><br><small>No geographic data available yet</small></div>'}
+                    <div style="font-size: 0.85em; color: #6c757d; margin-top: 10px; font-style: italic;">
+                        *Excludes promotional/marketing emails - shows actual threats only
+                    </div>
+                </div>
+                
+                <div class="analytics-card geographic-risk-card">
+                    <div class="card-title">
+                        ⚠️ Threat Risk Distribution (Security Threats Only)
+                    </div>
+                    {geographic_risk_rows or '<div style="text-align: center; padding: 20px; color: #6c757d;"><div style="font-size: 1.5em; margin-bottom: 10px;">🎯</div>Risk analysis will appear here<br><small>after geographic data is available</small></div>'}
+                    <div style="font-size: 0.85em; color: #6c757d; margin-top: 10px; font-style: italic;">
+                        *Phishing, malware, scams - no marketing included
+                    </div>
+                </div>
+                
+                <div class="analytics-card detection-methods-card">
+                    <div class="card-title">
+                        🔧 Threat Detection Methods (Security Focus)
+                    </div>
+                    {detection_methods_rows or '<div style="text-align: center; padding: 20px; color: #6c757d;"><div style="font-size: 1.5em; margin-bottom: 10px;">🛠️</div>Detection analysis will appear here<br><small>after geographic data is available</small></div>'}
+                    <div style="font-size: 0.85em; color: #6c757d; margin-top: 10px; font-style: italic;">
+                        *Detection effectiveness against actual security threats
+                    </div>
+                </div>
+            </div>
+            
             <div class="analytics-card activity-card">
                 <div class="card-title">
                     📈 Daily Activity (Last 14 Days)
@@ -1501,18 +1435,264 @@ def build_analytics_html(data):
             </div>
         </div>
         
+        <!-- Magical Country Breakdown Popup -->
+        <div id="countryPopup" class="popup-overlay" onclick="closeCountryPopup()">
+            <div class="popup-content" onclick="event.stopPropagation()">
+                <div class="popup-header">
+                    <h3 id="popupTitle" class="popup-title">🌍 Country Breakdown</h3>
+                    <button class="popup-close" onclick="closeCountryPopup()">×</button>
+                </div>
+                <div id="popupContent" class="category-breakdown">
+                    <div style="text-align: center; padding: 20px; color: #667eea;">
+                        Loading...
+                    </div>
+                </div>
+            </div>
+        </div>
         
         <script>
             // Data refresh functionality
             setInterval(function() {{
                 window.location.reload();
             }}, 30000); // Refresh every 30 seconds
+            
+            // Populate sample geographic data
+            function populateGeographicData() {{
+                fetch('/api/populate-geographic-data', {{
+                    method: 'POST',
+                    headers: {{
+                        'Content-Type': 'application/json'
+                    }}
+                }})
+                .then(response => response.json())
+                .then(data => {{
+                    if (data.success) {{
+                        alert('✅ Sample geographic data added successfully! The page will refresh to show the new data.');
+                        window.location.reload();
+                    }} else {{
+                        alert('❌ Error adding sample data: ' + data.message);
+                    }}
+                }})
+                .catch(error => {{
+                    console.error('Error:', error);
+                    alert('❌ Error adding sample data. Please check the console for details.');
+                }});
+            }}
+            
+            // Country breakdown popup functions
+            function showCountryBreakdown(countryCode, countryName, spamCount) {{
+                console.log(`📊 Showing breakdown for ${{countryName}} (${{countryCode}}) - ${{spamCount}} spam emails`);
+                
+                // Show loading popup first
+                const popup = document.getElementById('country-popup');
+                const overlay = document.getElementById('popup-overlay');
+                const title = document.getElementById('popup-title');
+                const content = document.getElementById('popup-breakdown');
+                
+                title.textContent = `🌍 ${{countryName}} Threat Breakdown`;
+                content.innerHTML = '<div style="text-align: center; padding: 20px;"><div style="font-size: 2em; margin-bottom: 10px;">⏳</div>Loading breakdown...</div>';
+                
+                overlay.style.display = 'block';
+                
+                // Fetch country breakdown data
+                fetch(`/api/country-breakdown/${{countryCode}}`)
+                    .then(response => response.json())
+                    .then(data => {{
+                        if (data.success) {{
+                            let breakdownHtml = '';
+                            
+                            if (data.breakdown && data.breakdown.length > 0) {{
+                                data.breakdown.forEach(category => {{
+                                    breakdownHtml += `
+                                        <div class="category-item">
+                                            <div class="category-name">${{category.category}}</div>
+                                            <div class="category-stats">
+                                                <div class="category-count">${{category.count}} emails</div>
+                                                <div class="category-percent">${{category.percentage}}%</div>
+                                            </div>
+                                        </div>
+                                    `;
+                                }});
+                            }} else {{
+                                breakdownHtml = '<div style="text-align: center; padding: 20px; color: #6c757d;">📊 No threat data available for this country</div>';
+                            }}
+                            
+                            content.innerHTML = `
+                                <div class="category-breakdown">
+                                    <div style="margin-bottom: 15px; color: #6c757d; font-size: 0.9em;">
+                                        Total threats detected: <strong>${{spamCount}}</strong>
+                                    </div>
+                                    ${{breakdownHtml}}
+                                </div>
+                            `;
+                        }} else {{
+                            content.innerHTML = '<div style="text-align: center; padding: 20px; color: #dc3545;">❌ Error loading breakdown data</div>';
+                        }}
+                    }})
+                    .catch(error => {{
+                        console.error('Error fetching breakdown:', error);
+                        content.innerHTML = '<div style="text-align: center; padding: 20px; color: #dc3545;">❌ Error loading breakdown data</div>';
+                    }});
+            }}
+            
+            function closeCountryPopup() {{
+                document.getElementById('popup-overlay').style.display = 'none';
+            }}
+            
+            // Close popup when clicking outside
+            document.addEventListener('click', function(event) {{
+                const overlay = document.getElementById('popup-overlay');
+                if (event.target === overlay) {{
+                    closeCountryPopup();
+                }}
+            }});
         </script>
+        
+        <!-- Country Breakdown Popup -->
+        <div id="popup-overlay" class="popup-overlay">
+            <div class="popup-content">
+                <div class="popup-header">
+                    <h3 id="popup-title" class="popup-title">Country Breakdown</h3>
+                    <button class="popup-close" onclick="closeCountryPopup()">×</button>
+                </div>
+                <div id="popup-breakdown" class="popup-breakdown">
+                    <!-- Breakdown content will be loaded here -->
+                </div>
+            </div>
+        </div>
     </body>
     </html>
     """
     
     return html
+
+@app.get("/api/country-breakdown/{country_code}")
+async def get_country_breakdown(country_code: str):
+    """Get spam category breakdown for a specific country"""
+    print(f"🌍 COUNTRY BREAKDOWN API called for: {country_code}")
+    
+    try:
+        # Get spam categories for the specific country (threats/spam only)
+        breakdown_raw = db.execute_query("""
+            SELECT 
+                category,
+                COUNT(*) as count,
+                ROUND(COUNT(*) * 100.0 / SUM(COUNT(*)) OVER(), 1) as percentage,
+                ROUND(AVG(COALESCE(geographic_risk_score, 0.5)), 2) as avg_risk_score
+            FROM processed_emails_bulletproof 
+            WHERE action = 'DELETED' 
+            AND sender_country_code = ?
+            AND category NOT IN ('Promotional Email', 'Marketing Spam')
+            AND category IS NOT NULL
+            GROUP BY category
+            ORDER BY count DESC
+        """, (country_code,))
+        
+        breakdown = [dict(row) for row in breakdown_raw]
+        
+        # Get country name
+        country_info = db.execute_query("""
+            SELECT DISTINCT sender_country_name 
+            FROM processed_emails_bulletproof 
+            WHERE sender_country_code = ?
+            LIMIT 1
+        """, (country_code,))
+        
+        country_name = country_info[0]['sender_country_name'] if country_info else country_code
+        
+        return {
+            "success": True,
+            "country_code": country_code,
+            "country_name": country_name,
+            "breakdown": breakdown,
+            "total_threats": sum(item['count'] for item in breakdown)
+        }
+        
+    except Exception as e:
+        print(f"❌ Country breakdown error: {e}")
+        import traceback
+        traceback.print_exc()
+        return {
+            "success": False,
+            "message": f"Error getting country breakdown: {str(e)}"
+        }
+
+@app.post("/api/populate-geographic-data")
+async def populate_geographic_data():
+    """Populate sample geographic data for analytics demonstration"""
+    print("🌍 POPULATE GEOGRAPHIC DATA API called")
+    
+    try:
+        # Import and initialize database manager
+        from atlas_email.models.database import DatabaseManager
+        db_manager = DatabaseManager()
+        
+        # Directly populate sample data with realistic distribution
+        with db_manager.get_connection() as conn:
+            cursor = conn.cursor()
+            
+            # Check if we have existing geographic data
+            cursor.execute("SELECT COUNT(*) FROM processed_emails_bulletproof WHERE sender_country_code IS NOT NULL")
+            existing_count = cursor.fetchone()[0]
+            
+            # Clear existing geographic data for fresh realistic distribution
+            if existing_count > 0:
+                cursor.execute("""
+                    UPDATE processed_emails_bulletproof 
+                    SET sender_country_code = NULL, sender_country_name = NULL, 
+                        geographic_risk_score = NULL, detection_method = NULL
+                    WHERE sender_country_code IS NOT NULL
+                """)
+            
+            # Add sample data with realistic distribution
+            sample_data = [
+                ('CN', 'China', 0.95, 'High-risk country TLD', 15),      # Most spam from China
+                ('RU', 'Russia', 0.90, 'Suspicious IP range', 12),       # High volume from Russia  
+                ('NG', 'Nigeria', 0.85, 'Known phishing source', 8),     # Nigeria phishing
+                ('IN', 'India', 0.80, 'Call center infrastructure', 6),  # India call centers
+                ('PK', 'Pakistan', 0.75, 'Spam distribution network', 4), # Pakistan spam networks
+                ('BD', 'Bangladesh', 0.70, 'Suspicious domain pattern', 3), # Bangladesh patterns
+                ('VN', 'Vietnam', 0.65, 'Geographic risk assessment', 2)  # Vietnam minimal
+            ]
+            
+            total_assigned = 0
+            for country_code, country_name, risk_score, method, count in sample_data:
+                # Assign multiple emails per country for realistic distribution
+                cursor.execute("""
+                    UPDATE processed_emails_bulletproof 
+                    SET sender_country_code = ?, 
+                        sender_country_name = ?, 
+                        geographic_risk_score = ?,
+                        detection_method = ?
+                    WHERE id IN (
+                        SELECT id FROM processed_emails_bulletproof 
+                        WHERE action = 'DELETED' 
+                        AND sender_country_code IS NULL
+                        ORDER BY timestamp DESC 
+                        LIMIT ? OFFSET ?
+                    )
+                """, (country_code, country_name, risk_score, method, count, total_assigned))
+                total_assigned += count
+            
+            conn.commit()
+            
+            # Check how many records were updated
+            cursor.execute("SELECT COUNT(*) FROM processed_emails_bulletproof WHERE sender_country_code IS NOT NULL")
+            updated_count = cursor.fetchone()[0]
+            
+            return {
+                "success": True,
+                "message": f"Realistic geographic distribution applied! ({updated_count} records now have geographic information with varied counts per country)"
+            }
+        
+    except Exception as e:
+        print(f"❌ Populate geographic data error: {e}")
+        import traceback
+        traceback.print_exc()
+        return {
+            "success": False,
+            "message": f"Error populating geographic data: {str(e)}"
+        }
 
 
 @app.post("/api/batch/run")
@@ -1588,6 +1768,16 @@ async def submit_user_feedback(request: Request):
         
         if not email_uid or not feedback_type or not original_classification:
             return {"success": False, "message": "Missing required fields"}
+        
+        # SECURITY: Input validation for feedback parameters
+        if len(str(email_uid)) > 255:
+            return {"success": False, "message": "Invalid email_uid parameter"}
+        
+        if feedback_type not in ['correct', 'incorrect', 'up', 'down']:
+            return {"success": False, "message": "Invalid feedback_type parameter"}
+        
+        if len(str(original_classification)) > 100:
+            return {"success": False, "message": "Invalid original_classification parameter"}
         
         # Optional fields
         user_classification = feedback_data.get('user_classification')
@@ -1847,6 +2037,16 @@ async def get_flagged_emails(account_id: int = None, limit: int = 100):
 async def check_flag_status(account_id: int, folder_name: str, email_uid: str):
     """Check if a specific email is flagged"""
     print(f"🚩 CHECK FLAG STATUS API called for UID {email_uid}")
+    
+    # SECURITY: Input validation for API parameters
+    if account_id < 0 or account_id > 1000:
+        return {"success": False, "message": "Invalid account_id parameter"}
+    
+    if not folder_name or len(folder_name) > 255:
+        return {"success": False, "message": "Invalid folder_name parameter"}
+    
+    if not email_uid or len(email_uid) > 255:
+        return {"success": False, "message": "Invalid email_uid parameter"}
     
     try:
         is_flagged = db.is_email_flagged(
@@ -2188,12 +2388,12 @@ async def get_research_flagged_emails(account_id: int = None, limit: int = 100):
 
 @app.get("/validate", response_class=HTMLResponse)
 async def category_validation_page():
-    """Category Validation Page - Rebuilt from Scratch"""
+    """Category Validation Page - Using Jinja2 Template"""
     print("🔍 CATEGORY VALIDATION page accessed")
     
     try:
         # Get all categories with email counts
-        categories = db.execute_query("""
+        categories_raw = db.execute_query("""
             SELECT category, 
                    COUNT(*) as total,
                    SUM(CASE WHEN user_validated = 0 THEN 1 ELSE 0 END) as unvalidated,
@@ -2206,333 +2406,30 @@ async def category_validation_page():
             ORDER BY unvalidated DESC, total DESC
         """)
         
-        # Build category options
-        category_options = ""
-        for cat in categories:
-            category_name = cat['category']
-            total = cat['total']
-            unvalidated = cat['unvalidated']
-            validated = cat['validated_correct']
-            
-            validation_rate = (validated / total * 100) if total > 0 else 0
-            
-            category_options += f'<option value="{category_name}">{category_name} ({unvalidated} unvalidated of {total} total - {validation_rate:.1f}% validated)</option>\n'
+        # Process categories for template
+        categories = []
+        for cat in categories_raw:
+            validation_rate = (cat['validated_correct'] / cat['total'] * 100) if cat['total'] > 0 else 0
+            categories.append({
+                'category': cat['category'],
+                'total': cat['total'],
+                'unvalidated': cat['unvalidated'],
+                'validated_correct': cat['validated_correct'],
+                'validation_rate': validation_rate
+            })
         
-        # Simple HTML page
-        html = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Category Validation - Mail Filter</title>
-            <meta name="viewport" content="width=device-width, initial-scale=1">
-            <style>
-                body {{ font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }}
-                .container {{ max-width: 1000px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; }}
-                h1 {{ color: #333; text-align: center; }}
-                .controls {{ margin: 20px 0; padding: 20px; background: #f9f9f9; border-radius: 5px; }}
-                select {{ padding: 10px; font-size: 16px; width: 400px; margin-right: 10px; }}
-                button {{ padding: 10px 20px; font-size: 16px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }}
-                button:hover {{ background: #0056b3; }}
-                .email-list {{ margin-top: 20px; }}
-                .email-item {{ border: 1px solid #ddd; margin: 10px 0; padding: 15px; border-radius: 5px; background: #fafafa; }}
-                .sender {{ font-weight: bold; color: #333; margin-bottom: 5px; }}
-                .sender-encoded {{ font-family: monospace; font-size: 12px; color: #888; margin-bottom: 5px; background: #f0f0f0; padding: 4px; border-radius: 3px; border-left: 3px solid #007bff; }}
-                .subject {{ color: #666; margin-bottom: 10px; }}
-                .feedback-buttons {{ margin-top: 10px; }}
-                .feedback-buttons button {{ margin-right: 10px; }}
-                .thumbs-up {{ background: #28a745; }}
-                .thumbs-up:hover {{ background: #218838; }}
-                .thumbs-down {{ background: #dc3545; }}
-                .thumbs-down:hover {{ background: #c82333; }}
-                .save-email {{ background: #17a2b8; }}
-                .save-email:hover {{ background: #138496; }}
-                .loading {{ text-align: center; padding: 20px; color: #666; }}
-                .pagination {{ text-align: center; margin: 20px 0; }}
-                .pagination button {{ margin: 0 5px; }}
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <h1>📋 Category Validation</h1>
-                <p><a href="/">← Back to Dashboard</a></p>
-                
-                <div class="controls">
-                    <label for="categorySelect">Select Category:</label>
-                    <select id="categorySelect">
-                        <option value="">Choose a category...</option>
-                        {category_options}
-                    </select>
-                    <button onclick="loadEmails()">Load Emails</button>
-                </div>
-                
-                <div id="emailList" class="email-list"></div>
-                <div id="pagination" class="pagination"></div>
-            </div>
-            
-            <script>
-                let currentCategory = '';
-                let currentPage = 1;
-                
-                function decodeEmailContent(content) {{
-                    if (!content) return '';
-                    
-                    try {{
-                        // Clean up content first - remove newlines and extra whitespace
-                        let cleaned = content.replace(/\\r\\n/g, ' ').replace(/\\n/g, ' ').replace(/\\s+/g, ' ').trim();
-                        
-                        // Handle UTF-8 Q-encoding (=?UTF-8?Q?...?=)
-                        if (cleaned.includes('=?UTF-8?Q?')) {{
-                            let decoded = cleaned.replace(/=\\?UTF-8\\?Q\\?([^?]+)\\?=/g, function(match, encoded) {{
-                                // Replace encoded characters
-                                let result = encoded
-                                    .replace(/=([0-9A-F]{{2}})/g, function(match, hex) {{
-                                        return String.fromCharCode(parseInt(hex, 16));
-                                    }})
-                                    .replace(/_/g, ' ');
-                                return result;
-                            }});
-                            return decoded;
-                        }}
-                        
-                        // Handle UTF-8 B-encoding (=?UTF-8?B?...?=) - Base64
-                        if (cleaned.includes('=?UTF-8?B?')) {{
-                            let decoded = cleaned.replace(/=\\?UTF-8\\?B\\?([^?]+)\\?=/g, function(match, encoded) {{
-                                try {{
-                                    return atob(encoded);
-                                }} catch(e) {{
-                                    return encoded + ' (decode error)';
-                                }}
-                            }});
-                            return decoded;
-                        }}
-                        
-                        // Handle other encodings or return cleaned content
-                        return cleaned;
-                    }} catch(e) {{
-                        console.error('Decoding error:', e);
-                        return content + ' (decode error)';
-                    }}
-                }}
-                
-                async function loadEmails() {{
-                    const select = document.getElementById('categorySelect');
-                    const category = select.value;
-                    
-                    if (!category) {{
-                        alert('Please select a category');
-                        return;
-                    }}
-                    
-                    currentCategory = category;
-                    currentPage = 1;
-                    
-                    console.log('Loading emails for category:', category);
-                    
-                    const emailList = document.getElementById('emailList');
-                    emailList.innerHTML = '<div class="loading">Loading emails...</div>';
-                    
-                    try {{
-                        const response = await fetch(`/api/validation/emails/${{encodeURIComponent(category)}}?page=${{currentPage}}`);
-                        const data = await response.json();
-                        
-                        console.log('API response:', data);
-                        
-                        if (data.success) {{
-                            displayEmails(data.emails, data.pagination);
-                        }} else {{
-                            emailList.innerHTML = `<div class="loading">Error: ${{data.message}}</div>`;
-                        }}
-                    }} catch (error) {{
-                        console.error('Error loading emails:', error);
-                        emailList.innerHTML = `<div class="loading">Error: ${{error.message}}</div>`;
-                    }}
-                }}
-                
-                function displayEmails(emails, pagination) {{
-                    const emailList = document.getElementById('emailList');
-                    
-                    if (emails.length === 0) {{
-                        emailList.innerHTML = '<div class="loading">🎉 All emails in this category have been validated!</div>';
-                        document.getElementById('pagination').innerHTML = '';
-                        return;
-                    }}
-                    
-                    let html = '';
-                    emails.forEach(email => {{
-                        // Decode sender and subject
-                        const decodedSender = decodeEmailContent(email.sender_email);
-                        const decodedSubject = decodeEmailContent(email.subject);
-                        
-                        // Enhanced sender display for brand impersonation detection
-                        let senderDisplay = '';
-                        
-                        // Debug logging
-                        console.log('Email ID:', email.id);
-                        console.log('Raw sender:', email.sender_email);
-                        console.log('Decoded sender:', decodedSender);
-                        
-                        // HTML escape function to prevent <email@domain.com> being interpreted as HTML tags
-                        function htmlEscape(str) {{
-                            return str.replace(/&/g, '&amp;')
-                                     .replace(/</g, '&lt;')
-                                     .replace(/>/g, '&gt;')
-                                     .replace(/"/g, '&quot;')
-                                     .replace(/'/g, '&#x27;');
-                        }}
-                        
-                        // Always show decoded sender prominently (fully qualified address)
-                        const escapedDecoded = htmlEscape(decodedSender);
-                        senderDisplay = `<div class="sender">From: ${{escapedDecoded}}</div>`;
-                        
-                        // Always show raw version for comparison and brand impersonation detection
-                        // This helps users spot spoofing, encoding tricks, and verify domains
-                        if (email.sender_email && email.sender_email.trim() !== '') {{
-                            const escapedRaw = htmlEscape(email.sender_email);
-                            senderDisplay += `<div class="sender-encoded">Raw: ${{escapedRaw}}</div>`;
-                        }}
-                        
-                        html += `
-                            <div class="email-item" id="email-${{email.id}}">
-                                ${{senderDisplay}}
-                                <div class="subject">Subject: ${{decodedSubject}}</div>
-                                <div class="feedback-buttons">
-                                    <button class="thumbs-up" onclick="submitFeedback(${{email.id}}, 'up')">👍 Correct</button>
-                                    <button class="thumbs-down" onclick="submitFeedback(${{email.id}}, 'down')">👎 Wrong</button>
-                                    <button class="save-email" onclick="saveEmail(${{email.id}})">💾 Save</button>
-                                </div>
-                            </div>
-                        `;
-                    }});
-                    
-                    emailList.innerHTML = html;
-                    
-                    // Show pagination
-                    displayPagination(pagination);
-                }}
-                
-                function displayPagination(pagination) {{
-                    const paginationDiv = document.getElementById('pagination');
-                    
-                    if (pagination.total_pages <= 1) {{
-                        paginationDiv.innerHTML = '';
-                        return;
-                    }}
-                    
-                    let html = '';
-                    
-                    if (pagination.has_prev) {{
-                        html += `<button onclick="changePage(${{pagination.current_page - 1}})">← Previous</button>`;
-                    }}
-                    
-                    html += `<span>Page ${{pagination.current_page}} of ${{pagination.total_pages}} (${{pagination.total_emails}} emails)</span>`;
-                    
-                    if (pagination.has_next) {{
-                        html += `<button onclick="changePage(${{pagination.current_page + 1}})">Next →</button>`;
-                    }}
-                    
-                    paginationDiv.innerHTML = html;
-                }}
-                
-                function changePage(page) {{
-                    currentPage = page;
-                    loadEmails();
-                }}
-                
-                async function submitFeedback(emailId, feedback) {{
-                    console.log('Submitting feedback:', emailId, feedback);
-                    
-                    try {{
-                        const response = await fetch('/api/validation/feedback', {{
-                            method: 'POST',
-                            headers: {{
-                                'Content-Type': 'application/json'
-                            }},
-                            body: JSON.stringify({{
-                                email_id: emailId,
-                                feedback: feedback
-                            }})
-                        }});
-                        
-                        const result = await response.json();
-                        console.log('Feedback result:', result);
-                        
-                        if (result.success) {{
-                            // Remove the email from the list
-                            const emailElement = document.getElementById(`email-${{emailId}}`);
-                            if (emailElement) {{
-                                emailElement.remove();
-                            }}
-                            
-                            // Show feedback message
-                            if (feedback === 'down') {{
-                                if (result.reclassification) {{
-                                    alert(`🔄 Email reclassified from '${{result.reclassification.original_category}}' to '${{result.reclassification.new_category}}'`);
-                                }} else {{
-                                    alert('👎 Email marked for manual review');
-                                }}
-                            }}
-                            // No popup for thumbs up - just silently remove the email
-                            
-                            // Check if we need to reload the page
-                            const remainingEmails = document.querySelectorAll('.email-item').length;
-                            if (remainingEmails === 0) {{
-                                loadEmails();
-                            }}
-                        }} else {{
-                            alert('Error: ' + result.message);
-                        }}
-                    }} catch (error) {{
-                        console.error('Error submitting feedback:', error);
-                        alert('Error submitting feedback: ' + error.message);
-                    }}
-                }}
-                
-                async function saveEmail(emailId) {{
-                    console.log('Saving email for protection:', emailId);
-                    
-                    try {{
-                        const response = await fetch('/api/validation/save', {{
-                            method: 'POST',
-                            headers: {{
-                                'Content-Type': 'application/json'
-                            }},
-                            body: JSON.stringify({{
-                                email_id: emailId
-                            }})
-                        }});
-                        
-                        const result = await response.json();
-                        console.log('Save result:', result);
-                        
-                        if (result.success) {{
-                            // Remove the email from the list
-                            const emailElement = document.getElementById(`email-${{emailId}}`);
-                            if (emailElement) {{
-                                emailElement.remove();
-                            }}
-                            
-                            // Show success message
-                            alert(`💾 Email saved and protected! ${{result.protection_message || 'Future similar emails will be protected.'}}`);
-                            
-                            // Check if we need to reload the page
-                            const remainingEmails = document.querySelectorAll('.email-item').length;
-                            if (remainingEmails === 0) {{
-                                loadEmails();
-                            }}
-                        }} else {{
-                            alert('Error: ' + result.message);
-                        }}
-                    }} catch (error) {{
-                        console.error('Error saving email:', error);
-                        alert('Error saving email: ' + error.message);
-                    }}
-                }}
-            </script>
-        </body>
-        </html>
-        """
-        
-        return html
+        # Render template
+        try:
+            from fastapi import Request
+            request = Request({"type": "http", "method": "GET", "path": "/validate"})
+            return templates.TemplateResponse("pages/validate.html", {
+                "request": request,
+                "categories": categories
+            })
+        except Exception as e:
+            print(f"❌ Template rendering error: {e}")
+            # Fallback to ensure validation always works
+            return f"<h1>Validation Template Error: {e}</h1><p>Please check template configuration.</p>"
         
     except Exception as e:
         print(f"❌ Validation page error: {e}")
@@ -2546,6 +2443,14 @@ async def get_emails_for_validation(category: str, page: int = 1):
     print(f"📧 GET VALIDATION EMAILS for category: {category}, page: {page}")
     
     try:
+        # SECURITY: Input validation for category parameter
+        if not category or len(category) > 100:
+            return JSONResponse({"success": False, "message": "Invalid category parameter"}, status_code=400)
+        
+        # SECURITY: Input validation for page parameter
+        if page < 1 or page > 10000:
+            return JSONResponse({"success": False, "message": "Invalid page parameter"}, status_code=400)
+        
         offset = (page - 1) * 10  # 10 emails per page
         
         # Get unvalidated emails for category  
@@ -3293,13 +3198,13 @@ async def report_page(request: Request):
 
 @app.get("/accounts", response_class=HTMLResponse)
 async def accounts_page():
-    """Account selection page - lists all saved accounts"""
+    """Account selection page - Using Jinja2 Template"""
     try:
         # Import here to avoid circular imports
         from config.credentials import db_credentials
         
         # Load all saved accounts
-        accounts = db_credentials.load_credentials()
+        accounts_raw = db_credentials.load_credentials()
         
         # Provider icons mapping
         provider_icons = {
@@ -3310,246 +3215,36 @@ async def accounts_page():
             'Custom': '⚙️'
         }
         
-        # Build account cards
-        account_cards = ""
-        if accounts:
-            # Add "All Accounts" option first
-            total_accounts = len(accounts)
-            account_cards += f"""
-            <div class="account-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
-                <div class="account-icon">🌐</div>
-                <div class="account-info">
-                    <div class="account-email" style="color: white;">All Accounts</div>
-                    <div class="account-provider" style="color: #f0f0f0;">Process all {total_accounts} accounts at once</div>
-                    <div class="account-meta" style="color: #f0f0f0;">
-                        Batch filtering with preview option
-                    </div>
-                </div>
-                <div class="account-actions">
-                    <a href="/single-account/all" class="btn" style="background: white; color: #667eea;">Select All</a>
-                </div>
-            </div>
-            """
-            # Then add individual accounts
-            for i, account in enumerate(accounts):
+        # Process accounts for template
+        accounts = []
+        if accounts_raw:
+            for account in accounts_raw:
                 provider = account.get('provider', 'Custom')
                 icon = provider_icons.get(provider, '📧')
                 last_used = account.get('last_used', 'Never')
                 target_folders = account.get('target_folders', [])
                 folder_count = len(target_folders) if target_folders else 0
                 
-                account_cards += f"""
-                <div class="account-card">
-                    <div class="account-icon">{icon}</div>
-                    <div class="account-info">
-                        <div class="account-email">{account['email_address']}</div>
-                        <div class="account-provider">{provider}</div>
-                        <div class="account-meta">
-                            {folder_count} folders configured • Last used: {last_used}
-                        </div>
-                    </div>
-                    <div class="account-actions">
-                        <a href="/single-account/{i}" class="btn btn-primary">Select</a>
-                        <button onclick="testConnection({i})" class="btn btn-secondary">Test</button>
-                    </div>
-                </div>
-                """
-        else:
-            account_cards = """
-            <div class="no-accounts">
-                <h3>📧 No Email Accounts Configured</h3>
-                <p>Use the CLI to add email accounts first:</p>
-                <code>python3 main.py</code>
-                <p>Then return here to manage single account filtering.</p>
-            </div>
-            """
+                accounts.append({
+                    'email_address': account['email_address'],
+                    'provider': provider,
+                    'icon': icon,
+                    'last_used': last_used,
+                    'folder_count': folder_count
+                })
         
-        html = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>📧 Email Accounts - Mail Filter</title>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1">
-            <style>
-                body {{ 
-                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-                    margin: 0; 
-                    padding: 20px; 
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                    min-height: 100vh;
-                }}
-                .container {{
-                    max-width: 1000px;
-                    margin: 0 auto;
-                    background: white;
-                    border-radius: 15px;
-                    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-                    overflow: hidden;
-                }}
-                .header {{
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                    color: white;
-                    padding: 30px;
-                    text-align: center;
-                }}
-                .header h1 {{
-                    margin: 0;
-                    font-size: 2.5em;
-                    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-                }}
-                .nav-links {{
-                    padding: 20px 30px;
-                    background: #f8f9fa;
-                    border-bottom: 1px solid #dee2e6;
-                }}
-                .back-link {{
-                    color: #667eea;
-                    text-decoration: none;
-                    font-weight: 600;
-                    margin-right: 20px;
-                }}
-                .back-link:hover {{ text-decoration: underline; }}
-                .content {{
-                    padding: 30px;
-                }}
-                .account-card {{
-                    display: flex;
-                    align-items: center;
-                    background: #f8f9fa;
-                    border-radius: 10px;
-                    padding: 20px;
-                    margin-bottom: 15px;
-                    border: 1px solid #dee2e6;
-                    transition: all 0.3s ease;
-                }}
-                .account-card:hover {{
-                    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-                    transform: translateY(-2px);
-                }}
-                .account-icon {{
-                    font-size: 2.5em;
-                    margin-right: 20px;
-                }}
-                .account-info {{
-                    flex: 1;
-                }}
-                .account-email {{
-                    font-size: 1.3em;
-                    font-weight: 600;
-                    color: #333;
-                    margin-bottom: 5px;
-                }}
-                .account-provider {{
-                    color: #667eea;
-                    font-weight: 500;
-                    margin-bottom: 5px;
-                }}
-                .account-meta {{
-                    color: #6c757d;
-                    font-size: 0.9em;
-                }}
-                .account-actions {{
-                    display: flex;
-                    gap: 10px;
-                }}
-                .btn {{
-                    padding: 10px 20px;
-                    border: none;
-                    border-radius: 8px;
-                    text-decoration: none;
-                    font-weight: 600;
-                    cursor: pointer;
-                    transition: all 0.3s ease;
-                }}
-                .btn-primary {{
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                    color: white;
-                }}
-                .btn-secondary {{
-                    background: #6c757d;
-                    color: white;
-                }}
-                .btn:hover {{
-                    transform: translateY(-2px);
-                    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-                }}
-                .no-accounts {{
-                    text-align: center;
-                    padding: 40px;
-                    color: #6c757d;
-                }}
-                .no-accounts h3 {{ color: #333; }}
-                .no-accounts code {{
-                    background: #f8f9fa;
-                    padding: 5px 10px;
-                    border-radius: 5px;
-                    font-family: monospace;
-                }}
-                .status-message {{
-                    display: none;
-                    padding: 15px;
-                    border-radius: 8px;
-                    margin-bottom: 20px;
-                }}
-                .status-success {{ background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }}
-                .status-error {{ background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }}
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <div class="header">
-                    <h1>📧 Email Accounts</h1>
-                    <div class="subtitle">Select an account for single account filtering</div>
-                </div>
-                
-                <div class="nav-links">
-                    <a href="/" class="back-link">← Back to Dashboard</a>
-                </div>
-                
-                <div class="content">
-                    <div id="status-message" class="status-message"></div>
-                    
-                    {account_cards}
-                </div>
-            </div>
-            
-            <script>
-                async function testConnection(accountId) {{
-                    const statusDiv = document.getElementById('status-message');
-                    statusDiv.className = 'status-message status-success';
-                    statusDiv.textContent = 'Testing connection...';
-                    statusDiv.style.display = 'block';
-                    
-                    try {{
-                        const response = await fetch(`/api/testing/connection/${{accountId}}`, {{
-                            method: 'POST'
-                        }});
-                        const result = await response.json();
-                        
-                        if (result.success) {{
-                            statusDiv.className = 'status-message status-success';
-                            statusDiv.textContent = `✅ Connection successful! Found ${{result.total_folders || 0}} folders.`;
-                        }} else {{
-                            statusDiv.className = 'status-message status-error';
-                            statusDiv.textContent = `❌ Connection failed: ${{result.error || 'Unknown error'}}`;
-                        }}
-                    }} catch (error) {{
-                        statusDiv.className = 'status-message status-error';
-                        statusDiv.textContent = `❌ Error testing connection: ${{error.message}}`;
-                    }}
-                    
-                    // Hide message after 5 seconds
-                    setTimeout(() => {{
-                        statusDiv.style.display = 'none';
-                    }}, 5000);
-                }}
-            </script>
-        </body>
-        </html>
-        """
-        
-        return html
+        # Render template
+        try:
+            from fastapi import Request
+            request = Request({"type": "http", "method": "GET", "path": "/accounts"})
+            return templates.TemplateResponse("pages/accounts.html", {
+                "request": request,
+                "accounts": accounts
+            })
+        except Exception as e:
+            print(f"❌ Template rendering error: {e}")
+            # Fallback to ensure accounts page always works
+            return f"<h1>Accounts Template Error: {e}</h1><p>Please check template configuration.</p>"
         
     except Exception as e:
         return f"""

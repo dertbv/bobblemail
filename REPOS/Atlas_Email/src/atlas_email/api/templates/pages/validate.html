@@ -1,11 +1,19 @@
 {% extends "base.html" %}
 
-{% block title %}Category Validation - Atlas Email{% endblock %}
+{% block title %}Category Validation - Mail Filter{% endblock %}
 
 {% block page_title %}📋 Category Validation{% endblock %}
 
 {% block extra_css %}
 <style>
+    .container {
+        max-width: 1000px;
+        margin: 0 auto;
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+    }
+    
     .controls {
         margin: 20px 0;
         padding: 20px;
@@ -114,6 +122,68 @@
     .pagination button {
         margin: 0 5px;
     }
+    
+    /* Mobile Responsive Design */
+    @media (max-width: 768px) {
+        .container {
+            padding: 10px;
+            margin: 5px;
+        }
+        
+        .controls select {
+            width: 100%;
+            margin-bottom: 10px;
+            margin-right: 0;
+        }
+        
+        .controls button {
+            width: 100%;
+            margin-top: 10px;
+        }
+        
+        .email-item {
+            padding: 10px;
+            margin: 5px 0;
+        }
+        
+        .feedback-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .feedback-buttons button {
+            margin-right: 0;
+            padding: 15px;
+            font-size: 16px;
+        }
+        
+        .sender-encoded {
+            font-size: 11px;
+            word-break: break-all;
+        }
+    }
+    
+    @media (max-width: 480px) {
+        .controls select {
+            font-size: 14px;
+        }
+        
+        .controls button {
+            font-size: 14px;
+            padding: 12px;
+        }
+        
+        .feedback-buttons button {
+            padding: 12px;
+            font-size: 14px;
+        }
+        
+        .pagination button {
+            padding: 8px 12px;
+            font-size: 14px;
+        }
+    }
 </style>
 {% endblock %}
 
@@ -141,6 +211,16 @@
 <script>
     let currentCategory = '';
     let currentPage = 1;
+    
+    // HTML escape function to prevent XSS and fix rendering issues
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/&/g, '&amp;')
+                 .replace(/</g, '&lt;')
+                 .replace(/>/g, '&gt;')
+                 .replace(/"/g, '&quot;')
+                 .replace(/'/g, '&#x27;');
+    }
     
     function decodeEmailContent(content) {
         if (!content) return '';
