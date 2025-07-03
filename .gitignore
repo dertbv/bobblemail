@@ -68,3 +68,8 @@ REPOS/email_project/webapp.pid
 # Backup directories
 *_backup_*/
 *.pid
+
+# Temporary directories
+backups/
+implementations/
+plans/
