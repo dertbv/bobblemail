@@ -18,7 +18,7 @@ from atlas_email.core.classification_utils import (
     get_all_keywords_for_category, is_community_email, is_transactional_email,
     is_account_notification, is_subscription_management, classify_encoded_spam_content
 )
-from atlas_email.utils.domain_validator import detect_provider_from_sender, lightweight_domain_validation
+from atlas_email.utils.domain_validator import detect_provider_from_sender
 
 # Import revolutionary two-factor validation system
 try:
@@ -1388,76 +1388,6 @@ class KeywordProcessor:
             # On error, don't protect (allow normal classification)
             return None
     
-    def check_domain_age_classification(self, sender: str, subject: str, all_text: str) -> Optional[str]:
-        """
-        🎯 DOMAIN AGE INTELLIGENCE: Move domain age logic from deletion prevention to classification intelligence
-        
-        Uses domain age to intelligently classify emails with specific keywords:
-        - Old domains (90+ days) + "cash" = Promotional Email (legitimate retail)
-        - New domains + "cash" = Financial Spam
-        - Old domains + "neighbors" = Community Email (legitimate neighbors)
-        - New domains + "neighbors" = Real Estate Spam
-        
-        This solves misclassification issues:
-        - Kohl's legitimate retail ("Kohl's Cash") wrongly classified as Financial Spam
-        - Nextdoor ("Hi neighbors") wrongly classified as Real Estate Spam
-        
-        Args:
-            sender: Email sender address
-            subject: Email subject line
-            all_text: Combined text for keyword detection
-            
-        Returns:
-            Classification based on domain age + keyword combination, or None if not applicable
-        """
-        if not sender or '@' not in sender:
-            return None
-        
-        # Extract domain from sender
-        domain = sender.split('@')[1].lower().replace('>', '').strip()
-        
-        # Skip major email providers (they don't have meaningful domain age for classification)
-        from atlas_email.utils.domain_validator import is_major_email_provider
-        if is_major_email_provider(domain):
-            return None
-        
-        # Check for target keywords in subject and text
-        subject_lower = subject.lower() if subject else ""
-        all_text_lower = all_text.lower()
-        
-        has_cash_keyword = 'cash' in subject_lower or 'cash' in all_text_lower
-        has_neighbors_keyword = 'neighbors' in subject_lower or 'neighbors' in all_text_lower
-        
-        # Only proceed if we have one of our target keywords
-        if not (has_cash_keyword or has_neighbors_keyword):
-            return None
-        
-        # Get domain age validation result
-        try:
-            domain_age_result = lightweight_domain_validation(domain)
-        except Exception as e:
-            print(f"⚠️ Domain age check failed for {domain}: {e}")
-            return None
-        
-        # Apply KISS domain age logic for classification
-        if has_cash_keyword:
-            if domain_age_result == 'SAFE':  # Domain age > 90 days
-                print(f"🎯 DOMAIN AGE INTELLIGENCE: {domain} (old domain) + 'cash' → Promotional Email")
-                return "Promotional Email"
-            else:  # New or young domain
-                print(f"🎯 DOMAIN AGE INTELLIGENCE: {domain} (new domain) + 'cash' → Financial & Investment Spam")
-                return "Financial & Investment Spam"
-        
-        if has_neighbors_keyword:
-            if domain_age_result == 'SAFE':  # Domain age > 90 days
-                print(f"🎯 DOMAIN AGE INTELLIGENCE: {domain} (old domain) + 'neighbors' → Community Email")
-                return "Community Email"
-            else:  # New or young domain
-                print(f"🎯 DOMAIN AGE INTELLIGENCE: {domain} (new domain) + 'neighbors' → Real Estate Spam")
-                return "Real Estate Spam"
-        
-        return None
-    
     def process_keywords(self, headers: str, sender: str, subject: str, matched_term: str = None) -> str:
         """
         🚀 REVOLUTIONARY EMAIL CLASSIFICATION with Two-Factor Validation
@@ -1476,19 +1406,7 @@ class KeywordProcessor:
         if protected_result:
             return protected_result
         
-        # Prepare text for domain age analysis - INCLUDE SENDER for domain-based keyword matching
-        headers_str = str(headers) if headers else ""
-        headers_lower = headers_str.lower()
-        subject_lower = str(subject).lower() if subject else ""
-        sender_lower = str(sender).lower() if sender else ""
-        all_text = f"{subject_lower} {headers_lower} {sender_lower}"
-        
-        # SECOND: Check domain age classification intelligence for specific keywords (high priority)
-        domain_age_result = self.check_domain_age_classification(sender, subject, all_text)
-        if domain_age_result:
-            return domain_age_result
-        
-        # THIRD: Check for community emails (preserve neighborhood communications)
+        # SECOND: Check for community emails (preserve neighborhood communications)
         # is_community_email already imported from classification_utils
         if is_community_email(subject, sender, headers):
             return "Community Email"
@@ -1548,7 +1466,13 @@ class KeywordProcessor:
                 # Continue with traditional processing
         
         # Continue with traditional keyword processing as fallback or primary method
-        # (all_text already prepared above for domain age analysis)
+        
+        # Prepare text for analysis - INCLUDE SENDER for domain-based keyword matching
+        headers_str = str(headers) if headers else ""
+        headers_lower = headers_str.lower()
+        subject_lower = str(subject).lower() if subject else ""
+        sender_lower = str(sender).lower() if sender else ""
+        all_text = f"{subject_lower} {headers_lower} {sender_lower}"
         
         # Extract domain and provider information
         domain, sender_provider = self.extract_domain_info(sender)

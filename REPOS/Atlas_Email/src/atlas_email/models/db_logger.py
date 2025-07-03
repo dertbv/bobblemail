@@ -87,31 +87,10 @@ class BulletproofLogger:
     def log_email_action(self, action: str, uid: str, sender: str, subject: str, 
                         folder: str = "", reason: str = "", category: str = "",
                         confidence_score: float = None, ml_method: str = "",
-                        print_to_screen: bool = True, session_id: int = None,
-                        sender_ip: str = None, sender_country_code: str = None,
-                        sender_country_name: str = None, geographic_risk_score: float = None,
-                        detection_method: str = None, email_headers: str = None):
-        """BULLETPROOF email action logging - NEVER fails - WITH GEOGRAPHIC INTELLIGENCE"""
+                        print_to_screen: bool = True, session_id: int = None):
+        """BULLETPROOF email action logging - NEVER fails"""
         
         with self.lock:
-            # 📍 GEOGRAPHIC INTELLIGENCE PROCESSING
-            if email_headers and not sender_ip:
-                try:
-                    from atlas_email.core.geographic_intelligence import GeographicIntelligenceProcessor
-                    geo_processor = GeographicIntelligenceProcessor()
-                    geo_data = geo_processor.process_email_geographic_intelligence(email_headers, sender)
-                    
-                    # Extract geographic data from processing result
-                    sender_ip = geo_data.sender_ip
-                    sender_country_code = geo_data.sender_country_code
-                    sender_country_name = geo_data.sender_country_name
-                    geographic_risk_score = geo_data.geographic_risk_score
-                    detection_method = geo_data.detection_method
-                    
-                except Exception as e:
-                    # Geographic processing failed - continue with logging
-                    print(f"⚠️ Geographic intelligence processing failed: {e}")
-                    detection_method = "GEOGRAPHIC_PROCESSING_ERROR"
             # Handle the case where print_to_screen might reference undefined variables
             try:
                 # Force print_to_screen to be a boolean if it's an expression that fails
@@ -142,7 +121,7 @@ class BulletproofLogger:
                 except:
                     domain = "unknown"
                 
-                # Create raw data backup with geographic intelligence
+                # Create raw data backup
                 raw_data = json.dumps({
                     'action': action,
                     'uid': uid,
@@ -153,14 +132,7 @@ class BulletproofLogger:
                     'category': category,
                     'confidence_score': confidence_score,
                     'ml_method': ml_method,
-                    'timestamp': datetime.now().isoformat(),
-                    'geographic_data': {
-                        'sender_ip': sender_ip,
-                        'sender_country_code': sender_country_code,
-                        'sender_country_name': sender_country_name,
-                        'geographic_risk_score': geographic_risk_score,
-                        'detection_method': detection_method
-                    }
+                    'timestamp': datetime.now().isoformat()
                 })
                 
                 # Rate limiting to prevent connection exhaustion
@@ -183,13 +155,10 @@ class BulletproofLogger:
                             INSERT INTO processed_emails_bulletproof 
                             (session_id, folder_name, uid, sender_email, sender_domain, 
                              subject, action, reason, category, confidence_score, 
-                             ml_validation_method, raw_data, sender_ip, sender_country_code,
-                             sender_country_name, geographic_risk_score, detection_method)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                             ml_validation_method, raw_data)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """, (current_session, folder, uid, sender, domain, subject, 
-                              action, reason, category, confidence_score, ml_method, raw_data,
-                              sender_ip, sender_country_code, sender_country_name, 
-                              geographic_risk_score, detection_method))
+                              action, reason, category, confidence_score, ml_method, raw_data))
                         conn.commit()
                         success = True
                         
@@ -207,12 +176,10 @@ class BulletproofLogger:
                             cursor.execute("""
                                 INSERT INTO processed_emails_bulletproof 
                                 (session_id, folder_name, uid, sender_email, sender_domain, 
-                                 subject, action, reason, category, raw_data, sender_ip, 
-                                 sender_country_code, sender_country_name, geographic_risk_score, detection_method)
-                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                 subject, action, reason, category, raw_data)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                             """, (current_session, folder, uid, sender, domain, subject, 
-                                  action, reason, category, raw_data, sender_ip, 
-                                  sender_country_code, sender_country_name, geographic_risk_score, detection_method))
+                                  action, reason, category, raw_data))
                             conn.commit()
                             success = True
                             

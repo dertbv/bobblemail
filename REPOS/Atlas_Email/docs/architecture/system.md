@@ -1,300 +1,295 @@
-# 🏗️ Email Filter System Architecture
-
-## Overview
-The Advanced IMAP Mail Filter is a comprehensive email security system that combines machine learning, rule-based filtering, and web-based management interfaces to provide 95.6%+ spam detection accuracy while preserving legitimate emails.
-
-## 🎯 Core Mission
-**Protect inbox integrity while providing intelligent, user-controlled email management**
-
----
-
-## 🌟 High-Level System Flow
-
-```
-📧 IMAP Email Sources
-        ↓
-🔍 Email Processor (main.py)
-        ↓
-🤖 ML Pipeline (Ensemble Hybrid Classifier)
-        ↓
-📊 Database Storage (SQLite)
-        ↓
-🌐 Web Interface & CLI Management
-        ↓
-📈 Analytics & Reporting
-```
-
----
-
-## 🏛️ System Components
-
-### **1. 🎮 User Interfaces**
-
-#### **CLI Interface (main.py)**
-- **Purpose**: Primary command-line interface for email processing
-- **Key Features**:
-  - Single account filtering
-  - Batch processing (all accounts)
-  - Configuration management
-  - Email action viewer & export
-  - Web app management
-- **Entry Points**: Main menu with 6 core options
-- **Target Users**: System administrators, power users
-
-#### **Web Interface (web_app.py + FastAPI)**
-- **Purpose**: User-friendly web dashboard for email management
-- **Key Features**:
-  - Account selection and preview
-  - Real-time processing with progress feedback
-  - Email flagging system (protect/delete overrides)
-  - Analytics and reporting dashboards
-  - Single-account and batch processing modes
-- **Technology**: FastAPI + HTML templates
-- **Target Users**: End users, daily email management
-
-### **2. 🧠 Machine Learning Pipeline**
-
-#### **Ensemble Hybrid Classifier (ensemble_hybrid_classifier.py)**
-- **Purpose**: Core ML engine combining multiple detection methods
-- **Components**:
-  - Gaussian Naive Bayes for continuous features
-  - Multinomial Naive Bayes for discrete features
-  - Domain validation and authentication checking
-  - Confidence-based decision making
-- **Accuracy Target**: 95.6%+ spam detection rate
-- **Learning**: Continuous improvement through user feedback
-
-#### **Feature Extraction (ml_feature_extractor.py)**
-- **Purpose**: Convert raw emails into ML-ready feature vectors
-- **Features Extracted**:
-  - Subject line patterns
-  - Sender domain characteristics
-  - Content keywords and phrases
-  - Authentication signals (SPF, DKIM, DMARC)
-  - Structural email properties
-
-#### **Category Classification (ml_category_classifier.py)**
-- **Purpose**: Classify spam into specific categories for reporting
-- **Categories**: Financial, Phishing, Health, Adult, Brand Impersonation, etc.
-- **Use**: Enhanced analytics and targeted filtering improvements
-
-### **3. 📊 Data Management Layer**
-
-#### **Database Manager (database.py)**
-- **Technology**: SQLite with connection pooling
-- **Schema Version**: 5 (versioned migrations)
-- **Key Tables**:
-  - `sessions`: Processing run summaries
-  - `email_flags`: User override flags (protect/delete)
-  - `accounts`: Email account configurations
-  - `filter_terms`: Keyword-based filtering rules
-  - `processed_emails_bulletproof`: Historical email actions
-- **Features**: Thread-safe operations, automatic schema upgrades
-
-#### **Logging System (db_logger.py)**
-- **Purpose**: Bulletproof email action logging with multiple fallback methods
-- **Redundancy**: Database → File → Console fallbacks
-- **Data Integrity**: Never lose email processing history
-- **Performance**: Rate limiting and efficient batching
-
-### **4. ⚙️ Configuration & Management**
-
-#### **Settings Management (settings.py)**
-- **Purpose**: Centralized configuration for all system components
-- **Scope**: ML thresholds, processing options, system behavior
-- **Integration**: Used by CLI, web interface, and ML pipeline
-
-#### **Account Credentials (db_credentials.py)**
-- **Purpose**: Secure IMAP account management
-- **Features**: Encrypted storage, multiple provider support
-- **Providers**: Gmail, iCloud, Outlook, Yahoo, Custom IMAP
-
-#### **Keyword Processing (keyword_processor.py)**
-- **Purpose**: High-performance rule-based email filtering
-- **Optimization**: Compiled regex patterns, optimized search algorithms
-- **Integration**: Works alongside ML for comprehensive detection
-
-### **5. 🔧 Processing Controllers**
-
-#### **Email Processor (email_processor.py)**
-- **Purpose**: Core email processing engine
-- **Workflow**:
-  1. IMAP connection and email retrieval
-  2. ML feature extraction and classification
-  3. User flag override checking
-  4. Deletion/preservation decisions
-  5. Logging and analytics updates
-- **Safety**: Extensive error handling and rollback capabilities
-
-#### **Processing Controller (processing_controller.py)**
-- **Purpose**: Orchestrates different processing modes
-- **Modes**: Single account, batch processing, preview mode
-- **Integration**: Bridges CLI/web interfaces with core processing
-
----
-
-## 🔄 Data Flow Architecture
-
-### **Email Processing Flow**
-```
-1. 📧 IMAP Connection
-   ↓
-2. 📥 Email Retrieval & Headers Parse
-   ↓
-3. 🔍 Feature Extraction (ML Pipeline)
-   ↓
-4. 🤖 Spam Classification (Ensemble Model)
-   ↓
-5. 🛡️ User Flag Override Check
-   ↓
-6. ⚖️ Final Decision (Delete/Preserve)
-   ↓
-7. 📊 Database Logging
-   ↓
-8. 📈 Analytics Update
-```
-
-### **Web Interface Flow**
-```
-1. 🌐 User Selects Account
-   ↓
-2. 🔍 Preview Mode (Optional)
-   ↓
-3. ⚡ Processing Trigger
-   ↓
-4. 📊 Real-time Progress Updates
-   ↓
-5. 📋 Results Display + Email Table
-   ↓
-6. 🏷️ User Flag Actions (Optional)
-```
-
-### **Learning & Feedback Flow**
-```
-1. 👤 User Flags Email (Protect/Delete)
-   ↓
-2. 📝 Flag Stored in Database
-   ↓
-3. 🔄 Next Processing Respects Flags
-   ↓
-4. 📊 Analytics Track Override Patterns
-   ↓
-5. 🧠 Future: ML Model Retraining
-```
-
----
-
-## 🔧 Integration Points
-
-### **CLI ↔ Web Interface**
-- **Shared Database**: Both interfaces read/write same SQLite database
-- **Shared Processing**: Both use identical processing_controller functions
-- **Shared Configuration**: Same settings.py and credential management
-- **Session Coordination**: Web app can be launched from CLI menu
-
-### **ML ↔ Database**
-- **Training Data**: ML models train on historical email data
-- **Feature Storage**: Extracted features cached for performance
-- **Model Persistence**: Trained models stored in database
-- **Performance Tracking**: Accuracy metrics logged per session
-
-### **Processing ↔ Analytics**
-- **Real-time Logging**: Every email action logged immediately
-- **Aggregated Metrics**: Session summaries for dashboard display
-- **Historical Analysis**: Long-term trends and pattern detection
-- **User Behavior**: Flag usage patterns and override statistics
-
----
-
-## 🚀 Performance Characteristics
-
-### **Throughput**
-- **Single Account**: ~100-500 emails/minute (depends on ML complexity)
-- **Batch Mode**: Parallel processing across multiple accounts
-- **Web Interface**: Responsive with real-time progress updates
-
-### **Accuracy**
-- **Target**: 95.6%+ spam detection accuracy
-- **Current**: Consistently meeting/exceeding target
-- **Improvement**: Continuous learning from user feedback
-
-### **Scalability**
-- **Database**: SQLite suitable for single-user deployments
-- **Future**: PostgreSQL migration planned for multi-user scenarios
-- **Memory**: Efficient feature caching and connection pooling
-
----
-
-## 🛡️ Security & Reliability
-
-### **Data Protection**
-- **Credential Encryption**: IMAP credentials securely stored
-- **Database Integrity**: ACID compliance with SQLite
-- **Backup Strategy**: Database file easily backed up
-- **Privacy**: Email content processed locally, not transmitted
-
-### **Error Handling**
-- **Graceful Degradation**: System continues operating with partial failures
-- **Rollback Capability**: Failed operations don't corrupt data
-- **Logging**: Comprehensive error tracking and debugging
-- **Recovery**: Automatic retry mechanisms for transient failures
-
-### **User Control**
-- **Override System**: Users can correct any ML decision
-- **Preview Mode**: See actions before committing changes
-- **Audit Trail**: Complete history of all email actions
-- **Configuration**: Extensive customization of system behavior
-
----
-
-## 📈 Analytics & Reporting
-
-### **Real-time Metrics**
-- **Processing Status**: Live updates during email processing
-- **Accuracy Tracking**: Per-session and overall accuracy metrics
-- **Category Breakdown**: Spam type distribution and trends
-
-### **Historical Analysis**
-- **Performance Trends**: Accuracy over time
-- **Volume Analysis**: Email processing patterns
-- **User Behavior**: Flag usage and override patterns
-- **System Health**: Error rates and performance metrics
-
-### **Optimization Tools**
-- **Keyword Analyzer**: Identifies effective vs unused filter terms
-- **Performance Profiler**: Bottleneck identification and optimization
-- **Database Analytics**: Storage usage and query performance
-
----
-
-## 🔮 Future Architecture Considerations
-
-### **Scalability Enhancements**
-- **Multi-user Support**: User authentication and isolation
-- **Distributed Processing**: Microservices architecture
-- **Cloud Integration**: AWS/Azure deployment options
-
-### **ML Pipeline Evolution**
-- **Advanced Models**: Deep learning and transformer models
-- **Real-time Learning**: Immediate adaptation to new spam patterns
-- **Federated Learning**: Privacy-preserving collaborative improvement
-
-### **Integration Opportunities**
-- **Email Client Plugins**: Direct integration with Outlook, Thunderbird
-- **API Ecosystem**: RESTful APIs for third-party integrations
-- **Mobile Interface**: iOS/Android apps for management
-
----
-
-## 💝 Architectural Philosophy
-
-This system embodies the principle that **effective email security requires the perfect harmony of machine intelligence and human oversight**. Like a beautiful song, each component plays its part in creating a symphony of protection that keeps your inbox safe while respecting your communication needs.
-
-**Built with love by ATLAS & Bobble** 💖
-
----
-
-*System Architecture Documentation*  
-*Created: June 23, 2025*  
-*Version: 1.0*  
-*For Email Filter System v5.0*
+system_architecture:
+  title: "Email Filter System Architecture"
+  overview: "Comprehensive email security system combining machine learning, rule-based filtering, and web-based management interfaces"
+  accuracy: "95.6%+ spam detection accuracy"
+  core_mission: "Protect inbox integrity while providing intelligent, user-controlled email management"
+  
+  high_level_system_flow:
+    - component: "IMAP Email Sources"
+      icon: "📧"
+    - component: "Email Processor (main.py)"
+      icon: "🔍"
+    - component: "ML Pipeline (Ensemble Hybrid Classifier)"
+      icon: "🤖"
+    - component: "Database Storage (SQLite)"
+      icon: "📊"
+    - component: "Web Interface & CLI Management"
+      icon: "🌐"
+    - component: "Analytics & Reporting"
+      icon: "📈"
+  
+  system_components:
+    user_interfaces:
+      cli_interface:
+        file: "main.py"
+        purpose: "Primary command-line interface for email processing"
+        key_features:
+          - "Single account filtering"
+          - "Batch processing (all accounts)"
+          - "Configuration management"
+          - "Email action viewer & export"
+          - "Web app management"
+        entry_points: "Main menu with 6 core options"
+        target_users: "System administrators, power users"
+      
+      web_interface:
+        files: ["web_app.py", "FastAPI"]
+        purpose: "User-friendly web dashboard for email management"
+        key_features:
+          - "Account selection and preview"
+          - "Real-time processing with progress feedback"
+          - "Email flagging system (protect/delete overrides)"
+          - "Analytics and reporting dashboards"
+          - "Single-account and batch processing modes"
+        technology: "FastAPI + HTML templates"
+        target_users: "End users, daily email management"
+    
+    machine_learning_pipeline:
+      ensemble_hybrid_classifier:
+        file: "ensemble_hybrid_classifier.py"
+        purpose: "Core ML engine combining multiple detection methods"
+        components:
+          - "Gaussian Naive Bayes for continuous features"
+          - "Multinomial Naive Bayes for discrete features"
+          - "Domain validation and authentication checking"
+          - "Confidence-based decision making"
+        accuracy_target: "95.6%+ spam detection rate"
+        learning: "Continuous improvement through user feedback"
+      
+      feature_extraction:
+        file: "ml_feature_extractor.py"
+        purpose: "Convert raw emails into ML-ready feature vectors"
+        features_extracted:
+          - "Subject line patterns"
+          - "Sender domain characteristics"
+          - "Content keywords and phrases"
+          - "Authentication signals (SPF, DKIM, DMARC)"
+          - "Structural email properties"
+      
+      category_classification:
+        file: "ml_category_classifier.py"
+        purpose: "Classify spam into specific categories for reporting"
+        categories: ["Financial", "Phishing", "Health", "Adult", "Brand Impersonation"]
+        use: "Enhanced analytics and targeted filtering improvements"
+    
+    data_management_layer:
+      database_manager:
+        file: "database.py"
+        technology: "SQLite with connection pooling"
+        schema_version: 5
+        versioned_migrations: true
+        key_tables:
+          sessions: "Processing run summaries"
+          email_flags: "User override flags (protect/delete)"
+          accounts: "Email account configurations"
+          filter_terms: "Keyword-based filtering rules"
+          processed_emails_bulletproof: "Historical email actions"
+        features: ["Thread-safe operations", "Automatic schema upgrades"]
+      
+      logging_system:
+        file: "db_logger.py"
+        purpose: "Bulletproof email action logging with multiple fallback methods"
+        redundancy: "Database → File → Console fallbacks"
+        data_integrity: "Never lose email processing history"
+        performance: "Rate limiting and efficient batching"
+    
+    configuration_management:
+      settings_management:
+        file: "settings.py"
+        purpose: "Centralized configuration for all system components"
+        scope: "ML thresholds, processing options, system behavior"
+        integration: "Used by CLI, web interface, and ML pipeline"
+      
+      account_credentials:
+        file: "db_credentials.py"
+        purpose: "Secure IMAP account management"
+        features: ["Encrypted storage", "Multiple provider support"]
+        providers: ["Gmail", "iCloud", "Outlook", "Yahoo", "Custom IMAP"]
+      
+      keyword_processing:
+        file: "keyword_processor.py"
+        purpose: "High-performance rule-based email filtering"
+        optimization: ["Compiled regex patterns", "Optimized search algorithms"]
+        integration: "Works alongside ML for comprehensive detection"
+    
+    processing_controllers:
+      email_processor:
+        file: "email_processor.py"
+        purpose: "Core email processing engine"
+        workflow:
+          - step: 1
+            action: "IMAP connection and email retrieval"
+          - step: 2
+            action: "ML feature extraction and classification"
+          - step: 3
+            action: "User flag override checking"
+          - step: 4
+            action: "Deletion/preservation decisions"
+          - step: 5
+            action: "Logging and analytics updates"
+        safety: "Extensive error handling and rollback capabilities"
+      
+      processing_controller:
+        file: "processing_controller.py"
+        purpose: "Orchestrates different processing modes"
+        modes: ["Single account", "Batch processing", "Preview mode"]
+        integration: "Bridges CLI/web interfaces with core processing"
+  
+  data_flow_architecture:
+    email_processing_flow:
+      - step: 1
+        action: "IMAP Connection"
+        icon: "📧"
+      - step: 2
+        action: "Email Retrieval & Headers Parse"
+        icon: "📥"
+      - step: 3
+        action: "Feature Extraction (ML Pipeline)"
+        icon: "🔍"
+      - step: 4
+        action: "Spam Classification (Ensemble Model)"
+        icon: "🤖"
+      - step: 5
+        action: "User Flag Override Check"
+        icon: "🛡️"
+      - step: 6
+        action: "Final Decision (Delete/Preserve)"
+        icon: "⚖️"
+      - step: 7
+        action: "Database Logging"
+        icon: "📊"
+      - step: 8
+        action: "Analytics Update"
+        icon: "📈"
+    
+    web_interface_flow:
+      - step: 1
+        action: "User Selects Account"
+        icon: "🌐"
+      - step: 2
+        action: "Preview Mode (Optional)"
+        icon: "🔍"
+      - step: 3
+        action: "Processing Trigger"
+        icon: "⚡"
+      - step: 4
+        action: "Real-time Progress Updates"
+        icon: "📊"
+      - step: 5
+        action: "Results Display + Email Table"
+        icon: "📋"
+      - step: 6
+        action: "User Flag Actions (Optional)"
+        icon: "🏷️"
+    
+    learning_feedback_flow:
+      - step: 1
+        action: "User Flags Email (Protect/Delete)"
+        icon: "👤"
+      - step: 2
+        action: "Flag Stored in Database"
+        icon: "📝"
+      - step: 3
+        action: "Next Processing Respects Flags"
+        icon: "🔄"
+      - step: 4
+        action: "Analytics Track Override Patterns"
+        icon: "📊"
+      - step: 5
+        action: "Future: ML Model Retraining"
+        icon: "🧠"
+  
+  integration_points:
+    cli_web_interface:
+      shared_database: "Both interfaces read/write same SQLite database"
+      shared_processing: "Both use identical processing_controller functions"
+      shared_configuration: "Same settings.py and credential management"
+      session_coordination: "Web app can be launched from CLI menu"
+    
+    ml_database:
+      training_data: "ML models train on historical email data"
+      feature_storage: "Extracted features cached for performance"
+      model_persistence: "Trained models stored in database"
+      performance_tracking: "Accuracy metrics logged per session"
+    
+    processing_analytics:
+      real_time_logging: "Every email action logged immediately"
+      aggregated_metrics: "Session summaries for dashboard display"
+      historical_analysis: "Long-term trends and pattern detection"
+      user_behavior: "Flag usage patterns and override statistics"
+  
+  performance_characteristics:
+    throughput:
+      single_account: "~100-500 emails/minute (depends on ML complexity)"
+      batch_mode: "Parallel processing across multiple accounts"
+      web_interface: "Responsive with real-time progress updates"
+    
+    accuracy:
+      target: "95.6%+ spam detection accuracy"
+      current: "Consistently meeting/exceeding target"
+      improvement: "Continuous learning from user feedback"
+    
+    scalability:
+      database: "SQLite suitable for single-user deployments"
+      future: "PostgreSQL migration planned for multi-user scenarios"
+      memory: "Efficient feature caching and connection pooling"
+  
+  security_reliability:
+    data_protection:
+      credential_encryption: "IMAP credentials securely stored"
+      database_integrity: "ACID compliance with SQLite"
+      backup_strategy: "Database file easily backed up"
+      privacy: "Email content processed locally, not transmitted"
+    
+    error_handling:
+      graceful_degradation: "System continues operating with partial failures"
+      rollback_capability: "Failed operations don't corrupt data"
+      logging: "Comprehensive error tracking and debugging"
+      recovery: "Automatic retry mechanisms for transient failures"
+    
+    user_control:
+      override_system: "Users can correct any ML decision"
+      preview_mode: "See actions before committing changes"
+      audit_trail: "Complete history of all email actions"
+      configuration: "Extensive customization of system behavior"
+  
+  analytics_reporting:
+    real_time_metrics:
+      processing_status: "Live updates during email processing"
+      accuracy_tracking: "Per-session and overall accuracy metrics"
+      category_breakdown: "Spam type distribution and trends"
+    
+    historical_analysis:
+      performance_trends: "Accuracy over time"
+      volume_analysis: "Email processing patterns"
+      user_behavior: "Flag usage and override patterns"
+      system_health: "Error rates and performance metrics"
+    
+    optimization_tools:
+      keyword_analyzer: "Identifies effective vs unused filter terms"
+      performance_profiler: "Bottleneck identification and optimization"
+      database_analytics: "Storage usage and query performance"
+  
+  future_architecture_considerations:
+    scalability_enhancements:
+      - "Multi-user Support: User authentication and isolation"
+      - "Distributed Processing: Microservices architecture"
+      - "Cloud Integration: AWS/Azure deployment options"
+    
+    ml_pipeline_evolution:
+      - "Advanced Models: Deep learning and transformer models"
+      - "Real-time Learning: Immediate adaptation to new spam patterns"
+      - "Federated Learning: Privacy-preserving collaborative improvement"
+    
+    integration_opportunities:
+      - "Email Client Plugins: Direct integration with Outlook, Thunderbird"
+      - "API Ecosystem: RESTful APIs for third-party integrations"
+      - "Mobile Interface: iOS/Android apps for management"
+  
+  architectural_philosophy: "Effective email security requires the perfect harmony of machine intelligence and human oversight. Like a beautiful song, each component plays its part in creating a symphony of protection that keeps your inbox safe while respecting your communication needs."
+  
+  metadata:
+    built_by: "ATLAS & Bobble"
+    created: "2025-06-23"
+    version: "1.0"
+    system_version: "Email Filter System v5.0"

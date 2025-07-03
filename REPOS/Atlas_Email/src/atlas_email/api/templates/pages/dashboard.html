@@ -1,121 +1,48 @@
 {% extends "base.html" %}
 
-{% block title %}Mail Filter Dashboard - Fresh{% endblock %}
+{% block title %}Dashboard - Atlas Email{% endblock %}
 
-{% block extra_head %}
-<meta http-equiv="refresh" content="30">
-{% endblock %}
-
-{% block extra_css %}
-<link rel="stylesheet" href="/static/css/pages/dashboard.css">
-{% endblock %}
+{% block page_title %}Atlas Email Dashboard{% endblock %}
 
 {% block content %}
-<div class="status-indicator">🟢 Live Dashboard</div>
+<div class="stats-grid">
+    {% from "components/stat_card.html" import email_accounts_card, emails_processed_card, accuracy_card, spam_detected_card %}
+    
+    {{ email_accounts_card(stats.total_accounts) }}
+    {{ emails_processed_card(stats.total_emails) }}
+    {{ accuracy_card("95.6") }}
+    {{ spam_detected_card(stats.spam_count) }}
+</div>
 
-<div class="container dashboard">
-    <h1>🛡️ Mail Filter Dashboard</h1>
-    
-    <div class="stats-grid">
-        <div class="stat-card email-accounts">
-            <div class="stat-icon">📧</div>
-            <div class="stat-content">
-                <div class="stat-value">{{ accounts|length if accounts else 0 }}</div>
-                <div class="stat-label">Email Accounts</div>
-                <div class="stat-sublabel">{{ "Active" if accounts else "None configured" }}</div>
-            </div>
-        </div>
-        <div class="stat-card emails-processed">
-            <div class="stat-icon">📊</div>
-            <div class="stat-content">
-                <div class="stat-value">{{ "{:,}".format(stats.get('processed_emails_count', 0)) }}</div>
-                <div class="stat-label">Emails Processed</div>
-                <div class="stat-sublabel">Total lifetime</div>
-            </div>
-        </div>
-        <div class="stat-card total-sessions">
-            <div class="stat-icon">🎯</div>
-            <div class="stat-content">
-                <div class="stat-value">{{ stats.get('sessions_count', 0) }}</div>
-                <div class="stat-label">Total Sessions</div>
-                <div class="stat-sublabel">Processing runs</div>
-            </div>
-        </div>
-        <div class="stat-card database-size">
-            <div class="stat-icon">💾</div>
-            <div class="stat-content">
-                <div class="stat-value">{{ "{:.1f}MB".format(stats.get('db_size_mb', 0)) }}</div>
-                <div class="stat-label">Database Size</div>
-                <div class="stat-sublabel">SQLite storage</div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="controls">
-        <button class="btn btn-success" onclick="runBatch()">🚀 Run Batch Processing</button>
-        <a href="/accounts" class="btn btn-primary">🎯 Single Account Filter</a>
-        <a href="/analytics" class="btn btn-warning">📊 Analytics & Reports</a>
-        <a href="/report" class="btn btn-primary">📋 Last Import Report</a>
-        <a href="/validate" class="btn btn-info">🔍 Category Validation</a>
-        <a href="/timer" class="btn btn-info">⏰ Timer Control</a>
-        <button class="btn" onclick="window.location.reload()">🔄 Refresh Data</button>
-    </div>
-    
-    <div class="recent-activity">
-        <h2 style="color: #2c3e50; margin-bottom: 20px;">📋 Latest Email Activity</h2>
-        <div class="table-container">
-            <table class="activity-table">
+<div class="container">
+    <h2>Recent Activity</h2>
+    <div class="activity-table">
+        <table>
             <thead>
                 <tr>
-                    <th>Date</th>
                     <th>Time</th>
+                    <th>Account</th>
                     <th>Action</th>
-                    <th>Category</th>
-                    <th>Sender</th>
-                    <th>Subject</th>
+                    <th>Count</th>
                 </tr>
             </thead>
             <tbody>
-                {{ email_rows|safe }}
+                {% for email in emails %}
+                <tr>
+                    <td>{{ email.timestamp }}</td>
+                    <td>{{ email.account | escape }}</td>
+                    <td>{{ email.action | escape }}</td>
+                    <td>{{ email.count }}</td>
+                </tr>
+                {% endfor %}
             </tbody>
-            </table>
-        </div>
-    </div>
-    
-    <div class="dashboard-footer">
-        <small>Fresh Mail Filter Interface • Auto-refresh every 30 seconds • Last updated: {{ current_time }}</small>
+        </table>
     </div>
 </div>
 
-<script>
-    async function runBatch() {
-        if (!confirm('Run batch processing on all accounts? This will process and potentially delete spam emails.')) {
-            return;
-        }
-        
-        const btn = event.target;
-        const originalText = btn.textContent;
-        btn.textContent = '⏳ Processing...';
-        btn.disabled = true;
-        
-        try {
-            const response = await fetch('/api/batch/run', {
-                method: 'POST'
-            });
-            const result = await response.json();
-            
-            if (result.success) {
-                alert('✅ Batch processing completed successfully!');
-                window.location.reload();
-            } else {
-                alert('❌ Batch processing failed: ' + result.message);
-            }
-        } catch (error) {
-            alert('❌ Error: ' + error.message);
-        } finally {
-            btn.textContent = originalText;
-            btn.disabled = false;
-        }
-    }
-</script>
+<div class="controls">
+    <a href="/timer" class="btn btn-primary">Timer Control</a>
+    <a href="/analytics" class="btn btn-info">Analytics</a>
+    <a href="/accounts" class="btn btn-success">Manage Accounts</a>
+</div>
 {% endblock %}

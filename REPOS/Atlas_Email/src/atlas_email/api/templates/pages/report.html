@@ -125,6 +125,22 @@
         padding: 20px;
         color: #666;
     }
+    .btn-danger {
+        background: linear-gradient(90deg, #dc3545 0%, #c82333 100%);
+        color: white;
+        padding: 12px 24px;
+        border: none;
+        border-radius: 25px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
+        transition: all 0.3s ease;
+    }
+    .btn-danger:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(220, 53, 69, 0.4);
+    }
     @media (max-width: 768px) {
         .stats-grid {
             grid-template-columns: 1fr;
@@ -225,12 +241,50 @@
             </div>
             {% endif %}
 
+            {% if preserved_categories %}
+            <div class="category-breakdown">
+                <h3>🛡️ Preserved Email Categories</h3>
+                {% for cat in preserved_categories %}
+                <div class="category-item">
+                    <span class="category-name">{{ cat.category }}</span>
+                    <span class="category-count" style="background: #4caf50;">{{ cat.count }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if preservation_reasons %}
+            <div class="category-breakdown">
+                <h3>💡 Why Emails Were Preserved</h3>
+                {% for reason in preservation_reasons %}
+                <div class="category-item">
+                    <span class="category-name">{{ reason.reason }}</span>
+                    <span class="category-count" style="background: #2196f3;">{{ reason.count }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if geographic_stats %}
+            <div class="category-breakdown">
+                <h3>🌍 Geographic Spam Sources</h3>
+                {% for geo in geographic_stats %}
+                <div class="category-item">
+                    <span class="category-name">{{ geo.country }} ({{ geo.country_code }})</span>
+                    <span class="category-count" style="background: #ff9800;">{{ geo.count }} ({{ geo.percentage }}%)</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
             <div class="chart-container">
                 <canvas id="categoryChart"></canvas>
             </div>
 
-            <div id="lastImportInfo" class="loading">
-                Loading last import details...
+            <div style="margin-top: 40px; text-align: center;">
+                <button id="removeLastImport" class="btn btn-danger" onclick="confirmRemoveLastImport()">
+                    🗑️ Remove Last Import
+                </button>
             </div>
         {% else %}
             <p>No import data available to generate report.</p>
@@ -276,41 +330,31 @@
         });
     }
 
-    // Load last import info
-    async function loadLastImportInfo() {
+    // Remove Last Import functionality
+    async function confirmRemoveLastImport() {
+        if (!confirm('Are you sure you want to remove all emails from the last import? This cannot be undone.')) {
+            return;
+        }
+        
         try {
-            const response = await fetch('/api/last-import-info');
-            const data = await response.json();
+            const response = await fetch('/api/remove-last-import', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
             
-            const infoDiv = document.getElementById('lastImportInfo');
+            const result = await response.json();
             
-            if (data.error) {
-                infoDiv.innerHTML = '<p style="color: #d32f2f;">Error loading import info</p>';
-                return;
+            if (result.success) {
+                alert(`Successfully removed ${result.details.emails_removed} emails from last import`);
+                window.location.href = '/';
+            } else {
+                alert(`Error: ${result.message}`);
             }
-
-            if (!data.session_info) {
-                infoDiv.innerHTML = '<p>No import sessions found</p>';
-                return;
-            }
-
-            infoDiv.innerHTML = `
-                <h3>📅 Last Import Details</h3>
-                <p><strong>Account:</strong> ${data.session_info.account_email || 'Unknown'}</p>
-                <p><strong>Started:</strong> ${data.session_info.start_time}</p>
-                <p><strong>Duration:</strong> ${data.session_info.duration || 'Unknown'}</p>
-                <p><strong>Total Processed:</strong> ${data.stats.total_emails}</p>
-                <p><strong>Spam Deleted:</strong> ${data.stats.deleted} (${data.stats.deleted_percentage}%)</p>
-                <p><strong>Emails Preserved:</strong> ${data.stats.preserved} (${data.stats.preserved_percentage}%)</p>
-            `;
         } catch (error) {
-            console.error('Error loading import info:', error);
-            document.getElementById('lastImportInfo').innerHTML = 
-                '<p style="color: #d32f2f;">Failed to load import information</p>';
+            alert(`Error removing last import: ${error.message}`);
         }
     }
-
-    // Load import info when page loads
-    document.addEventListener('DOMContentLoaded', loadLastImportInfo);
 </script>
 {% endblock %}

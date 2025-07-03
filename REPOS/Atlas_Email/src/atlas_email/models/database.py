@@ -15,33 +15,17 @@ import os
 # Point to data directory from package root
 project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 DB_FILE = os.path.join(project_root, "data", "mail_filter.db")
-DB_VERSION = 6  # Added geographic analytics columns
+DB_VERSION = 5  # Added processed_emails_bulletproof table to core schema
 
 # SECURITY: Validate schema table name is safe SQL identifier
-# SECURITY: Whitelist of allowed table names - prevents table name injection
-ALLOWED_TABLES = {
-    'accounts': 'accounts',
-    'sessions': 'sessions', 
-    'processed_emails_bulletproof': 'processed_emails_bulletproof',
-    'domains': 'domains',
-    'spam_categories': 'spam_categories',
-    'logs': 'logs',
-    'configurations': 'configurations',
-    'filter_terms': 'filter_terms',
-    'user_feedback': 'user_feedback',
-    'email_flags': 'email_flags',
-    'schema_version': 'schema_version'
-}
-
 def _validate_table_name(table_name: str) -> str:
-    """SECURITY: Validate table name using whitelist approach"""
-    validated_table = ALLOWED_TABLES.get(table_name)
-    if not validated_table:
-        raise ValueError(f"Invalid table name: {table_name}. Allowed tables: {list(ALLOWED_TABLES.keys())}")
-    return validated_table
+    """Validate table name contains only safe SQL identifier characters"""
+    import re
+    if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', table_name):
+        raise ValueError(f"Invalid table name: {table_name}")
+    return table_name
 
-# SECURITY: Use hardcoded schema table name instead of variable
-SCHEMA_VERSION_TABLE = "schema_version"
+SCHEMA_VERSION_TABLE = _validate_table_name("schema_version")
 
 class DatabaseManager:
     """Manages SQLite database operations with connection pooling and schema management"""
@@ -65,9 +49,9 @@ class DatabaseManager:
         with self.get_connection() as conn:
             cursor = conn.cursor()
             
-            # Create schema version table - SECURITY: Use hardcoded table name
-            cursor.execute("""
-                CREATE TABLE schema_version (
+            # Create schema version table
+            cursor.execute(f"""
+                CREATE TABLE {SCHEMA_VERSION_TABLE} (
                     version INTEGER PRIMARY KEY,
                     applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
@@ -82,8 +66,8 @@ class DatabaseManager:
             # Configuration tables
             self._create_config_tables(cursor)
             
-            # Insert initial schema version - SECURITY: Use hardcoded table name
-            cursor.execute("INSERT INTO schema_version (version) VALUES (?)", (DB_VERSION,))
+            # Insert initial schema version
+            cursor.execute(f"INSERT INTO {SCHEMA_VERSION_TABLE} (version) VALUES (?)", (DB_VERSION,))
             
             conn.commit()
             print("✅ Database created successfully")
@@ -329,14 +313,13 @@ class DatabaseManager:
         try:
             with self.get_connection() as conn:
                 cursor = conn.cursor()
-                # SECURITY: Use hardcoded table name instead of variable
-                cursor.execute("SELECT MAX(version) FROM schema_version")
+                cursor.execute(f"SELECT MAX(version) FROM {SCHEMA_VERSION_TABLE}")
                 current_version = cursor.fetchone()[0]
                 
                 if current_version < DB_VERSION:
                     print(f"🔄 Upgrading database schema from v{current_version} to v{DB_VERSION}")
                     self._upgrade_schema(cursor, current_version)
-                    cursor.execute("INSERT INTO schema_version (version) VALUES (?)", (DB_VERSION,))
+                    cursor.execute(f"INSERT INTO {SCHEMA_VERSION_TABLE} (version) VALUES (?)", (DB_VERSION,))
                     conn.commit()
         except sqlite3.Error:
             # Schema version table doesn't exist, recreate database
@@ -456,94 +439,6 @@ class DatabaseManager:
             cursor.execute("CREATE UNIQUE INDEX idx_email_flags_unique ON email_flags(email_uid, folder_name, account_id) WHERE is_active = TRUE")
             
             print("✅ Email flagging table created successfully")
-        
-        if current_version < 6:
-            # Version 6: Add geographic analytics columns
-            print("🔧 Upgrading database to version 6: Adding geographic analytics columns...")
-            
-            # Add geographic columns to processed_emails_bulletproof
-            try:
-                cursor.execute("ALTER TABLE processed_emails_bulletproof ADD COLUMN sender_ip TEXT")
-                print("✅ Added sender_ip column")
-            except sqlite3.OperationalError as e:
-                if "duplicate column" not in str(e).lower():
-                    raise
-            
-            try:
-                cursor.execute("ALTER TABLE processed_emails_bulletproof ADD COLUMN sender_country_code TEXT")
-                print("✅ Added sender_country_code column")
-            except sqlite3.OperationalError as e:
-                if "duplicate column" not in str(e).lower():
-                    raise
-            
-            try:
-                cursor.execute("ALTER TABLE processed_emails_bulletproof ADD COLUMN sender_country_name TEXT")
-                print("✅ Added sender_country_name column")
-            except sqlite3.OperationalError as e:
-                if "duplicate column" not in str(e).lower():
-                    raise
-            
-            try:
-                cursor.execute("ALTER TABLE processed_emails_bulletproof ADD COLUMN geographic_risk_score REAL")
-                print("✅ Added geographic_risk_score column")
-            except sqlite3.OperationalError as e:
-                if "duplicate column" not in str(e).lower():
-                    raise
-            
-            try:
-                cursor.execute("ALTER TABLE processed_emails_bulletproof ADD COLUMN detection_method TEXT")
-                print("✅ Added detection_method column")
-            except sqlite3.OperationalError as e:
-                if "duplicate column" not in str(e).lower():
-                    raise
-            
-            # Create index for geographic queries
-            cursor.execute("""
-                CREATE INDEX IF NOT EXISTS idx_processed_emails_bulletproof_country 
-                ON processed_emails_bulletproof(sender_country_code)
-            """)
-            
-            # Insert sample geographic data with realistic distribution
-            sample_data = [
-                ('CN', 'China', 0.95, 'High-risk country TLD', 15),      # Most spam from China
-                ('RU', 'Russia', 0.90, 'Suspicious IP range', 12),       # High volume from Russia  
-                ('NG', 'Nigeria', 0.85, 'Known phishing source', 8),     # Nigeria phishing
-                ('IN', 'India', 0.80, 'Call center infrastructure', 6),  # India call centers
-                ('PK', 'Pakistan', 0.75, 'Spam distribution network', 4), # Pakistan spam networks
-                ('BD', 'Bangladesh', 0.70, 'Suspicious domain pattern', 3), # Bangladesh patterns
-                ('VN', 'Vietnam', 0.65, 'Geographic risk assessment', 2)  # Vietnam minimal
-            ]
-            
-            # Only add sample data if table has records but no geographic data
-            cursor.execute("SELECT COUNT(*) FROM processed_emails_bulletproof WHERE sender_country_code IS NOT NULL")
-            existing_geo_count = cursor.fetchone()[0]
-            
-            if existing_geo_count == 0:
-                cursor.execute("SELECT COUNT(*) FROM processed_emails_bulletproof WHERE action = 'DELETED'")
-                total_spam_count = cursor.fetchone()[0]
-                
-                if total_spam_count > 0:
-                    print("📊 Adding sample geographic data for dashboard demonstration...")
-                    total_assigned = 0
-                    for country_code, country_name, risk_score, method, count in sample_data:
-                        # Assign multiple emails per country for realistic distribution
-                        cursor.execute("""
-                            UPDATE processed_emails_bulletproof 
-                            SET sender_country_code = ?, 
-                                sender_country_name = ?, 
-                                geographic_risk_score = ?,
-                                detection_method = ?
-                            WHERE id IN (
-                                SELECT id FROM processed_emails_bulletproof 
-                                WHERE action = 'DELETED' 
-                                ORDER BY timestamp DESC 
-                                LIMIT ? OFFSET ?
-                            )
-                        """, (country_code, country_name, risk_score, method, count, total_assigned))
-                        total_assigned += count
-                    print("✅ Sample geographic data added")
-            
-            print("✅ Database upgraded to version 6")
     
     @contextmanager
     def get_connection(self):
@@ -798,16 +693,11 @@ class DatabaseManager:
                 raise ValueError(f"Invalid feedback ID value: {fid}. Must be positive integer.")
             validated_ids.append(fid)
             
-        # SECURITY: Limit maximum IDs to prevent resource exhaustion
-        MAX_IDS = 1000
-        if len(validated_ids) > MAX_IDS:
-            raise ValueError(f"Too many IDs: {len(validated_ids)}. Maximum allowed: {MAX_IDS}")
-        
         with self.get_connection() as conn:
             cursor = conn.cursor()
             # SECURITY: Use parameterized query with validated integer IDs only
-            placeholders = ','.join('?' * len(validated_ids))
-            query = "UPDATE user_feedback SET processed = TRUE WHERE id IN (" + placeholders + ")"
+            placeholders = ','.join(['?'] * len(validated_ids))
+            query = f"UPDATE user_feedback SET processed = TRUE WHERE id IN ({placeholders})"
             cursor.execute(query, validated_ids)
             conn.commit()
     

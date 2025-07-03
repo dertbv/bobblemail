@@ -5,7 +5,49 @@
 {% block page_title %}📊 Analytics & Reports{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="/static/css/pages/analytics.css">
+<style>
+    /* Analytics-specific styles that override or extend common.css */
+    .container {
+        max-width: 1400px; /* Wider for analytics */
+    }
+    
+    /* Remove the default body background for analytics page */
+    body {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 20px;
+    }
+    
+    /* Additional account breakdown card styles */
+    .analytics-card.accounts-total-card {
+        border-top-color: #17a2b8;
+    }
+    
+    .analytics-card.accounts-spam-card {
+        border-top-color: #dc3545;
+    }
+    
+    /* Spam-specific bar styling */
+    .bar-fill.spam-bar {
+        background: #dc3545 !important;
+    }
+    
+    .bar-value.spam-value {
+        color: #dc3545 !important;
+    }
+    
+    /* Auto-refresh notice */
+    .refresh-notice {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: rgba(0, 0, 0, 0.7);
+        color: white;
+        padding: 8px 15px;
+        border-radius: 15px;
+        font-size: 0.8em;
+        z-index: 1000;
+    }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -155,6 +197,44 @@
             <p class="text-center opacity-8">No spam domain data available</p>
         {% endif %}
     </div>
+    
+    <div class="analytics-card geographic-card">
+        <div class="card-title">
+            🌍 Geographic Intelligence (All Time)
+        </div>
+        {% if geographic_data %}
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Country</th>
+                        <th>Email Count</th>
+                        <th>Percentage</th>
+                        <th>Risk Score</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for geo in geographic_data %}
+                        {% set risk_color = '#28a745' if geo.avg_risk_score < 0.3 else '#ffc107' if geo.avg_risk_score < 0.7 else '#dc3545' %}
+                        <tr>
+                            <td>
+                                <a href="#" onclick="showCountryDetails('{{ geo.sender_country_code }}', '{{ geo.sender_country_name }}', {{ geo.count }}, {{ geo.avg_risk_score|round(2) }}); return false;" 
+                                   style="text-decoration: none; color: #007bff;">
+                                    🏴 {{ geo.sender_country_name }}
+                                </a>
+                            </td>
+                            <td>{{ "{:,}".format(geo.count) }}</td>
+                            <td>{{ geo.percentage|round(1) }}%</td>
+                            <td style="color: {{ risk_color }}; font-weight: bold;">
+                                {{ geo.avg_risk_score|round(2) if geo.avg_risk_score else 'N/A' }}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p class="text-center opacity-8">No geographic data available</p>
+        {% endif %}
+    </div>
 </div>
 
 <div class="analytics-card activity-card">
@@ -209,5 +289,119 @@
             card.classList.add('fade-in');
         });
     });
+    
+    // Country details popup functionality
+    function showCountryDetails(countryCode, countryName, emailCount, avgRiskScore) {
+        // Show loading popup first
+        const loadingPopup = document.createElement('div');
+        loadingPopup.innerHTML = `
+            <div class="country-popup-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; align-items: center; justify-content: center;" onclick="this.remove()">
+                <div style="background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); max-width: 500px; width: 90%;" onclick="event.stopPropagation()">
+                    <h3 style="margin: 0 0 20px 0; color: #333; text-align: center;">🌍 ${countryName}</h3>
+                    <div style="text-align: center; margin: 20px 0;">
+                        <div style="font-size: 1.2em; color: #666;">Loading classification breakdown...</div>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(loadingPopup);
+        
+        // Fetch classification data
+        fetch(`/api/country-classifications/${countryCode}`)
+            .then(response => response.json())
+            .then(data => {
+                // Remove loading popup
+                document.querySelector('.country-popup-overlay').remove();
+                
+                if (data.success && data.classifications.length > 0) {
+                    // Build classification table
+                    let classificationRows = '';
+                    data.classifications.forEach(cls => {
+                        classificationRows += `
+                            <tr>
+                                <td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">${cls.category}</td>
+                                <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">${cls.count.toLocaleString()}</td>
+                                <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">${cls.percentage.toFixed(1)}%</td>
+                            </tr>
+                        `;
+                    });
+                    
+                    const popup = document.createElement('div');
+                    popup.innerHTML = `
+                        <div class="country-popup-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; align-items: center; justify-content: center;" onclick="this.remove()">
+                            <div style="background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); max-width: 500px; width: 90%;" onclick="event.stopPropagation()">
+                                <h3 style="margin: 0 0 20px 0; color: #333; text-align: center;">🌍 ${countryName}</h3>
+                                <div style="text-align: center; margin-bottom: 20px;">
+                                    <div style="font-weight: bold; color: #666;">Top Classifications (${emailCount.toLocaleString()} total emails)</div>
+                                </div>
+                                <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+                                    <thead>
+                                        <tr style="background: #f8f9fa;">
+                                            <th style="padding: 10px; text-align: left; border-bottom: 2px solid #dee2e6;">Category</th>
+                                            <th style="padding: 10px; text-align: right; border-bottom: 2px solid #dee2e6;">Count</th>
+                                            <th style="padding: 10px; text-align: right; border-bottom: 2px solid #dee2e6;">%</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${classificationRows}
+                                    </tbody>
+                                </table>
+                                <div style="text-align: center;">
+                                    <button onclick="document.querySelector('.country-popup-overlay').remove()" 
+                                            style="background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">
+                                        Close
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    document.body.appendChild(popup);
+                } else {
+                    // Show no data message
+                    const popup = document.createElement('div');
+                    popup.innerHTML = `
+                        <div class="country-popup-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; align-items: center; justify-content: center;" onclick="this.remove()">
+                            <div style="background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); max-width: 400px; width: 90%;" onclick="event.stopPropagation()">
+                                <h3 style="margin: 0 0 20px 0; color: #333; text-align: center;">🌍 ${countryName}</h3>
+                                <div style="text-align: center; margin: 20px 0;">
+                                    <div style="color: #666;">No classification data available for this country</div>
+                                </div>
+                                <div style="text-align: center;">
+                                    <button onclick="document.querySelector('.country-popup-overlay').remove()" 
+                                            style="background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">
+                                        Close
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    document.body.appendChild(popup);
+                }
+            })
+            .catch(error => {
+                // Remove loading popup and show error
+                document.querySelector('.country-popup-overlay').remove();
+                console.error('Error fetching classification data:', error);
+                
+                const popup = document.createElement('div');
+                popup.innerHTML = `
+                    <div class="country-popup-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; align-items: center; justify-content: center;" onclick="this.remove()">
+                        <div style="background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); max-width: 400px; width: 90%;" onclick="event.stopPropagation()">
+                            <h3 style="margin: 0 0 20px 0; color: #333; text-align: center;">🌍 ${countryName}</h3>
+                            <div style="text-align: center; margin: 20px 0;">
+                                <div style="color: #dc3545;">Error loading classification data</div>
+                            </div>
+                            <div style="text-align: center;">
+                                <button onclick="document.querySelector('.country-popup-overlay').remove()" 
+                                        style="background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">
+                                    Close
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(popup);
+            });
+    }
 </script>
 {% endblock %}

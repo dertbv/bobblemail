@@ -1,78 +1,39 @@
 {% extends "base.html" %}
 
-{% block title %}📧 Email Accounts - Mail Filter{% endblock %}
+{% block title %}📧 Email Accounts - Atlas Email{% endblock %}
 
 {% block page_title %}📧 Email Accounts{% endblock %}
 
 {% block extra_css %}
 <style>
-    .container {
-        max-width: 1000px;
-        margin: 0 auto;
-        background: white;
-        border-radius: 15px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-        overflow: hidden;
-    }
-    
-    .header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 30px;
-        text-align: center;
-    }
-    
-    .header h1 {
-        margin: 0;
-        font-size: 2.5em;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-    }
-    
-    .subtitle {
-        margin-top: 10px;
-        opacity: 0.9;
-    }
-    
-    .nav-links {
-        padding: 20px 30px;
-        background: #f8f9fa;
-        border-bottom: 1px solid #dee2e6;
-    }
-    
-    .back-link {
-        color: #667eea;
-        text-decoration: none;
-        font-weight: 600;
-        margin-right: 20px;
-    }
-    
-    .back-link:hover {
-        text-decoration: underline;
-    }
-    
-    .content {
-        padding: 30px;
+    .account-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        gap: 20px;
+        padding: 20px;
     }
     
     .account-card {
-        display: flex;
-        align-items: center;
-        background: #f8f9fa;
+        background: white;
+        border: 1px solid #ddd;
         border-radius: 10px;
         padding: 20px;
-        margin-bottom: 15px;
-        border: 1px solid #dee2e6;
-        transition: all 0.3s ease;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        display: flex;
+        align-items: center;
+        gap: 15px;
     }
     
     .account-card:hover {
-        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
         transform: translateY(-2px);
+        box-shadow: 0 8px 15px rgba(0,0,0,0.2);
     }
     
     .account-icon {
         font-size: 2.5em;
-        margin-right: 20px;
+        min-width: 60px;
+        text-align: center;
     }
     
     .account-info {
@@ -80,90 +41,64 @@
     }
     
     .account-email {
-        font-size: 1.3em;
-        font-weight: 600;
+        font-size: 1.2em;
+        font-weight: bold;
         color: #333;
         margin-bottom: 5px;
     }
     
     .account-provider {
-        color: #667eea;
-        font-weight: 500;
+        color: #666;
         margin-bottom: 5px;
     }
     
     .account-meta {
-        color: #6c757d;
         font-size: 0.9em;
+        color: #888;
     }
     
     .account-actions {
         display: flex;
+        flex-direction: column;
         gap: 10px;
     }
     
     .btn {
         padding: 10px 20px;
-        border: none;
-        border-radius: 8px;
+        background: #007bff;
+        color: white;
         text-decoration: none;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.3s ease;
+        border-radius: 5px;
         text-align: center;
-        display: inline-block;
+        font-weight: 600;
+        transition: background 0.2s ease;
+        border: none;
+        cursor: pointer;
     }
     
-    .btn-primary {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    .btn:hover {
+        background: #0056b3;
         color: white;
+        text-decoration: none;
     }
     
     .btn-secondary {
         background: #6c757d;
-        color: white;
     }
     
-    .btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-        text-decoration: none;
+    .btn-secondary:hover {
+        background: #545b62;
     }
     
     .no-accounts {
         text-align: center;
         padding: 40px;
-        color: #6c757d;
+        color: #666;
     }
     
-    .no-accounts h3 {
-        color: #333;
-    }
-    
-    .no-accounts code {
-        background: #f8f9fa;
-        padding: 5px 10px;
-        border-radius: 5px;
-        font-family: monospace;
-    }
-    
-    .status-message {
-        display: none;
-        padding: 15px;
-        border-radius: 8px;
+    .no-accounts .icon {
+        font-size: 4em;
         margin-bottom: 20px;
-    }
-    
-    .status-success {
-        background: #d4edda;
-        color: #155724;
-        border: 1px solid #c3e6cb;
-    }
-    
-    .status-error {
-        background: #f8d7da;
-        color: #721c24;
-        border: 1px solid #f5c6cb;
     }
     
     /* Special styling for "All Accounts" card */
@@ -191,162 +126,54 @@
         background: #f8f9fa;
         color: #667eea;
     }
-    
-    /* Mobile Responsive Design */
-    @media (max-width: 768px) {
-        .container {
-            margin: 10px;
-            border-radius: 10px;
-        }
-        
-        .header {
-            padding: 20px;
-        }
-        
-        .header h1 {
-            font-size: 2em;
-        }
-        
-        .content {
-            padding: 20px;
-        }
-        
-        .account-card {
-            flex-direction: column;
-            text-align: center;
-            padding: 15px;
-        }
-        
-        .account-icon {
-            margin-right: 0;
-            margin-bottom: 10px;
-        }
-        
-        .account-info {
-            margin-bottom: 15px;
-        }
-        
-        .account-actions {
-            width: 100%;
-            flex-direction: column;
-        }
-        
-        .btn {
-            width: 100%;
-        }
-    }
-    
-    @media (max-width: 480px) {
-        .header h1 {
-            font-size: 1.8em;
-        }
-        
-        .account-card {
-            padding: 10px;
-            margin-bottom: 10px;
-        }
-        
-        .account-email {
-            font-size: 1.1em;
-        }
-        
-        .btn {
-            padding: 12px 15px;
-            font-size: 14px;
-        }
-    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container">
-    <div class="header">
-        <h1>📧 Email Accounts</h1>
-        <div class="subtitle">Select an account for single account filtering</div>
-    </div>
-    
-    <div class="nav-links">
-        <a href="/" class="back-link">← Back to Dashboard</a>
-    </div>
-    
-    <div class="content">
-        <div id="status-message" class="status-message"></div>
-        
-        {% if accounts %}
-            <!-- All Accounts Card -->
-            <div class="account-card all-accounts-card">
-                <div class="account-icon">🌐</div>
-                <div class="account-info">
-                    <div class="account-email">All Accounts</div>
-                    <div class="account-provider">Process all {{ accounts|length }} accounts at once</div>
-                    <div class="account-meta">
-                        Batch filtering with preview option
-                    </div>
-                </div>
-                <div class="account-actions">
-                    <a href="/single-account/all" class="btn" style="background: white; color: #667eea;">Select All</a>
-                </div>
-            </div>
-            
-            <!-- Individual Account Cards -->
-            {% for account in accounts %}
-            <div class="account-card">
-                <div class="account-icon">{{ account.icon }}</div>
-                <div class="account-info">
-                    <div class="account-email">{{ account.email_address }}</div>
-                    <div class="account-provider">{{ account.provider }}</div>
-                    <div class="account-meta">
-                        {{ account.folder_count }} folders configured • Last used: {{ account.last_used }}
-                    </div>
-                </div>
-                <div class="account-actions">
-                    <a href="/single-account/{{ loop.index0 }}" class="btn btn-primary">Select</a>
-                    <button onclick="testConnection({{ loop.index0 }})" class="btn btn-secondary">Test</button>
-                </div>
-            </div>
-            {% endfor %}
-        {% else %}
-            <div class="no-accounts">
-                <h3>📧 No Email Accounts Configured</h3>
-                <p>Use the CLI to add email accounts first:</p>
-                <code>python3 main.py</code>
-                <p>Then return here to manage single account filtering.</p>
-            </div>
-        {% endif %}
-    </div>
-</div>
-{% endblock %}
+<p><a href="/" class="nav-link">← Back to Dashboard</a></p>
 
-{% block extra_js %}
-<script>
-    async function testConnection(accountId) {
-        const statusDiv = document.getElementById('status-message');
-        statusDiv.className = 'status-message status-success';
-        statusDiv.textContent = 'Testing connection...';
-        statusDiv.style.display = 'block';
-        
-        try {
-            const response = await fetch(`/api/testing/connection/${accountId}`, {
-                method: 'POST'
-            });
-            const result = await response.json();
-            
-            if (result.success) {
-                statusDiv.className = 'status-message status-success';
-                statusDiv.textContent = `✅ Connection successful! Found ${result.total_folders || 0} folders.`;
-            } else {
-                statusDiv.className = 'status-message status-error';
-                statusDiv.textContent = `❌ Connection failed: ${result.error || 'Unknown error'}`;
-            }
-        } catch (error) {
-            statusDiv.className = 'status-message status-error';
-            statusDiv.textContent = `❌ Error testing connection: ${error.message}`;
-        }
-        
-        // Hide message after 5 seconds
-        setTimeout(() => {
-            statusDiv.style.display = 'none';
-        }, 5000);
-    }
-</script>
+{% if accounts %}
+<div class="account-grid">
+    <!-- All Accounts Card -->
+    <div class="account-card all-accounts-card">
+        <div class="account-icon">🌐</div>
+        <div class="account-info">
+            <div class="account-email">All Accounts</div>
+            <div class="account-provider">Process all {{ accounts|length }} accounts at once</div>
+            <div class="account-meta">
+                Batch filtering with preview option
+            </div>
+        </div>
+        <div class="account-actions">
+            <a href="/single-account/all" class="btn">Select All</a>
+        </div>
+    </div>
+    
+    <!-- Individual Account Cards -->
+    {% for account in accounts %}
+    <div class="account-card">
+        <div class="account-icon">{{ account.icon }}</div>
+        <div class="account-info">
+            <div class="account-email">{{ account.email_address }}</div>
+            <div class="account-provider">{{ account.provider }}</div>
+            <div class="account-meta">
+                Last used: {{ account.last_used }}<br>
+                Target folders: {{ account.folder_count }}
+            </div>
+        </div>
+        <div class="account-actions">
+            <a href="/single-account/{{ loop.index0 }}" class="btn">Filter Emails</a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="no-accounts">
+    <div class="icon">📧</div>
+    <h2>No Email Accounts Found</h2>
+    <p>No saved email accounts found in credentials.</p>
+    <p>Please configure your email accounts first.</p>
+    <a href="/" class="btn">← Return to Dashboard</a>
+</div>
+{% endif %}
 {% endblock %}

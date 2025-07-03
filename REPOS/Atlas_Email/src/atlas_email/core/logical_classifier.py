@@ -9,14 +9,7 @@ Analyzes sender, domain, and content patterns with hierarchical priority rules.
 import re
 import tldextract
 from urllib.parse import urlparse
-from atlas_email.utils.domain_cache import domain_cache
-try:
-    import geoip2fast.geoip2fast as geoip2fast_module
-    GEOIP_AVAILABLE = True
-    _geoip = geoip2fast_module.GeoIP2Fast()
-except ImportError:
-    GEOIP_AVAILABLE = False
-    _geoip = None
+from atlas_email.core.geographic_intelligence import GeographicIntelligenceProcessor
 
 
 class LogicalEmailClassifier:
@@ -27,23 +20,7 @@ class LogicalEmailClassifier:
     def __init__(self):
         self.confidence_score = 0.0
         self.classification_reason = ""
-        
-        # TLD blacklist for instant detection (1,934,674x faster than WHOIS)
-        self.suspicious_tlds = {
-            '.cn', '.ru', '.tk', '.ml', '.ga', '.cf', '.cc', '.pw',
-            '.top', '.click', '.bid', '.win', '.download', '.party'
-        }
-        
-        # High-risk countries for geographic intelligence
-        self.high_risk_countries = {'CN', 'RU', 'UA', 'BD', 'PK', 'IN'}
-        
-        # Suspicious IP ranges (botnets, compromised servers)
-        self.suspicious_ip_ranges = [
-            '103.45.',  # Known botnet range
-            '45.67.',   # Compromised server range
-            '185.220.', # Tor exit nodes
-            '198.98.',  # VPN spam networks
-        ]
+        self.geo_processor = GeographicIntelligenceProcessor()
         
     def classify_email(self, sender, subject, headers=""):
         """
@@ -65,140 +42,63 @@ class LogicalEmailClassifier:
         # Combine all text for analysis
         full_text = f"{sender} {subject} {headers}".lower()
         
-        # PHASE 1 OPTIMIZATION: Check cache and instant detection FIRST
-        sender_domain = self._extract_domain_fast(sender)
-        
-        # 1. TLD BLACKLIST CHECK (instant, no expensive analysis)
-        if self._is_suspicious_tld(sender_domain):
-            return "Domain Spam", 0.98, f"Suspicious TLD detected: {sender_domain}"
-        
-        # 2. DOMAIN CACHE CHECK (70% hit rate = 9x performance)
-        cached_result = self._check_domain_cache(sender_domain)
-        if cached_result and cached_result.get('is_suspicious'):
-            return "Domain Spam", 0.95, f"Cached suspicious domain: {sender_domain}"
-        
-        # 3. OBVIOUS SPAM PATTERNS (before expensive domain analysis)
-        # Adult content (highest confidence, instant detection)
-        if self._is_adult_content(sender, subject, full_text):
-            return "Adult & Dating Spam", 0.95, "Explicit adult content detected"
-        
-        # Gibberish domains (instant pattern matching)
-        if self._is_gibberish_domain_fast(sender_domain):
-            return "Domain Spam", 0.98, f"Gibberish domain detected: {sender_domain}"
-        
-        # TIER 2: FAST GEOGRAPHIC INTELLIGENCE (0.01-1ms)
-        # Extract sender IP from headers for geographic analysis
-        sender_ip = self._extract_sender_ip(headers)
-        if sender_ip:
-            # Geographic risk assessment using geoip2fast (55,099x faster than WHOIS)
-            geo_risk = self._assess_geographic_risk(sender_ip)
-            if geo_risk['is_high_risk']:
-                return "Geographic Spam", geo_risk['confidence'], geo_risk['reason']
-        
-        # Only perform expensive domain analysis if needed
+        # Extract domain information
         domain_info = self._analyze_domain(sender)
         
         # Apply hierarchical classification logic
         
-        # Adult content already checked above for early exit
+        # PRIORITY 1: Adult & Dating Content (highest priority)
+        if self._is_adult_content(sender, subject, full_text):
+            return "Adult & Dating Spam", 0.95, "Explicit adult content detected"
             
-        # PRIORITY 2: Brand Impersonation (fake domains with brand names)
+        # PRIORITY 2: Geographic Intelligence (high-risk countries and IPs)
+        if headers:  # Only check if we have headers with IP information
+            geo_result = self._check_geographic_risk(headers, sender, domain_info)
+            if geo_result:
+                return geo_result
+            
+        # PRIORITY 3: Brand Impersonation (fake domains with brand names)
         brand_result = self._detect_brand_impersonation(sender, subject, domain_info)
         if brand_result:
-            # 4. EARLY EXIT on high confidence
-            if brand_result[1] >= 0.95:
-                return brand_result
-            # Continue checking if confidence < 0.95
+            return brand_result
             
-        # PRIORITY 3: Phishing & Payment Scams (moved before financial to catch personal email invoices)
+        # PRIORITY 4: Phishing & Payment Scams (moved before financial to catch personal email invoices)
         phishing_result = self._detect_phishing_scams(sender, subject, full_text, domain_info)
         if phishing_result:
-            # 4. EARLY EXIT on high confidence
-            if phishing_result[1] >= 0.95:
-                return phishing_result
-            # Continue checking if confidence < 0.95
+            return phishing_result
             
-        # PRIORITY 4: Financial & Investment Spam
+        # PRIORITY 5: Financial & Investment Spam
         financial_result = self._detect_financial_spam(sender, subject, full_text, domain_info)
         if financial_result:
-            # 4. EARLY EXIT on high confidence
-            if financial_result[1] >= 0.95:
-                return financial_result
-            # Continue checking if confidence < 0.95
+            return financial_result
             
-        # PRIORITY 5: Health & Medical Spam
+        # PRIORITY 6: Health & Medical Spam
         health_result = self._detect_health_spam(sender, subject, full_text)
         if health_result:
             return health_result
             
-        # PRIORITY 6: Gambling Spam
+        # PRIORITY 7: Gambling Spam
         gambling_result = self._detect_gambling_spam(sender, subject, full_text)
         if gambling_result:
             return gambling_result
             
-        # PRIORITY 7: Real Estate Spam
+        # PRIORITY 8: Real Estate Spam
         real_estate_result = self._detect_real_estate_spam(sender, subject, full_text)
         if real_estate_result:
             return real_estate_result
             
-        # PRIORITY 8: Legal & Compensation Scams
+        # PRIORITY 9: Legal & Compensation Scams
         legal_result = self._detect_legal_scams(sender, subject, full_text)
         if legal_result:
             return legal_result
             
-        # PRIORITY 9: Promotional Email (legitimate retail)
+        # PRIORITY 10: Promotional Email (legitimate retail)
         promotional_result = self._detect_promotional_email(sender, subject, full_text, domain_info)
         if promotional_result:
             return promotional_result
             
         # DEFAULT: Marketing Spam (catch-all)
         return "Marketing Spam", 0.5, "General spam content detected"
-    
-    def _extract_domain_fast(self, sender):
-        """Fast domain extraction without full analysis"""
-        if '@' not in sender:
-            return ""
-        try:
-            return sender.split('@')[1].strip().replace('>', '').lower()
-        except:
-            return ""
-    
-    def _is_suspicious_tld(self, domain):
-        """Instant TLD blacklist check - 1,934,674x faster than WHOIS"""
-        if not domain:
-            return False
-        return any(domain.endswith(tld) for tld in self.suspicious_tlds)
-    
-    def _check_domain_cache(self, domain):
-        """Check domain cache for instant results"""
-        if not domain:
-            return None
-        return domain_cache.get_cached_validation(domain)
-    
-    def _is_gibberish_domain_fast(self, domain):
-        """Fast gibberish detection using patterns"""
-        if not domain or len(domain) < 5:
-            return False
-        
-        # Extract domain part (before first dot)
-        domain_part = domain.split('.')[0]
-        
-        # Very short random domains
-        if len(domain_part) <= 3:
-            return True
-            
-        # Long strings of random characters (no recognizable words)
-        if len(domain_part) > 12:
-            recognizable_words = ['email', 'mail', 'news', 'letter', 'update', 'info', 'support', 'app', 'web', 'net']
-            if not any(word in domain_part for word in recognizable_words):
-                return True
-        
-        # Pattern: excessive consonants without vowels  
-        consonant_ratio = len(re.findall(r'[bcdfghjklmnpqrstvwxyz]', domain_part)) / len(domain_part)
-        if consonant_ratio > 0.8 and len(domain_part) > 6:
-            return True
-            
-        return False
     
     def _analyze_domain(self, sender):
         """
@@ -887,90 +787,57 @@ class LogicalEmailClassifier:
             
         return None
     
-    def _extract_sender_ip(self, headers):
+    def _check_geographic_risk(self, headers, sender, domain_info):
         """
-        Extract sender IP address from email headers
-        
-        Args:
-            headers: Email headers string
+        Check geographic risk based on sender IP location
+        PRIORITY 2 in classification hierarchy
+        """
+        try:
+            # Process geographic intelligence
+            geo_data = self.geo_processor.process_email_geographic_intelligence(headers, sender)
             
-        Returns:
-            str: IP address or None if not found
-        """
-        if not headers:
+            # If we have a high-risk country, flag it
+            if geo_data.geographic_risk_score >= 0.70:
+                # Special handling for US services being misclassified
+                # If domain is legitimate and from US, reduce risk significantly
+                if domain_info.get('is_legitimate') and geo_data.sender_country_code == 'US':
+                    # Legitimate US service - don't flag as spam based on geography
+                    return None
+                
+                # For high-risk countries, determine spam category based on content
+                if geo_data.geographic_risk_score >= 0.85:
+                    # Very high risk countries (China, Russia, Nigeria)
+                    confidence = min(0.90, geo_data.geographic_risk_score)
+                    reason = f"High-risk country: {geo_data.sender_country_name} (IP: {geo_data.sender_ip})"
+                    
+                    # Check content to determine specific spam type
+                    full_text = f"{sender} {headers}".lower()
+                    
+                    if any(term in full_text for term in ['lottery', 'prize', 'winner', 'claim']):
+                        return "Phishing", confidence, f"Prize scam from {reason}"
+                    elif any(term in full_text for term in ['invoice', 'payment', 'billing']):
+                        return "Payment Scam", confidence, f"Fake invoice from {reason}"
+                    elif any(term in full_text for term in ['investment', 'trading', 'profit']):
+                        return "Financial & Investment Spam", confidence, f"Investment scam from {reason}"
+                    else:
+                        # Generic high-risk geographic spam
+                        return "Geographic Spam", confidence, reason
+                        
+                elif geo_data.geographic_risk_score >= 0.70:
+                    # Medium-high risk countries
+                    # Only flag if combined with other suspicious factors
+                    if domain_info.get('is_suspicious') or domain_info.get('is_gibberish'):
+                        confidence = min(0.80, geo_data.geographic_risk_score)
+                        reason = f"Suspicious domain from high-risk country: {geo_data.sender_country_name}"
+                        return "Geographic Spam", confidence, reason
+                        
+            # Low risk or no geographic data - continue with other checks
             return None
             
-        # Common IP header patterns
-        ip_patterns = [
-            r'Received:.*?\[(\d+\.\d+\.\d+\.\d+)\]',  # Standard format
-            r'X-Originating-IP:\s*(\d+\.\d+\.\d+\.\d+)',  # Outlook/Hotmail
-            r'X-Sender-IP:\s*(\d+\.\d+\.\d+\.\d+)',  # Various providers
-            r'X-Real-IP:\s*(\d+\.\d+\.\d+\.\d+)',  # Proxy headers
-        ]
-        
-        for pattern in ip_patterns:
-            matches = re.findall(pattern, headers, re.IGNORECASE)
-            if matches:
-                # Return first public IP (skip private ranges)
-                for ip in matches:
-                    if self._is_public_ip(ip):
-                        return ip
-        
-        return None
-    
-    def _is_public_ip(self, ip):
-        """Check if IP is public (not private/local)"""
-        try:
-            parts = [int(x) for x in ip.split('.')]
-            # Private ranges: 10.x.x.x, 172.16-31.x.x, 192.168.x.x, 127.x.x.x
-            if (parts[0] == 10 or 
-                (parts[0] == 172 and 16 <= parts[1] <= 31) or
-                (parts[0] == 192 and parts[1] == 168) or
-                parts[0] == 127):
-                return False
-            return True
-        except:
-            return False
-    
-    def _assess_geographic_risk(self, ip_address):
-        """
-        Fast geographic risk assessment using geoip2fast
-        
-        Args:
-            ip_address: IP address to analyze
-            
-        Returns:
-            dict: Risk assessment with confidence and reason
-        """
-        if not GEOIP_AVAILABLE:
-            return {'is_high_risk': False, 'confidence': 0.0, 'reason': 'GeoIP not available'}
-        
-        try:
-            # Suspicious IP range check (instant)
-            for ip_range in self.suspicious_ip_ranges:
-                if ip_address.startswith(ip_range):
-                    return {
-                        'is_high_risk': True,
-                        'confidence': 0.95,
-                        'reason': f'Suspicious IP range detected: {ip_range}*'
-                    }
-            
-            # Fast country lookup using geoip2fast (0.0416ms vs 2,294ms WHOIS)
-            geo_result = _geoip.lookup(ip_address)
-            country_code = getattr(geo_result, 'country_code', '')
-            
-            if country_code in self.high_risk_countries:
-                country_name = getattr(geo_result, 'country_name', country_code)
-                return {
-                    'is_high_risk': True,
-                    'confidence': 0.90,
-                    'reason': f'High-risk country detected: {country_name} ({country_code})'
-                }
-            
-            return {'is_high_risk': False, 'confidence': 0.1, 'reason': f'Low-risk country: {country_code}'}
-            
         except Exception as e:
-            return {'is_high_risk': False, 'confidence': 0.5, 'reason': f'GeoIP lookup failed: {str(e)}'}
+            # If geographic check fails, continue with classification
+            # Don't let geographic failures break the entire classification
+            return None
 
 
 def test_logical_classifier():
