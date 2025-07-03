@@ -1237,7 +1237,7 @@ class EmailProcessor:
         """Log examples for preview mode"""
         examples_to_show = min(5, len(messages_to_delete))
 
-        for _, sender, subject, reason, _, _ in messages_to_delete[:examples_to_show]:
+        for _, sender, subject, reason, _, _, _ in messages_to_delete[:examples_to_show]:
             write_log(f"WOULD DELETE ({folder_name}): '{subject}' from {sender} ({reason})", False)
 
         if len(messages_to_delete) > examples_to_show:
@@ -1337,7 +1337,7 @@ class EmailProcessor:
         write_log("ICLOUD OPTIMIZATION: Using bulk flagging with UID validation", False)
         
         # Extract UIDs and validate them upfront
-        uids_to_delete = [uid for uid, _, _, _, _, _ in messages_to_delete]
+        uids_to_delete = [uid for uid, _, _, _, _, _, _ in messages_to_delete]
         total_to_delete = len(uids_to_delete)
         
         # Ensure folder is properly selected
@@ -1459,7 +1459,7 @@ class EmailProcessor:
         write_log("ICLOUD SPECIAL: Using UID EXPUNGE protocol for iCloud compatibility", False)
         
         # Extract UIDs and validate them upfront
-        uids_to_delete = [uid for uid, _, _, _, _, _ in messages_to_delete]
+        uids_to_delete = [uid for uid, _, _, _, _, _, _ in messages_to_delete]
         total_to_delete = len(uids_to_delete)
         
         # Ensure folder is properly selected
@@ -1558,7 +1558,7 @@ class EmailProcessor:
             print("🚀 Starting bulk flagging process...")
         
         # Extract UIDs and track successful deletions
-        uids_to_delete = [uid for uid, _, _, _, _, _ in messages_to_delete]
+        uids_to_delete = [uid for uid, _, _, _, _, _, _ in messages_to_delete]
         total_to_delete = len(uids_to_delete)
         successful_deletions = 0
         successfully_deleted_uids = []

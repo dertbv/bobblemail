@@ -1,41 +1,40 @@
 ---
 title: Current Session Context
 type: active_work_immediate_context
-last_updated: 2025-07-04 00:48
+last_updated: 2025-07-03 13:05
 ---
 
 # Current Session Context
 
 ## Active Work Focus
-- ✅ Implemented geographic intelligence fix from Three Stooges investigation
-- ✅ Discovered timestamp issue: NO emails processed after June 30th 20:28:59
-- ⚠️ Found email_flags table has July 3rd entries but processed_emails_bulletproof stopped June 30th
-- 🔧 Fixed "Invalid Date" JavaScript error in web interface
-- 📊 Confirmed 33 tables total, geographic columns exist in database
+- 🔍 Investigating preview display issue: shows wrong email counts (2 instead of 6, then 0)
+- 🤖 Deployed Three Stooges and 6-agent system to analyze preview problem
+- ❌ Stooges' solutions won't work - need persistent flags, can't auto-cleanup
+- ⏳ Waiting for agent system PLANNER to complete WORK.md analysis
 
 ## Boss Context (Bobble)
-- Communication style: Direct feedback when frustrated, values working solutions
-- Current priorities: Understanding why email processing stopped June 30th
-- Recent focus: Database investigation revealing processing stopped but flagging continues
+- Found critical issue: preview doesn't accurately show current server state
+- Flagged 4 emails as research to track which are actually on server
+- Needs solution that preserves flags indefinitely until manual review
 
 ## Immediate Next Steps
-1. Investigate why email processing stopped at June 30th 20:28:59
-2. Check what changed in git commits after processing stopped
-3. Test if geographic intelligence fix works with new email processing
-4. Determine why flags are created but emails not processed
-5. Merge Three Stooges findings back to main repo
+1. Wait for agent system to complete WORK.md analysis
+2. Compare agent system approach with Three Stooges findings
+3. Implement solution that preserves flag persistence
+4. Test preview shows actual current server state
+5. Ensure flags aren't lost in any cleanup process
 
 ## Current Project Status
-- **Atlas_Email**: Geographic fix implemented, processing halted June 30th, flags active July 3rd
-- **Three Stooges**: Delivered complete fix (94/100 score), implementation applied
-- **Database**: 7,861 rows in processed_emails_bulletproof, last entry June 30th
+- **Atlas_Email**: Preview display broken - shows historical data not current state
+- **Three Stooges**: Completed analysis but solutions inadequate (auto-cleanup breaks flags)
+- **Agent System**: PLANNER actively investigating, more thorough approach
+- **Database**: Preview sessions accumulating without proper filtering
 
 ## Key Discoveries
-- Email processing STOPPED at June 30th 20:28:59 (confirmed via database)
-- email_flags table shows activity TODAY (5 flags on July 3rd)
-- Batch processing uses same timestamp for multiple emails (50 at a time)
-- Geographic columns exist but new emails not being processed to populate them
-- Template optimization commit (d406b29) happened AFTER processing stopped
+- Preview creates permanent database entries without cleanup mechanism
+- Three Stooges identified root cause but solutions don't respect flag persistence
+- User requires flags to persist indefinitely - can't use time-based cleanup
+- Agent system using systematic documentation-first approach
 
 ---
-*Updated during database timestamp investigation - July 4, 2025 00:48*
+*Updated during preview investigation with dual agent deployment - July 3, 2025 13:05*

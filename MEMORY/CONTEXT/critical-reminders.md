@@ -11,6 +11,7 @@ maintenance: remove_resolved_add_new_critical
 - **Correct**: `claude --dangerously-skip-permissions`
 - **Incorrect**: `claude-code --dangerously-skip-permissions`
 - **Note**: System uses `claude` as the CLI command for Claude interactions
+- **IMPORTANT**: Even with --dangerously-skip-permissions, user must manually approve Claude startup in tmux session
 
 ## Memory Conservation (CRITICAL)
 - **Rule**: NEVER capture entire tmux pane scrollback (burns massive tokens)
@@ -47,6 +48,12 @@ maintenance: remove_resolved_add_new_critical
 - **KISS Checkpoints**: Simplest solution that works, partner consultation for major changes
 - **Git Discipline**: Stage confidently, request review, commit only after QA approval
 - **Information Entropy**: Document only surprising, valuable, or critical information
+
+## Preview Display Fix Requirements (CRITICAL)
+- **Constraint**: Flags must persist indefinitely until manually reviewed
+- **Failed Approaches**: Filtering by recent session, auto-cleanup, in-memory caching
+- **Issue**: Preview shows historical data instead of current server state
+- **Need**: Solution that shows current emails while preserving all flag history
 
 ## Todo Persistence (RESOLVED BUT CRITICAL)
 - **Implementation**: save-v2.md Step 4.5 now saves todos to session-todos.md

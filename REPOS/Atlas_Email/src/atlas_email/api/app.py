@@ -1023,7 +1023,8 @@ async def get_country_classifications(country_code: str):
             FROM processed_emails_bulletproof 
             WHERE sender_country_code = ?
             AND category IS NOT NULL
-            AND category NOT IN ('Marketing', 'Promotional', 'Whitelisted', 'Marketing Spam', 'Promotional Email')
+            AND action = 'DELETED'
+            AND category NOT IN ('Marketing', 'Promotional', 'Whitelisted', 'Marketing Spam', 'Promotional Email', 'Transactional', 'TRANSACTIONAL', 'BUSINESS_TRANSACTION')
             GROUP BY category
             ORDER BY count DESC 
             LIMIT 7
@@ -1188,7 +1189,7 @@ def get_analytics_data():
     """)
     account_breakdown_spam = [dict(row) for row in account_breakdown_spam_raw]
     
-    # Get geographic data breakdown (all time, excluding marketing/promotional)
+    # Get geographic data breakdown (all time, excluding marketing/promotional/transactional)
     geographic_data_raw = db.execute_query("""
         SELECT 
             sender_country_code,
@@ -1199,7 +1200,8 @@ def get_analytics_data():
         FROM processed_emails_bulletproof 
         WHERE sender_country_code IS NOT NULL
         AND sender_country_name IS NOT NULL
-        AND category NOT IN ('Marketing', 'Promotional', 'Whitelisted', 'Marketing Spam', 'Promotional Email')
+        AND action = 'DELETED'
+        AND category NOT IN ('Marketing', 'Promotional', 'Whitelisted', 'Marketing Spam', 'Promotional Email', 'Transactional', 'TRANSACTIONAL', 'BUSINESS_TRANSACTION')
         GROUP BY sender_country_code, sender_country_name
         ORDER BY count DESC 
         LIMIT 15

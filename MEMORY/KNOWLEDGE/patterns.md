@@ -102,5 +102,17 @@ purpose: enable_learning_across_project_boundaries
 
 **Lessons**: Critical gaps often found through user testing ("my todo is missing")
 
+## Agent System Comparison Pattern
+**Origin**: Deploying Three Stooges vs 6-agent system for preview investigation
+**Transferable To**: Complex problem analysis requiring different approaches
+
+**Pattern**:
+1. Three Stooges: Fast, parallel analysis with creative solutions
+2. 6-Agent System: Methodical, documentation-first, sequential investigation
+3. Use Stooges for quick insights, agent system for thorough root cause analysis
+4. Both can miss critical business constraints not initially communicated
+
+**Lessons**: Agent proposed solutions must respect all business constraints (e.g., flag persistence)
+
 ---
 *Patterns proven across multiple projects, ready for application*

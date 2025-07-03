@@ -1,145 +1,83 @@
-# 🎭 THREE STOOGES DEPLOYMENT TEMPLATE
+# Deploy Three Stooges Command
 
-## SIMPLE ONE-LINER DEPLOYMENT
+Deploy the Three Stooges (Moe, Larry, Curly) for fast parallel investigation and analysis.
 
-### Quick Deploy Format:
-```
-Deploy stooges to [TASK DESCRIPTION]
-```
+## Usage
 
-### Examples:
-- "Deploy stooges to analyze the Atlas Email performance plan"
-- "Deploy stooges to review and improve the recursive refinement implementation"
-- "Deploy stooges to create a security audit blueprint for the email system"
-
-## WHAT HAPPENS AUTOMATICALLY
-
-When you say "Deploy stooges to [task]", I will:
-
-1. **SETUP** (30 seconds)
-   - Create git worktree
-   - Start tmux session `stooges-work`
-   - Launch Claude with --dangerously-skip-permissions
-   - Deploy the meta prompt
-
-2. **EXECUTION** (5-15 minutes)
-   - Moe creates context and orchestrates
-   - Larry analyzes/implements/researches
-   - Curly evaluates (iterates until score ≥ 90)
-
-3. **DELIVERY** (1 minute)
-   - Extract all deliverables to main repo
-   - Create summary report
-   - Verify results quality
-   - Clean up worktree and tmux
-
-## STANDARD DELIVERABLES
-
-### For Analysis Tasks:
-```
-/plans/[task-name]/
-├── analysis-report.md      # Larry's deep analysis
-├── implementation-blueprint.md  # Step-by-step plan
-├── evaluation-score.md     # Curly's quality assessment
-└── executive-summary.md    # Quick overview
-```
-
-### For Implementation Tasks:
-```
-/implementations/[task-name]/
-├── context.md             # Full task understanding
-├── solution.md            # Larry's implementation
-├── code/                  # Any code files created
-└── deployment-guide.md    # How to use it
-```
-
-## MONITORING COMMANDS
-
-While stooges are working:
 ```bash
-# Quick status check
-tmux capture-pane -t stooges-work -S -10 -p
-
-# Full view (iTerm2)
-tmux -CC attach -t stooges-work
+deploy-stooges [mission-file]
 ```
 
-## TASK TEMPLATES
+## Examples
 
-### 1. Plan Analysis Template
-"Deploy stooges to analyze [plan-name] and provide:
-- Comprehensive critique
-- Risk assessment
-- Implementation blueprint
-- Resource requirements"
+```bash
+# Deploy with specific mission
+deploy-stooges preview-investigation.md
 
-### 2. Code Review Template
-"Deploy stooges to review [component] for:
-- Security vulnerabilities
-- Performance bottlenecks
-- Code quality issues
-- Improvement recommendations"
-
-### 3. Feature Development Template
-"Deploy stooges to implement [feature]:
-- Requirements analysis
-- Technical design
-- Code implementation
-- Testing strategy"
-
-### 4. Documentation Template
-"Deploy stooges to document [system]:
-- Architecture overview
-- API reference
-- Deployment guide
-- Troubleshooting tips"
-
-## AUTOMATIC QUALITY CHECKS
-
-Before bringing results home, I verify:
-- ✅ All expected files created
-- ✅ Curly's score ≥ 90
-- ✅ No placeholder content
-- ✅ Files properly formatted
-- ✅ Actionable recommendations
-
-## SIMPLE COMMANDS
-
-### Deploy:
-```
-"Deploy stooges to [task]"
+# Deploy with verbal mission
+deploy-stooges
+# Then describe mission in tmux
 ```
 
-### Check Status:
+## Implementation Script
+
+```bash
+#!/bin/bash
+# deploy-stooges.sh
+
+MISSION_FILE=$1
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+BRANCH_NAME="stooges-$TIMESTAMP"
+WORKTREE_PATH="stooges-work-$TIMESTAMP"
+
+# Create worktree
+git worktree add -b $BRANCH_NAME $WORKTREE_PATH
+
+# Copy stooges framework
+cp Agents/stooges.md $WORKTREE_PATH/
+if [ -f "$MISSION_FILE" ]; then
+  cp $MISSION_FILE $WORKTREE_PATH/MISSION.md
+fi
+
+# Create tmux session
+tmux new-session -d -s $BRANCH_NAME -c $WORKTREE_PATH
+tmux send-keys -t $BRANCH_NAME "claude --dangerously-skip-permissions" Enter
+sleep 3
+
+if [ -f "$MISSION_FILE" ]; then
+  tmux send-keys -t $BRANCH_NAME "cat MISSION.md && echo 'Deploy the Three Stooges as described in stooges.md'" Enter
+else
+  tmux send-keys -t $BRANCH_NAME "echo 'Three Stooges ready. Please provide mission.'" Enter
+fi
+
+echo "🎭 Three Stooges deployed!"
+echo "Connect with: tmux -CC attach -t $BRANCH_NAME"
+echo "Quick check: tmux capture-pane -t $BRANCH_NAME -S -10 -p"
 ```
-"Check stooges status"
+
+## What They Do
+
+- **Moe (Orchestrator)**: Manages the investigation, coordinates the team
+- **Larry (Specialist)**: Deep technical analysis, finds root causes  
+- **Curly (Evaluator)**: Quality control, numeric scoring (0-100)
+
+## Best For
+
+- Quick investigations
+- Parallel analysis 
+- Finding root causes
+- Creative problem solving
+- When you need results FAST
+
+## Bringing Them Home
+
+```bash
+# Copy their work
+cp stooges-work-*/outputs/* ./DOCS/
+
+# Remove worktree
+git worktree remove stooges-work-* --force
+
+# End session
+tmux kill-session -t stooges-*
 ```
-
-### Bring Home:
-```
-"Bring stooges home"  (I'll handle results extraction first)
-```
-
-### Emergency Stop:
-```
-"Kill stooges"
-```
-
-## INTEGRATION WITH TODOS
-
-I'll automatically:
-- Add "Deploy stooges for [task]" to TodoWrite
-- Update status as they work
-- Mark complete when results delivered
-
-## SUCCESS METRICS
-
-You'll know it worked when:
-- 📊 Curly's score ≥ 90
-- 📁 All deliverables in main repo
-- ✅ Clear next steps provided
-- 🎯 Actionable blueprints ready
-
----
-
-*Just say "Deploy stooges to..." and I'll handle everything else!*
