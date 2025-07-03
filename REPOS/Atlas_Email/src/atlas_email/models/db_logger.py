@@ -87,6 +87,7 @@ class BulletproofLogger:
     def log_email_action(self, action: str, uid: str, sender: str, subject: str, 
                         folder: str = "", reason: str = "", category: str = "",
                         confidence_score: float = None, ml_method: str = "",
+                        geo_data: dict = None,
                         print_to_screen: bool = True, session_id: int = None):
         """BULLETPROOF email action logging - NEVER fails"""
         
@@ -121,6 +122,26 @@ class BulletproofLogger:
                 except:
                     domain = "unknown"
                 
+                # Extract geographic data if provided (handle both dict and object)
+                if geo_data:
+                    if isinstance(geo_data, dict):
+                        sender_ip = geo_data.get('sender_ip')
+                        sender_country_code = geo_data.get('sender_country_code')
+                        sender_country_name = geo_data.get('sender_country_name')
+                        geographic_risk_score = geo_data.get('geographic_risk_score')
+                        detection_method = geo_data.get('detection_method')
+                    else:
+                        # Handle GeographicIntelligence object
+                        sender_ip = getattr(geo_data, 'sender_ip', None)
+                        sender_country_code = getattr(geo_data, 'sender_country_code', None)
+                        sender_country_name = getattr(geo_data, 'sender_country_name', None)
+                        geographic_risk_score = getattr(geo_data, 'geographic_risk_score', None)
+                        detection_method = getattr(geo_data, 'detection_method', None)
+                else:
+                    sender_ip = sender_country_code = sender_country_name = None
+                    geographic_risk_score = None
+                    detection_method = None
+                
                 # Create raw data backup
                 raw_data = json.dumps({
                     'action': action,
@@ -153,12 +174,16 @@ class BulletproofLogger:
                         cursor = conn.cursor()
                         cursor.execute("""
                             INSERT INTO processed_emails_bulletproof 
-                            (session_id, folder_name, uid, sender_email, sender_domain, 
+                            (timestamp, created_at, session_id, folder_name, uid, sender_email, sender_domain, 
                              subject, action, reason, category, confidence_score, 
-                             ml_validation_method, raw_data)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                             ml_validation_method, raw_data,
+                             sender_ip, sender_country_code, sender_country_name,
+                             geographic_risk_score, detection_method)
+                            VALUES (datetime('now', 'localtime'), datetime('now', 'localtime'), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """, (current_session, folder, uid, sender, domain, subject, 
-                              action, reason, category, confidence_score, ml_method, raw_data))
+                              action, reason, category, confidence_score, ml_method, raw_data,
+                              sender_ip, sender_country_code, sender_country_name,
+                              geographic_risk_score, detection_method))
                         conn.commit()
                         success = True
                         
@@ -175,9 +200,9 @@ class BulletproofLogger:
                             cursor = conn.cursor()
                             cursor.execute("""
                                 INSERT INTO processed_emails_bulletproof 
-                                (session_id, folder_name, uid, sender_email, sender_domain, 
+                                (timestamp, created_at, session_id, folder_name, uid, sender_email, sender_domain, 
                                  subject, action, reason, category, raw_data)
-                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                VALUES (datetime('now', 'localtime'), datetime('now', 'localtime'), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                             """, (current_session, folder, uid, sender, domain, subject, 
                                   action, reason, category, raw_data))
                             conn.commit()

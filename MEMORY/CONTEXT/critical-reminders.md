@@ -6,6 +6,12 @@ maintenance: remove_resolved_add_new_critical
 
 # Critical Reminders
 
+## Claude CLI Usage (CRITICAL)
+- **Command**: Use `claude` NOT `claude-code` on this system
+- **Correct**: `claude --dangerously-skip-permissions`
+- **Incorrect**: `claude-code --dangerously-skip-permissions`
+- **Note**: System uses `claude` as the CLI command for Claude interactions
+
 ## Memory Conservation (CRITICAL)
 - **Rule**: NEVER capture entire tmux pane scrollback (burns massive tokens)
 - **Correct**: `tmux capture-pane -t [agent] -S -10 -p`

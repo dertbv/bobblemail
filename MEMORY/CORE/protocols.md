@@ -93,10 +93,20 @@ precedence: critical_protocols_override_general_guidelines
 **Deployment Checklist**:
 - Git worktree created
 - Tmux session started
-- Claude Code initialized and trusted
+- Claude initialized with `claude` command (NOT `claude-code`)
 - Mission deployed with autonomous authority
 - iTerm2 connection commands provided to user
 - Agent confirmed working, not waiting for approval
+
+### Documentation Agent Deployment Protocol
+**Trigger Threshold**: Deploy documentation update agent when ANY occurs:
+- Database schema changes (tables, columns, migrations)
+- New API endpoints added
+- Classification pipeline modifications
+- Major architectural changes
+- "Can't find how X works" confusion moments
+
+**My Responsibility**: Watch for these patterns and suggest documentation agent deployment when threshold reached.
 
 **Results Preservation (CRITICAL)**:
 - NEVER remove agent worktrees without extracting results first

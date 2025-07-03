@@ -902,7 +902,7 @@
                                         </span>
                                     </td>
                                     <td class="email-cell email-column-date" style="padding: 10px; text-align: center; font-size: 0.85em; color: #6c757d;">
-                                        ${new Date(email.timestamp).toLocaleDateString()}
+                                        ${email.timestamp ? (new Date(email.timestamp).toLocaleDateString() === 'Invalid Date' ? email.timestamp : new Date(email.timestamp).toLocaleDateString()) : 'Unknown'}
                                     </td>
                                 </tr>
                             `).join('')}
@@ -1248,7 +1248,7 @@
                                         </span>
                                     </td>
                                     <td class="email-cell email-column-date" style="padding: 10px; width: 100px; text-align: center; font-size: 0.85em; color: #6c757d;">
-                                        ${new Date(email.timestamp).toLocaleDateString()}
+                                        ${email.timestamp ? (new Date(email.timestamp).toLocaleDateString() === 'Invalid Date' ? email.timestamp : new Date(email.timestamp).toLocaleDateString()) : 'Unknown'}
                                     </td>
                                 </tr>
                             `).join('')}

@@ -822,9 +822,23 @@ class EmailProcessor:
                         if debug_mode:
                             write_log(f"DEBUG UID {uid}: Sender decode error: {e}", True)
 
+                    # GEOGRAPHIC INTELLIGENCE PROCESSING
+                    geo_data = None
+                    try:
+                        from atlas_email.core.geographic_intelligence import GeographicIntelligenceProcessor
+                        geo_processor = GeographicIntelligenceProcessor()
+                        geo_data = geo_processor.process_email_geographic_intelligence(headers, sender)
+                    except Exception as e:
+                        write_log(f"Geographic processing error for UID {uid}: {e}", True)
+                        import traceback
+                        traceback.print_exc()
+                        geo_data = None
+
                     # DEBUG: Show header analysis for first few messages or specific UIDs
                     if debug_mode and (i < 5 or uid in ['60158', '60159', '60161', '582058', '582069', '582071', '582074', '582173']):
                         write_log(f"DEBUG UID {uid}: Analyzing - Subject: '{subject}' | Sender: '{sender}'", True)
+                        if geo_data and hasattr(geo_data, 'sender_country_code'):
+                            write_log(f"DEBUG UID {uid}: Geographic data - Country: {geo_data.sender_country_code}, IP: {geo_data.sender_ip}", True)
                     
                     # NEW ARCHITECTURE: Run sophisticated spam analysis FIRST on ALL emails
                     should_delete = False
@@ -1008,7 +1022,7 @@ class EmailProcessor:
                             self.stats['total_preserved'] += 1
                             protection_type = "Appointment Confirmation" if is_appointment_confirmation else "Business Transaction"
                             write_log(f"BUSINESS PROTECTED ({folder_name}): '{subject}' from {sender} - {protection_type} override (ML said: {spam_category})", False)
-                            logger.log_email_action("PRESERVED", uid, sender, subject, folder_name, f"{protection_type} protection override", "BUSINESS_TRANSACTION", confidence_score=100, print_to_screen=False)
+                            logger.log_email_action("PRESERVED", uid, sender, subject, folder_name, f"{protection_type} protection override", "BUSINESS_TRANSACTION", confidence_score=100, print_to_screen=False, geo_data=geo_data)
                             continue
                         
                         if not domain_check_passed and not user_keyword_override and not is_flagged_for_deletion and (not is_promotional_content or is_legitimate_business_communication):
@@ -1018,7 +1032,7 @@ class EmailProcessor:
                             self.stats['total_preserved'] += 1
                             write_log(f"PRESERVED ({folder_name}): '{subject}' from {sender} - {domain_reason} [HYBRID_CLASSIFIER override]", False)
                             # Log to bulletproof table for tracking
-                            logger.log_email_action("PRESERVED", uid, sender, subject, folder_name, f"{domain_reason} [HYBRID_CLASSIFIER override]", spam_category, confidence_score=spam_confidence, print_to_screen=False)
+                            logger.log_email_action("PRESERVED", uid, sender, subject, folder_name, f"{domain_reason} [HYBRID_CLASSIFIER override]", spam_category, confidence_score=spam_confidence, print_to_screen=False, geo_data=geo_data)
                             continue
                         elif not domain_check_passed and is_flagged_for_deletion:
                             # Deletion flag overrides domain validation
@@ -1037,7 +1051,7 @@ class EmailProcessor:
                             protection_reason = f"Sender {whitelist_type} is whitelisted" if whitelist_type == "domain" else f"Subject contains whitelisted {whitelist_type}"
                             write_log(f"WHITELIST PROTECTED ({folder_name}): '{subject}' from {sender} - {protection_reason} [WHITELIST override]", False)
                             # Log to bulletproof table for tracking - use "Whitelisted" as category instead of spam classification
-                            logger.log_email_action("PRESERVED", uid, sender, subject, folder_name, f"{protection_reason} [WHITELIST override]", "Whitelisted", confidence_score=100, print_to_screen=False)
+                            logger.log_email_action("PRESERVED", uid, sender, subject, folder_name, f"{protection_reason} [WHITELIST override]", "Whitelisted", confidence_score=100, print_to_screen=False, geo_data=geo_data)
                             continue
                         elif whitelist_protected and is_flagged_for_deletion:
                             # Deletion flag overrides whitelist protection
@@ -1076,7 +1090,7 @@ class EmailProcessor:
                             category_counts[final_category] = {"count": 0, "reason": deletion_reason}
                         category_counts[final_category]["count"] += 1
 
-                        messages_to_delete.append((uid, sender, subject, enhanced_reason, final_category, spam_confidence))
+                        messages_to_delete.append((uid, sender, subject, enhanced_reason, final_category, spam_confidence, geo_data))
                         write_log(f"MARKED FOR DELETION ({folder_name}): UID {uid} '{subject}' from {sender} ({enhanced_reason})", False)
 
                     else:
@@ -1098,7 +1112,7 @@ class EmailProcessor:
                                         category_counts[final_category] = {"count": 0, "reason": deletion_reason}
                                     category_counts[final_category]["count"] += 1
                                     
-                                    messages_to_delete.append((uid, sender, subject, enhanced_reason, final_category, spam_confidence))
+                                    messages_to_delete.append((uid, sender, subject, enhanced_reason, final_category, spam_confidence, geo_data))
                                     write_log(f"MANUAL FLAG OVERRIDE ({folder_name}): UID {uid} '{subject}' from {sender} ({enhanced_reason})", False)
                                     
                                     # Update stats
@@ -1120,7 +1134,7 @@ class EmailProcessor:
                         # Log to bulletproof table for tracking legitimate emails
                         try:
                             preservation_reason = f"Not flagged by spam detection (category: {spam_category})"
-                            logger.log_email_action("PRESERVED", uid, sender, subject, folder_name, preservation_reason, spam_category, confidence_score=spam_confidence, print_to_screen=False)
+                            logger.log_email_action("PRESERVED", uid, sender, subject, folder_name, preservation_reason, spam_category, confidence_score=spam_confidence, print_to_screen=False, geo_data=geo_data)
                         except Exception as e:
                             write_log(f"Error logging legitimate email: {e}", True)
                         
@@ -1176,8 +1190,8 @@ class EmailProcessor:
                     print(f"\n📋 PREVIEW: Would delete {deleted_count:,} messages from {folder_name}")
                     
                     # Log ALL emails to database in preview mode (not just examples)
-                    for uid, sender, subject, reason, spam_category, confidence_score in messages_to_delete:
-                        logger.log_email_action("DELETED", uid, sender, subject, folder_name, f"{reason} [PREVIEW]", spam_category, confidence_score=confidence_score, print_to_screen=False)
+                    for uid, sender, subject, reason, spam_category, confidence_score, geo_data in messages_to_delete:
+                        logger.log_email_action("DELETED", uid, sender, subject, folder_name, f"{reason} [PREVIEW]", spam_category, confidence_score=confidence_score, print_to_screen=False, geo_data=geo_data)
                     
                     self._log_preview_examples(folder_name, messages_to_delete)
                 else:
@@ -1253,17 +1267,17 @@ class EmailProcessor:
                 account_id = None
         
         if account_id:
-            for uid, sender, subject, reason, category, confidence in messages_to_delete:
+            for uid, sender, subject, reason, category, confidence, geo_data in messages_to_delete:
                 if db.is_email_flagged(uid, folder_name, account_id):
-                    flagged_emails.append((uid, sender, subject, reason, category, confidence))
+                    flagged_emails.append((uid, sender, subject, reason, category, confidence, geo_data))
                     # Log as preserved due to flag protection
                     logger.log_email_action("PRESERVED", uid, sender, subject, folder_name, 
                                            f"Protected by user flag [FLAG_PROTECTED]", category, 
-                                           confidence_score=confidence, print_to_screen=False)
+                                           confidence_score=confidence, print_to_screen=False, geo_data=geo_data)
                     if not quiet_mode:
                         print(f"🛡️  PROTECTED: UID {uid} '{subject}' from {sender} - User flagged for protection")
                 else:
-                    messages_to_actually_delete.append((uid, sender, subject, reason, category, confidence))
+                    messages_to_actually_delete.append((uid, sender, subject, reason, category, confidence, geo_data))
         else:
             # No account ID available, proceed with all deletions (safety fallback)
             messages_to_actually_delete = messages_to_delete
@@ -1432,11 +1446,11 @@ class EmailProcessor:
         
         # Log successful deletions for actually deleted messages
         successfully_deleted_set = set(successfully_deleted_uids)
-        for uid, sender, subject, reason, spam_category, confidence_score in messages_to_delete:
+        for uid, sender, subject, reason, spam_category, confidence_score, geo_data in messages_to_delete:
             if uid in successfully_deleted_set:
                 write_log(f"DELETED ({folder_name}): UID {uid} '{subject}' from {sender} ({reason}) [iCloud-Optimized]", False)
                 # Log to bulletproof table for tracking
-                logger.log_email_action("DELETED", uid, sender, subject, folder_name, f"{reason} [iCloud-Optimized]", spam_category, confidence_score=confidence_score, print_to_screen=False)
+                logger.log_email_action("DELETED", uid, sender, subject, folder_name, f"{reason} [iCloud-Optimized]", spam_category, confidence_score=confidence_score, print_to_screen=False, geo_data=geo_data)
         
         return successful_deletions
 
@@ -1530,11 +1544,11 @@ class EmailProcessor:
         
         # Log successful deletions for actually deleted messages
         successfully_deleted_set = set(successfully_deleted_uids)
-        for uid, sender, subject, reason, spam_category, confidence_score in messages_to_delete:
+        for uid, sender, subject, reason, spam_category, confidence_score, geo_data in messages_to_delete:
             if uid in successfully_deleted_set:
                 write_log(f"DELETED ({folder_name}): UID {uid} '{subject}' from {sender} ({reason}) [iCloud-UID-EXPUNGE]", False)
                 # Log to bulletproof table for tracking
-                logger.log_email_action("DELETED", uid, sender, subject, folder_name, f"{reason} [iCloud-UID-EXPUNGE]", spam_category, confidence_score=confidence_score, print_to_screen=False)
+                logger.log_email_action("DELETED", uid, sender, subject, folder_name, f"{reason} [iCloud-UID-EXPUNGE]", spam_category, confidence_score=confidence_score, print_to_screen=False, geo_data=geo_data)
         
         return successful_deletions
 
@@ -1627,11 +1641,11 @@ class EmailProcessor:
         
         # Log successful deletions for actually deleted messages
         successfully_deleted_set = set(successfully_deleted_uids)
-        for uid, sender, subject, reason, spam_category, confidence_score in messages_to_delete:
+        for uid, sender, subject, reason, spam_category, confidence_score, geo_data in messages_to_delete:
             if uid in successfully_deleted_set:
                 write_log(f"DELETED ({folder_name}): UID {uid} '{subject}' from {sender} ({reason}) [Bulk-Optimized]", False)
                 # Log to bulletproof table for tracking
-                logger.log_email_action("DELETED", uid, sender, subject, folder_name, f"{reason} [Bulk-Optimized]", spam_category, confidence_score=confidence_score, print_to_screen=False)
+                logger.log_email_action("DELETED", uid, sender, subject, folder_name, f"{reason} [Bulk-Optimized]", spam_category, confidence_score=confidence_score, print_to_screen=False, geo_data=geo_data)
         
         return successful_deletions
 
@@ -1733,11 +1747,11 @@ class EmailProcessor:
             self.mail.uid('store', uid_set, flag_syntax)
 
             # Log successful batch (only for messages with valid UIDs)
-            for uid, sender, subject, reason, spam_category, confidence_score in batch:
+            for uid, sender, subject, reason, spam_category, confidence_score, geo_data in batch:
                 if uid in valid_uids:
                     write_log(f"DELETED ({folder_name}): UID {uid} '{subject}' from {sender} ({reason})", False)
                     # Log to bulletproof table for tracking
-                    logger.log_email_action("DELETED", uid, sender, subject, folder_name, reason, spam_category, confidence_score=confidence_score, print_to_screen=False)
+                    logger.log_email_action("DELETED", uid, sender, subject, folder_name, reason, spam_category, confidence_score=confidence_score, print_to_screen=False, geo_data=geo_data)
 
             return True
 
@@ -1805,7 +1819,7 @@ class EmailProcessor:
         """Individual deletion fallback with enhanced error handling for iCloud Parse Errors"""
         individual_successes = 0
 
-        for j, (uid, sender, subject, reason, spam_category, confidence_score) in enumerate(batch):
+        for j, (uid, sender, subject, reason, spam_category, confidence_score, geo_data) in enumerate(batch):
             current_pos = batch_start_index + j + 1
             print(f"\r🔄 Individual delete {current_pos:,}/{total_to_delete:,} | ✅ {individual_successes}", end="", flush=True)
 
@@ -1823,7 +1837,7 @@ class EmailProcessor:
                     individual_successes += 1
                     write_log(f"DELETED ({folder_name}): UID {uid} '{subject}' from {sender} ({reason})", False)
                     # Log to bulletproof table for tracking
-                    logger.log_email_action("DELETED", uid, sender, subject, folder_name, reason, spam_category, confidence_score=confidence_score, print_to_screen=False)
+                    logger.log_email_action("DELETED", uid, sender, subject, folder_name, reason, spam_category, confidence_score=confidence_score, print_to_screen=False, geo_data=geo_data)
                 else:
                     write_log(f"Failed to delete UID {uid}: {result}", False)
                     
@@ -1835,7 +1849,7 @@ class EmailProcessor:
                     write_log(f"MESSAGE NOT FOUND - UID {uid} in {folder_name}: Message may have been already deleted", False)
                     individual_successes += 1  # Count as success since it's already gone
                     # Log to bulletproof table for tracking
-                    logger.log_email_action("DELETED", uid, sender, subject, folder_name, f"{reason} [Already Deleted]", spam_category, confidence_score=confidence_score, print_to_screen=False)
+                    logger.log_email_action("DELETED", uid, sender, subject, folder_name, f"{reason} [Already Deleted]", spam_category, confidence_score=confidence_score, print_to_screen=False, geo_data=geo_data)
                 else:
                     write_log(f"DELETION FAILED - UID {uid} in {folder_name}: {error_msg}", False)
 
