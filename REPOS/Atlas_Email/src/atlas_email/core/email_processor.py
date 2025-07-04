@@ -20,6 +20,7 @@ sys.path.insert(0, str(project_root))
 # Import our new split modules  
 from atlas_email.filters.keyword_processor import KeywordProcessor
 from atlas_email.ml.ensemble_classifier import EnsembleHybridClassifier
+from atlas_email.ml.ab_classifier_integration_simple import ABClassifierIntegrationSimple
 from atlas_email.utils.domain_validator import DomainValidator, decode_header_value
 from atlas_email.models.db_logger import write_log, logger
 from config.constants import ML_SETTINGS_FILE
@@ -535,7 +536,7 @@ class FolderManager:
 class EmailProcessor:
     """Main class for processing emails in folders with provider optimization"""
 
-    def __init__(self, mail_connection, domain_validator=None, account_email=None, account_id=None):
+    def __init__(self, mail_connection, domain_validator=None, account_email=None, account_id=None, enable_ab_testing=True):
         self.mail = mail_connection
         # Initialize with new split architecture
         self.domain_validator = domain_validator or DomainValidator(logger=write_log)
@@ -548,6 +549,19 @@ class EmailProcessor:
         
         # Initialize Unified Keyword Processor (content-first classification)
         self.keyword_processor = KeywordProcessor()
+        
+        # Initialize A/B Testing Classifier if enabled
+        self.ab_testing_enabled = enable_ab_testing
+        if enable_ab_testing:
+            try:
+                self.ab_classifier = ABClassifierIntegrationSimple(rollout_percentage=10.0)
+                print("✅ A/B Testing enabled at 10% rollout for 4-category classification")
+            except Exception as e:
+                print(f"⚠️ Could not enable A/B testing: {e}")
+                self.ab_testing_enabled = False
+                self.ab_classifier = None
+        else:
+            self.ab_classifier = None
         
         # Detect provider type for optimization
         self.provider_type = get_provider_type(account_email) if account_email else 'generic'
@@ -865,7 +879,59 @@ class EmailProcessor:
                     # Initialize confidence to avoid None values
                     hybrid_confidence = 75.0  # Default medium confidence
                     
-                    try:
+                    # Check if we should use A/B testing classifier
+                    if self.ab_testing_enabled and self.ab_classifier:
+                        try:
+                            # Get email body if available (limited to avoid performance issues)
+                            body = ""
+                            try:
+                                if msg.is_multipart():
+                                    for part in msg.walk():
+                                        if part.get_content_type() == "text/plain":
+                                            body = part.get_payload(decode=True).decode('utf-8', errors='ignore')[:1000]
+                                            break
+                                else:
+                                    body = msg.get_payload(decode=True).decode('utf-8', errors='ignore')[:1000]
+                            except:
+                                body = ""
+                            
+                            # Use A/B testing classifier
+                            ab_result = self.ab_classifier.classify_with_ab_testing(
+                                sender=sender,
+                                subject=subject,
+                                body=body,
+                                headers=headers
+                            )
+                            
+                            # Map 4-category results to existing categories
+                            if ab_result['classifier_used'] == 'new':
+                                # Map new 4-category system to old categories
+                                category_mapping = {
+                                    'Dangerous': 'Phishing',
+                                    'Commercial Spam': 'Business Opportunity Spam',
+                                    'Scams': 'Payment Scam',
+                                    'Legitimate Marketing': 'Promotional Email'
+                                }
+                                hybrid_category = category_mapping.get(ab_result['category'], ab_result['category'])
+                                hybrid_confidence = ab_result['confidence'] * 100
+                                
+                                # Log A/B testing result
+                                if debug_mode:
+                                    write_log(f"DEBUG UID {uid}: A/B Testing - New classifier: {ab_result['category']} ({ab_result['subcategory']})", True)
+                            else:
+                                # Use old classifier result
+                                hybrid_category = ab_result.get('predicted_category', 'Unknown')
+                                hybrid_confidence = ab_result.get('category_confidence', 75.0)
+                        except Exception as e:
+                            if debug_mode:
+                                write_log(f"DEBUG UID {uid}: A/B testing failed, falling back: {e}", True)
+                            # Fall back to keyword processor
+                            hybrid_category = self.keyword_processor.process_keywords(
+                                headers="",
+                                sender=sender,
+                                subject=subject
+                            )
+                    else:
                         # Use unified keyword system for classification
                         hybrid_category = self.keyword_processor.process_keywords(
                             headers="",
@@ -873,14 +939,14 @@ class EmailProcessor:
                             subject=subject
                         )
                         
-                        # Determine if it's spam based on category
-                        spam_categories = [
-                            'Financial & Investment Spam', 'Gambling Spam', 'Health & Medical Spam',
-                            'Adult & Dating Spam', 'Business Opportunity Spam', 'Brand Impersonation',
-                            'Payment Scam', 'Phishing', 'Education/Training Spam', 'Real Estate Spam',
-                            'Legal & Compensation Scams', 'Marketing Spam', 'Promotional Email'
-                        ]
-                        hybrid_spam = hybrid_category in spam_categories
+                    # Determine if it's spam based on category
+                    spam_categories = [
+                        'Financial & Investment Spam', 'Gambling Spam', 'Health & Medical Spam',
+                        'Adult & Dating Spam', 'Business Opportunity Spam', 'Brand Impersonation',
+                        'Payment Scam', 'Phishing', 'Education/Training Spam', 'Real Estate Spam',
+                        'Legal & Compensation Scams', 'Marketing Spam', 'Promotional Email'
+                    ]
+                    hybrid_spam = hybrid_category in spam_categories
                         
                         # Get confidence from logical classifier if available, otherwise use category-based confidence
                         if hasattr(self.keyword_processor, 'last_classification_confidence') and self.keyword_processor.last_classification_confidence > 0:
