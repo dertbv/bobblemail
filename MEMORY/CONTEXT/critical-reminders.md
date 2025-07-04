@@ -28,6 +28,7 @@ maintenance: remove_resolved_add_new_critical
 - **Six Agent System**: Copy from `deploy-agents.md`, paste to terminal
 - **Three Stooges**: Copy from `three-stooges-deploy.md`, paste to terminal
 - **Recursive Companion**: Use `recursive-companion-generator.md` to create refine/incremental_refine commands
+- **Manual Approval Required**: User must approve Claude startup in tmux session after deployment
 - **Results Preservation**: NEVER remove agent worktrees without extracting results first
 - **iTerm2 Commands**: Always provide native integration commands after deployment
 - **Autonomous Authority**: Include "option 2 yes and don't ask again" in missions
@@ -52,6 +53,13 @@ maintenance: remove_resolved_add_new_critical
 - **KISS Checkpoints**: Simplest solution that works, partner consultation for major changes
 - **Git Discipline**: Stage confidently, request review, commit only after QA approval
 - **Information Entropy**: Document only surprising, valuable, or critical information
+- **Single-Purpose Tools**: Follow delete_dupes.py philosophy - one tool, one job, done well
+
+## Classification System Upgrade (IN PROGRESS)
+- **Six Agent System**: Deployed to implement 4-category classification (agent-system-20250703_234905)
+- **Goal**: Fix auto warranty → adult spam misclassification
+- **Approach**: Parallel classifiers for A/B testing, no disruption to current system
+- **No Whitelists**: Pure logic-based classification per user requirement
 
 ## Preview Display Fix Requirements (CRITICAL)
 - **Constraint**: Flags must persist indefinitely until manually reviewed

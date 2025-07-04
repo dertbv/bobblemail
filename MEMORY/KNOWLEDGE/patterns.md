@@ -114,5 +114,53 @@ purpose: enable_learning_across_project_boundaries
 
 **Lessons**: Agent proposed solutions must respect all business constraints (e.g., flag persistence)
 
+## Single-Purpose Tool Philosophy
+**Origin**: delete_dupes.py creation for Atlas_Email duplicate removal
+**Transferable To**: Any utility script or tool development
+
+**Pattern**:
+1. One tool does one job exceptionally well
+2. No configuration flags or options - just works
+3. Clear, focused implementation (23 lines for delete_dupes.py)
+4. Use existing tool via subprocess rather than reimplementing logic
+
+**Lessons**: KISS principle applied to tooling - resist feature creep, maintain clarity
+
+## Temporal Analysis for Missing Data
+**Origin**: Geographic data coverage investigation in Atlas_Email
+**Transferable To**: Any system with incomplete historical data
+
+**Pattern**:
+1. Check when feature/capability was implemented
+2. Analyze data distribution across time periods
+3. Identify if missing data is due to non-implementation vs actual absence
+4. Target enrichment strategies based on temporal findings
+
+**Lessons**: "Is it possible we weren't capturing at that time" - always check implementation timeline
+
+## Classification Simplification Pattern
+**Origin**: Atlas_Email spam classification with 20+ categories causing confusion
+**Transferable To**: Any ML system with too many output classes
+
+**Pattern**:
+1. Identify misclassifications (auto warranty → adult spam)
+2. Design hierarchical structure (4 primary → many subcategories)
+3. Implement parallel classifiers for A/B testing
+4. Use subcategories for detailed tracking without confusing ML model
+
+**Lessons**: Simpler primary classification improves accuracy, detailed tracking via subcategories
+
+## Personalized Attack Detection
+**Origin**: Discovery of 847 emails with "dertbv" username in Atlas_Email
+**Transferable To**: Any system needing to detect targeted attacks
+
+**Pattern**:
+1. Search for user's actual identifiers in spam content
+2. Analyze sender spoofing patterns (username with fake domains)
+3. Track personalization tactics (name in subject, fake sender)
+4. Higher threat scoring for personalized attacks
+
+**Lessons**: Personalized spam/phishing is high-value signal for threat detection
+
 ---
 *Patterns proven across multiple projects, ready for application*

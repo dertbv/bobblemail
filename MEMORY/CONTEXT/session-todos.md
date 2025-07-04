@@ -1,15 +1,16 @@
 ---
 title: Session Todos
 type: active_session_tasks
-last_updated: 2025-07-03 13:05
+last_updated: 2025-07-04 00:52
 ---
 
 # Session Todos
 
 [
-  {"content": "Fix preview display to show current server state accurately", "status": "in_progress", "priority": "high", "id": "1"},
-  {"content": "Fix duplicate prevention logic that's causing preview sessions to overwrite each other", "status": "pending", "priority": "high", "id": "2"},
-  {"content": "Ensure preview mode creates new entries for each session instead of updating old ones", "status": "pending", "priority": "high", "id": "3"}
+  {"content": "Integrate delete_dupes.py tool for automatic duplicate cleanup after processing", "status": "pending", "priority": "high", "id": "1"},
+  {"content": "Improve subcategory patterns based on actual spam content", "status": "pending", "priority": "medium", "id": "6"},
+  {"content": "Add email body analysis to subcategory tagger", "status": "pending", "priority": "medium", "id": "7"},
+  {"content": "Merge 4-category classification to main and deploy to production", "status": "in_progress", "priority": "high", "id": "12"}
 ]
 
 ---
