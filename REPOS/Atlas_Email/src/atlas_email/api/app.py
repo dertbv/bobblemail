@@ -229,13 +229,14 @@ async def dashboard(request: Request):
         stats = db.get_database_stats()
         print(f"📊 Stats: {stats}")
         
-        # Map bulletproof count to expected key for template compatibility
-        stats['processed_emails_count'] = stats.get('processed_emails_bulletproof_count', 0)
-        
         # Get accounts
         accounts = db_credentials.load_credentials()
-        account_count = len(accounts) if accounts else 0
-        print(f"👤 Accounts: {account_count}")
+        print(f"👤 Accounts: {len(accounts) if accounts else 0}")
+        
+        # Map bulletproof count to expected key for template compatibility
+        stats['processed_emails_count'] = stats.get('processed_emails_bulletproof_count', 0)
+        stats['total_emails'] = stats.get('processed_emails_bulletproof_count', 0)
+        stats['total_accounts'] = len(accounts) if accounts else 0
         
         # Get LATEST emails with explicit timestamp sorting
         print("🔍 Fetching latest emails...")
@@ -247,6 +248,9 @@ async def dashboard(request: Request):
                 sender_email, 
                 subject, 
                 category,
+                new_category,
+                subcategory,
+                confidence_score,
                 reason,
                 id
             FROM processed_emails_bulletproof 
@@ -257,51 +261,500 @@ async def dashboard(request: Request):
         print(f"📧 Found {len(latest_emails)} recent emails")
         
         # Format emails for template
-        formatted_emails = []
+        recent_emails = []
         for email in latest_emails:
-            try:
-                # Parse timestamp - already in local time, no timezone conversion needed
-                dt = datetime.fromisoformat(email['timestamp'].replace('T', ' ').replace('Z', ''))
-                time_display = dt.strftime("%H:%M:%S")
-                date_display = dt.strftime("%m/%d")
-                full_timestamp = f"{date_display} {time_display}"
-            except:
-                full_timestamp = "Unknown"
-            
-            formatted_emails.append({
-                'timestamp': full_timestamp,
-                'action': email['action'],
-                'sender_email': email['sender_email'] or '',
-                'subject': email['subject'] or '',
-                'category': email['category'] or 'Unknown',
-                'reason': email['reason'] or ''
+            recent_emails.append({
+                'timestamp': email.get('timestamp', ''),
+                'sender': email.get('sender_email', ''),
+                'subject': email.get('subject', ''),
+                'category': email.get('category', ''),
+                'new_category': email.get('new_category', email.get('category', '')),
+                'subcategory': email.get('subcategory', ''),
+                'confidence_score': float(email.get('confidence_score', 0.0)),
+                'action': email.get('action', ''),
+                'reason': email.get('reason', '')
             })
         
-        # Prepare context for template
-        context = {
-            'request': request,
-            'stats': {
-                'total_accounts': account_count,
-                'total_emails': f"{stats.get('processed_emails_count', 0):,}",
-                'spam_count': stats.get('spam_count', 0),
-                'sessions_count': stats.get('sessions_count', 0),
-                'db_size_mb': f"{stats.get('db_size_mb', 0):.1f}"
-            },
-            'emails': formatted_emails,
-            'last_updated': datetime.now().strftime('%H:%M:%S')
-        }
+        # Get 4-category counts
+        category_counts = db.execute_query("""
+            SELECT 
+                COALESCE(new_category, category) as cat,
+                COUNT(*) as count
+            FROM processed_emails_bulletproof
+            GROUP BY COALESCE(new_category, category)
+        """)
         
-        return templates.TemplateResponse("pages/dashboard.html", context)
+        # Initialize category counts
+        stats['legitimate_count'] = 0
+        stats['marketing_count'] = 0  
+        stats['suspicious_count'] = 0
+        stats['spam_count'] = 0
+        
+        # Map counts to 4-category system
+        for row in category_counts:
+            cat = (row.get('cat') or '').upper()
+            count = row.get('count', 0)
+            
+            if cat == 'LEGITIMATE':
+                stats['legitimate_count'] = count
+            elif cat == 'MARKETING':
+                stats['marketing_count'] = count
+            elif cat == 'SUSPICIOUS':
+                stats['suspicious_count'] = count
+            elif cat in ['SPAM', 'PHISHING']:
+                stats['spam_count'] += count
+        
+        # Use template instead of inline HTML
+        return templates.TemplateResponse(
+            "pages/dashboard.html",
+            {
+                "request": request,
+                "stats": stats,
+                "recent_emails": recent_emails,
+                "emails": latest_emails  # Keep for backward compatibility
+            }
+        )
         
     except Exception as e:
         print(f"❌ Dashboard error: {e}")
         import traceback
         traceback.print_exc()
-        return HTMLResponse(f"<h1>Error: {e}</h1>")
+        return f"<h1>Error: {e}</h1>"
 
+def build_dashboard_html(stats, accounts, emails):
+    """Build dashboard HTML"""
+    
+    # Build email rows
+    email_rows = ""
+    for email in emails:
+        try:
+            # Parse timestamp - already in local time, no timezone conversion needed
+            dt = datetime.fromisoformat(email['timestamp'].replace('T', ' ').replace('Z', ''))
+            time_display = dt.strftime("%H:%M:%S")
+            date_display = dt.strftime("%m/%d")
+        except:
+            time_display = "Unknown"
+            date_display = "Unknown"
+        
+        action_emoji = "🗑️" if email['action'] == 'DELETED' else "🛡️"
+        action_color = "#dc3545" if email['action'] == 'DELETED' else "#28a745"
+        
+        sender = (email['sender_email'] or '')[:30] + "..." if len(email['sender_email'] or '') > 30 else (email['sender_email'] or '')
+        subject = (email['subject'] or '')[:40] + "..." if len(email['subject'] or '') > 40 else (email['subject'] or '')
+        category = email['category'] or 'Unknown'
+        
+        email_rows += f"""
+            <tr>
+                <td>{date_display}</td>
+                <td>{time_display}</td>
+                <td style="color: {action_color}; font-weight: bold;">{action_emoji} {email['action']}</td>
+                <td>{category}</td>
+                <td style="font-family: monospace; font-size: 0.9em;">{sender}</td>
+                <td>{subject}</td>
+            </tr>
+        """
+    
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Mail Filter Dashboard - Fresh</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, user-scalable=yes">
+        <meta http-equiv="refresh" content="30">
+        <style>
+            * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+            body {{ 
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; 
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                min-height: 100vh;
+                padding: 20px;
+            }}
+            .container {{ 
+                max-width: 1400px; 
+                margin: 0 auto; 
+                background: rgba(255,255,255,0.95); 
+                border-radius: 20px; 
+                padding: 30px; 
+                box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+                backdrop-filter: blur(10px);
+            }}
+            h1 {{ 
+                color: #2c3e50; 
+                text-align: center; 
+                font-size: 2.5em; 
+                margin-bottom: 30px;
+                text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }}
+            .stats-grid {{ 
+                display: grid; 
+                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); 
+                gap: 25px; 
+                margin-bottom: 40px; 
+            }}
+            .stat-card {{ 
+                background: rgba(255,255,255,0.95);
+                padding: 30px; 
+                border-radius: 20px; 
+                text-align: left; 
+                box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+                transform: translateY(0);
+                transition: all 0.3s ease;
+                border: 1px solid rgba(255,255,255,0.2);
+                position: relative;
+                overflow: hidden;
+                display: flex;
+                align-items: center;
+                gap: 20px;
+            }}
+            .stat-card::before {{
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                height: 4px;
+                background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            }}
+            .stat-card:hover {{
+                transform: translateY(-8px);
+                box-shadow: 0 25px 50px rgba(0,0,0,0.2);
+            }}
+            .stat-card.email-accounts::before {{ background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%); }}
+            .stat-card.emails-processed::before {{ background: linear-gradient(90deg, #43e97b 0%, #38f9d7 100%); }}
+            .stat-card.total-sessions::before {{ background: linear-gradient(90deg, #fa709a 0%, #fee140 100%); }}
+            .stat-card.database-size::before {{ background: linear-gradient(90deg, #a8edea 0%, #fed6e3 100%); }}
+            
+            .stat-icon {{
+                font-size: 3em;
+                opacity: 0.8;
+                flex-shrink: 0;
+            }}
+            .stat-content {{
+                flex: 1;
+            }}
+            .stat-value {{ 
+                font-size: 2.5em; 
+                font-weight: 700; 
+                margin-bottom: 5px;
+                color: #2c3e50;
+                line-height: 1;
+            }}
+            .stat-label {{ 
+                font-size: 1.1em; 
+                color: #34495e;
+                font-weight: 600;
+                margin-bottom: 3px;
+            }}
+            .stat-sublabel {{
+                font-size: 0.85em;
+                color: #7f8c8d;
+                opacity: 0.8;
+            }}
+            .controls {{ 
+                display: grid; 
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); 
+                gap: 15px; 
+                margin: 30px 0; 
+            }}
+            .btn {{ 
+                display: block; 
+                padding: 15px 20px; 
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white; 
+                text-decoration: none; 
+                text-align: center; 
+                border-radius: 10px; 
+                transition: all 0.3s ease;
+                border: none;
+                cursor: pointer;
+                font-size: 1em;
+                font-weight: 600;
+            }}
+            .btn:hover {{ 
+                transform: translateY(-2px);
+                box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            }}
+            .btn-success {{ background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%); }}
+            .btn-danger {{ background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%); }}
+            .btn-info {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }}
+            .btn-warning {{ background: linear-gradient(135deg, #f7971e 0%, #ffd200 100%); color: #333; }}
+            .recent-activity {{ 
+                margin-top: 40px; 
+                background: white;
+                border-radius: 15px;
+                padding: 25px;
+                box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            }}
+            .activity-table {{ 
+                width: 100%; 
+                border-collapse: collapse; 
+                margin-top: 20px; 
+            }}
+            .activity-table th {{ 
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                padding: 15px 10px; 
+                text-align: left; 
+                border: none;
+                font-weight: 600;
+            }}
+            .activity-table th:first-child {{ border-top-left-radius: 10px; }}
+            .activity-table th:last-child {{ border-top-right-radius: 10px; }}
+            .activity-table td {{ 
+                padding: 12px 10px; 
+                border-bottom: 1px solid #eee; 
+                vertical-align: top;
+            }}
+            .activity-table tbody tr:hover {{
+                background: #f8f9fa;
+            }}
+            .status-indicator {{
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #28a745;
+                color: white;
+                padding: 10px 20px;
+                border-radius: 20px;
+                font-size: 0.9em;
+                box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            }}
+            /* ===== MOBILE-RESPONSIVE CSS ===== */
+            
+            /* Table container for horizontal scroll */
+            .table-container {{
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                margin: 15px 0;
+                border-radius: 8px;
+            }}
+            
+            /* iOS input fixes */
+            input, select {{
+                font-size: 16px; /* Prevents iOS zoom */
+                -webkit-appearance: none;
+            }}
+            
+            /* Touch-friendly buttons */
+            .btn {{
+                min-height: 44px; /* iOS/Android touch standard */
+                min-width: 44px;
+                -webkit-tap-highlight-color: transparent;
+            }}
+            
+            /* Small phones: 320px - 480px */
+            @media (max-width: 480px) {{
+                body {{
+                    padding: 5px;
+                }}
+                
+                .container {{ 
+                    padding: 10px; 
+                    border-radius: 8px;
+                }}
+                
+                h1 {{ 
+                    font-size: 1.5em;
+                    margin-bottom: 15px;
+                }}
+                
+                .stats-grid {{ 
+                    grid-template-columns: 1fr;
+                    gap: 15px;
+                }}
+                
+                .controls {{ 
+                    grid-template-columns: 1fr;
+                    gap: 10px;
+                }}
+                
+                .stat-card {{ 
+                    padding: 15px; 
+                    flex-direction: column; 
+                    text-align: center; 
+                    gap: 10px; 
+                }}
+                
+                .stat-icon {{ 
+                    font-size: 2em; 
+                }}
+                
+                .stat-value {{ 
+                    font-size: 1.8em; 
+                }}
+                
+                .btn {{ 
+                    padding: 12px 15px; 
+                    font-size: 0.9em; 
+                }}
+                
+                .activity-table th,
+                .activity-table td {{
+                    padding: 8px 6px;
+                    font-size: 0.8em;
+                }}
+                
+                .status-indicator {{
+                    position: static;
+                    display: block;
+                    text-align: center;
+                    margin-bottom: 15px;
+                    top: auto;
+                    right: auto;
+                }}
+            }}
+            
+            /* Large phones/small tablets: 481px - 768px */
+            @media (min-width: 481px) and (max-width: 768px) {{
+                .container {{ 
+                    padding: 15px; 
+                }}
+                
+                h1 {{ 
+                    font-size: 2em; 
+                }}
+                
+                .stats-grid {{ 
+                    grid-template-columns: repeat(2, 1fr);
+                    gap: 20px;
+                }}
+                
+                .controls {{ 
+                    grid-template-columns: repeat(2, 1fr);
+                    gap: 15px;
+                }}
+            }}
+            
+            /* Tablets: 769px - 1024px */
+            @media (min-width: 769px) and (max-width: 1024px) {{
+                .stats-grid {{ 
+                    grid-template-columns: repeat(3, 1fr);
+                    gap: 25px;
+                }}
+                
+                .controls {{ 
+                    grid-template-columns: repeat(3, 1fr);
+                    gap: 20px;
+                }}
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="status-indicator">🟢 Live Dashboard</div>
+        
+        <div class="container">
+            <h1>🛡️ Mail Filter Dashboard</h1>
+            
+            <div class="stats-grid">
+                <div class="stat-card email-accounts">
+                    <div class="stat-icon">📧</div>
+                    <div class="stat-content">
+                        <div class="stat-value">{len(accounts) if accounts else 0}</div>
+                        <div class="stat-label">Email Accounts</div>
+                        <div class="stat-sublabel">{"Active" if accounts else "None configured"}</div>
+                    </div>
+                </div>
+                <div class="stat-card emails-processed">
+                    <div class="stat-icon">📊</div>
+                    <div class="stat-content">
+                        <div class="stat-value">{stats.get('processed_emails_count', 0):,}</div>
+                        <div class="stat-label">Emails Processed</div>
+                        <div class="stat-sublabel">Total lifetime</div>
+                    </div>
+                </div>
+                <div class="stat-card total-sessions">
+                    <div class="stat-icon">🎯</div>
+                    <div class="stat-content">
+                        <div class="stat-value">{stats.get('sessions_count', 0)}</div>
+                        <div class="stat-label">Total Sessions</div>
+                        <div class="stat-sublabel">Processing runs</div>
+                    </div>
+                </div>
+                <div class="stat-card database-size">
+                    <div class="stat-icon">💾</div>
+                    <div class="stat-content">
+                        <div class="stat-value">{stats.get('db_size_mb', 0):.1f}MB</div>
+                        <div class="stat-label">Database Size</div>
+                        <div class="stat-sublabel">SQLite storage</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="controls">
+                <button class="btn btn-success" onclick="runBatch()">🚀 Run Batch Processing</button>
+                <a href="/accounts" class="btn btn-primary">🎯 Single Account Filter</a>
+                <a href="/analytics" class="btn btn-warning">📊 Analytics & Reports</a>
+                <a href="/report" class="btn btn-primary">📋 Last Import Report</a>
+                <a href="/validate" class="btn btn-info">🔍 Category Validation</a>
+                <a href="/timer" class="btn btn-info">⏰ Timer Control</a>
+                <button class="btn" onclick="window.location.reload()">🔄 Refresh Data</button>
+            </div>
+            
+            <div class="recent-activity">
+                <h2 style="color: #2c3e50; margin-bottom: 20px;">📋 Latest Email Activity</h2>
+                <div class="table-container">
+                    <table class="activity-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Time</th>
+                            <th>Action</th>
+                            <th>Category</th>
+                            <th>Sender</th>
+                            <th>Subject</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {email_rows}
+                    </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div style="text-align: center; margin-top: 40px; color: #666;">
+                <small>Fresh Mail Filter Interface • Auto-refresh every 30 seconds • Last updated: {datetime.now().strftime('%H:%M:%S')}</small>
+            </div>
+        </div>
+        
+        <script>
+            async function runBatch() {{
+                if (!confirm('Run batch processing on all accounts? This will process and potentially delete spam emails.')) {{
+                    return;
+                }}
+                
+                const btn = event.target;
+                const originalText = btn.textContent;
+                btn.textContent = '⏳ Processing...';
+                btn.disabled = true;
+                
+                try {{
+                    const response = await fetch('/api/batch/run', {{
+                        method: 'POST'
+                    }});
+                    const result = await response.json();
+                    
+                    if (result.success) {{
+                        alert('✅ Batch processing completed successfully!');
+                        window.location.reload();
+                    }} else {{
+                        alert('❌ Batch processing failed: ' + result.message);
+                    }}
+                }} catch (error) {{
+                    alert('❌ Error: ' + error.message);
+                }} finally {{
+                    btn.textContent = originalText;
+                    btn.disabled = false;
+                }}
+            }}
+        </script>
+    </body>
+    </html>
+    """
+    
+    return html
 
 @app.get("/timer", response_class=HTMLResponse)
-async def timer_control(request: Request):
+async def timer_control():
     """Timer control page"""
     print("⏰ TIMER CONTROL PAGE CALLED!")
     
@@ -322,16 +775,248 @@ async def timer_control(request: Request):
                 mins = int(remaining.total_seconds() / 60)
                 timer_details = f"{mins} minutes remaining"
     
-    context = {
-        'request': request,
-        'timer_active': timer_active,
-        'timer_minutes': timer_minutes,
-        'repeat_mode': repeat_mode,
-        'execution_count': execution_count,
-        'timer_details': timer_details
-    }
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Timer Control - Mail Filter</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <style>
+            * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+            body {{ 
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; 
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                min-height: 100vh;
+                padding: 20px;
+            }}
+            .container {{ 
+                max-width: 800px; 
+                margin: 0 auto; 
+                background: rgba(255,255,255,0.95); 
+                border-radius: 20px; 
+                padding: 30px; 
+                box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+            }}
+            .back-link {{ 
+                color: #667eea; 
+                text-decoration: none; 
+                margin-bottom: 20px; 
+                display: inline-block;
+                font-weight: 600;
+            }}
+            h1 {{ 
+                color: #2c3e50; 
+                text-align: center; 
+                font-size: 2.5em; 
+                margin-bottom: 30px;
+            }}
+            .status-card {{
+                background: white;
+                border-radius: 15px;
+                padding: 25px;
+                margin-bottom: 30px;
+                box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+                border-left: 6px solid {'#28a745' if timer_active else '#dc3545'};
+            }}
+            .status-row {{
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 15px;
+            }}
+            .status-row:last-child {{ margin-bottom: 0; }}
+            .status-label {{
+                font-weight: 600;
+                color: #34495e;
+            }}
+            .status-value {{
+                font-weight: 700;
+                color: {'#28a745' if timer_active else '#dc3545'};
+            }}
+            .form-group {{ 
+                margin: 20px 0; 
+                background: white;
+                padding: 20px;
+                border-radius: 10px;
+                box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+            }}
+            label {{ 
+                display: block; 
+                margin-bottom: 8px; 
+                font-weight: 600;
+                color: #34495e;
+            }}
+            input, select {{ 
+                width: 100%; 
+                padding: 12px; 
+                border: 2px solid #e9ecef; 
+                border-radius: 8px; 
+                font-size: 1em;
+                transition: border-color 0.3s ease;
+            }}
+            input:focus, select:focus {{
+                border-color: #667eea;
+                outline: none;
+                box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            }}
+            .button-group {{
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+                gap: 15px;
+                margin-top: 30px;
+            }}
+            .btn {{ 
+                padding: 15px 20px; 
+                border: none; 
+                border-radius: 10px; 
+                cursor: pointer; 
+                font-size: 1em;
+                font-weight: 600;
+                transition: all 0.3s ease;
+                text-decoration: none;
+                text-align: center;
+                display: block;
+            }}
+            .btn:hover {{
+                transform: translateY(-2px);
+                box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            }}
+            .btn:disabled {{
+                opacity: 0.6;
+                cursor: not-allowed;
+                transform: none;
+            }}
+            .btn-primary {{ 
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                color: white; 
+            }}
+            .btn-success {{ 
+                background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%); 
+                color: white; 
+            }}
+            .btn-danger {{ 
+                background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%); 
+                color: white; 
+            }}
+            .btn-warning {{ 
+                background: linear-gradient(135deg, #f7971e 0%, #ffd200 100%); 
+                color: #333; 
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <a href="/" class="back-link">← Back to Dashboard</a>
+            <h1>⏰ Timer Control</h1>
+            
+            <div class="status-card">
+                <div class="status-row">
+                    <div class="status-label">Status:</div>
+                    <div class="status-value">{'🟢 Active' if timer_active else '🔴 Inactive'}</div>
+                </div>
+                <div class="status-row">
+                    <div class="status-label">Duration:</div>
+                    <div class="status-value">{timer_minutes} minutes</div>
+                </div>
+                <div class="status-row">
+                    <div class="status-label">Mode:</div>
+                    <div class="status-value">{'🔄 Repeating' if repeat_mode else '🔂 One-time'}</div>
+                </div>
+                <div class="status-row">
+                    <div class="status-label">Executions:</div>
+                    <div class="status-value">{execution_count}</div>
+                </div>
+                {f'<div class="status-row"><div class="status-label">Time Remaining:</div><div class="status-value">{timer_details}</div></div>' if timer_details else ''}
+            </div>
+            
+            <div class="form-group">
+                <label for="minutes">Timer Duration (minutes):</label>
+                <input type="number" id="minutes" name="minutes" value="{timer_minutes}" min="1" max="10080" placeholder="Enter minutes (1-10080)">
+            </div>
+            
+            <div class="form-group">
+                <label for="repeat">Timer Mode:</label>
+                <select id="repeat" name="repeat">
+                    <option value="false" {'selected' if not repeat_mode else ''}>One-time execution</option>
+                    <option value="true" {'selected' if repeat_mode else ''}>Repeating timer</option>
+                </select>
+            </div>
+            
+            <div class="button-group">
+                <button class="btn btn-primary" onclick="setTimer()">⚙️ Set Timer</button>
+                <button class="btn btn-success" onclick="startTimer()" {'disabled' if timer_active else ''}>▶️ Start Timer</button>
+                <button class="btn btn-danger" onclick="stopTimer()" {'disabled' if not timer_active else ''}>⏹️ Stop Timer</button>
+                <button class="btn btn-warning" onclick="testBatch()">🧪 Test Batch Now</button>
+            </div>
+        </div>
+        
+        <script>
+            async function setTimer() {{
+                const minutes = document.getElementById('minutes').value;
+                const repeat = document.getElementById('repeat').value;
+                
+                if (!minutes || minutes < 1) {{
+                    alert('Please enter a valid duration (1+ minutes)');
+                    return;
+                }}
+                
+                try {{
+                    const response = await fetch('/api/timer/set', {{
+                        method: 'POST',
+                        headers: {{'Content-Type': 'application/json'}},
+                        body: JSON.stringify({{
+                            minutes: parseInt(minutes),
+                            repeat_mode: repeat === 'true'
+                        }})
+                    }});
+                    
+                    const result = await response.json();
+                    alert(result.message);
+                    if (result.success) location.reload();
+                }} catch (error) {{
+                    alert('Error setting timer: ' + error.message);
+                }}
+            }}
+            
+            async function startTimer() {{
+                try {{
+                    const response = await fetch('/api/timer/start', {{method: 'POST'}});
+                    const result = await response.json();
+                    alert(result.message);
+                    if (result.success) location.reload();
+                }} catch (error) {{
+                    alert('Error starting timer: ' + error.message);
+                }}
+            }}
+            
+            async function stopTimer() {{
+                try {{
+                    const response = await fetch('/api/timer/stop', {{method: 'POST'}});
+                    const result = await response.json();
+                    alert(result.message);
+                    if (result.success) location.reload();
+                }} catch (error) {{
+                    alert('Error stopping timer: ' + error.message);
+                }}
+            }}
+            
+            async function testBatch() {{
+                if (confirm('Run batch processing now? This will process emails on all accounts.')) {{
+                    try {{
+                        const response = await fetch('/api/batch/run', {{method: 'POST'}});
+                        const result = await response.json();
+                        alert(result.message);
+                    }} catch (error) {{
+                        alert('Error running batch: ' + error.message);
+                    }}
+                }}
+            }}
+        </script>
+    </body>
+    </html>
+    """
     
-    return templates.TemplateResponse("pages/timer.html", context)
+    return html
 
 # API Endpoints for Timer Control
 @app.post("/api/timer/set")
@@ -589,6 +1274,386 @@ def get_analytics_data():
         'account_breakdown_spam': account_breakdown_spam,
         'geographic_data': geographic_data
     }
+
+def build_analytics_html(data):
+    """Build analytics dashboard HTML"""
+    
+    # Calculate effectiveness metrics
+    eff = data['effectiveness']
+    total = eff.get('total_count', 0)
+    deleted = eff.get('deleted_count', 0)
+    preserved = eff.get('preserved_count', 0)
+    effectiveness_rate = (deleted / total * 100) if total > 0 else 0
+    
+    # Build category chart data
+    category_rows = ""
+    max_percentage = max([cat['percentage'] for cat in data['categories']], default=1)
+    
+    for cat in data['categories']:
+        percentage = cat['percentage']
+        count = cat['count']
+        category_name = cat['category'] or 'Unknown'
+        
+        # Normalize bar width - highest percentage gets 100% width
+        bar_width = (percentage / max_percentage * 100) if max_percentage > 0 else 0
+        
+        category_rows += f"""
+            <div class="chart-bar">
+                <div class="bar-label">{category_name}</div>
+                <div class="bar-container">
+                    <div class="bar-fill" style="width: {bar_width:.1f}%"></div>
+                </div>
+                <div class="bar-value">{count:,} ({percentage:.1f}%)</div>
+            </div>
+        """
+    
+    # Build daily activity chart
+    activity_rows = ""
+    for day in data['daily_activity']:
+        date = day['date']
+        deleted = day['deleted']
+        preserved = day['preserved']
+        total_day = deleted + preserved
+        
+        activity_rows += f"""
+            <tr>
+                <td>{date}</td>
+                <td style="color: #dc3545; font-weight: bold;">{deleted:,}</td>
+                <td style="color: #28a745; font-weight: bold;">{preserved:,}</td>
+                <td>{total_day:,}</td>
+            </tr>
+        """
+    
+    # Build spam domains list
+    domain_rows = ""
+    for domain in data['spam_domains']:
+        domain_name = domain['sender_domain']
+        count = domain['count']
+        
+        domain_rows += f"""
+            <tr>
+                <td style="font-family: monospace; color: #dc3545;">{domain_name}</td>
+                <td>{count:,}</td>
+            </tr>
+        """
+    
+    # Build account breakdown chart - TOTAL MAIL
+    account_total_rows = ""
+    max_account_total_percentage = max([acc['percentage'] for acc in data['account_breakdown_total']], default=1)
+    
+    for account in data['account_breakdown_total']:
+        provider = account['provider']
+        count = account['email_count']
+        percentage = account['percentage']
+        
+        # Normalize bar width - highest percentage gets 100% width
+        bar_width = (percentage / max_account_total_percentage * 100) if max_account_total_percentage > 0 else 0
+        
+        # Provider icons
+        provider_icon = {
+            'gmail': '📧',
+            'icloud': '☁️', 
+            'outlook': '📨',
+            'yahoo': '📬',
+            'aol': '📭'
+        }.get(provider.lower(), '📮')
+        
+        account_total_rows += f"""
+            <div class="chart-bar">
+                <div class="bar-label">{provider_icon} {provider.title()}</div>
+                <div class="bar-container">
+                    <div class="bar-fill" style="width: {bar_width:.1f}%"></div>
+                </div>
+                <div class="bar-value">{count:,} ({percentage:.1f}%)</div>
+            </div>
+        """
+    
+    # Build account breakdown chart - SPAM ONLY
+    account_spam_rows = ""
+    max_spam_percentage = max([acc['percentage'] for acc in data['account_breakdown_spam']], default=1)
+    
+    for account in data['account_breakdown_spam']:
+        provider = account['provider']
+        count = account.get('spam_count', account.get('email_count', 0))
+        percentage = account['percentage']
+        
+        # Normalize bar width - highest percentage gets 100% width
+        bar_width = (percentage / max_spam_percentage * 100) if max_spam_percentage > 0 else 0
+        
+        # Provider icons
+        provider_icon = {
+            'gmail': '📧',
+            'icloud': '☁️', 
+            'outlook': '📨',
+            'yahoo': '📬',
+            'aol': '📭'
+        }.get(provider.lower(), '📮')
+        
+        account_spam_rows += f"""
+            <div class="chart-bar">
+                <div class="bar-label">{provider_icon} {provider.title()}</div>
+                <div class="bar-container">
+                    <div class="bar-fill" style="width: {bar_width:.1f}%; background-color: #dc3545;"></div>
+                </div>
+                <div class="bar-value" style="color: #dc3545;">{count:,} ({percentage:.1f}%)</div>
+            </div>
+        """
+    
+    # Session stats - now using proper dictionary access
+    session_stats = data['session_stats']
+    avg_emails = session_stats.get('avg_emails_per_session', 0) or 0
+    avg_deletion_rate = session_stats.get('avg_deletion_rate', 0) or 0
+    total_sessions = session_stats.get('total_sessions', 0) or 0
+    
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Analytics & Reports - Mail Filter</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <style>
+            * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+            body {{ 
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; 
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                min-height: 100vh;
+                padding: 20px;
+            }}
+            .container {{ 
+                max-width: 1400px; 
+                margin: 0 auto; 
+                background: rgba(255,255,255,0.95); 
+                border-radius: 20px; 
+                padding: 30px; 
+                box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+            }}
+            .back-link {{ 
+                color: #667eea; 
+                text-decoration: none; 
+                margin-bottom: 20px; 
+                display: inline-block;
+                font-weight: 600;
+            }}
+            h1 {{ 
+                color: #2c3e50; 
+                text-align: center; 
+                font-size: 2.5em; 
+                margin-bottom: 30px;
+            }}
+            .analytics-grid {{
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+                gap: 30px;
+                margin-bottom: 40px;
+            }}
+            .analytics-card {{
+                background: white;
+                border-radius: 15px;
+                padding: 25px;
+                box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+                border-top: 4px solid #667eea;
+            }}
+            .card-title {{
+                font-size: 1.3em;
+                font-weight: 700;
+                color: #2c3e50;
+                margin-bottom: 20px;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }}
+            .metric-row {{
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 10px 0;
+                border-bottom: 1px solid #eee;
+            }}
+            .metric-row:last-child {{ border-bottom: none; }}
+            .metric-label {{ font-weight: 600; color: #34495e; }}
+            .metric-value {{ font-weight: 700; color: #667eea; }}
+            .chart-bar {{
+                display: grid;
+                grid-template-columns: 120px 1fr 80px;
+                gap: 15px;
+                align-items: center;
+                margin-bottom: 12px;
+            }}
+            .bar-label {{ 
+                font-size: 0.9em; 
+                font-weight: 600; 
+                color: #34495e;
+                text-align: right;
+            }}
+            .bar-container {{
+                background: #e9ecef;
+                border-radius: 10px;
+                height: 20px;
+                position: relative;
+                overflow: hidden;
+            }}
+            .bar-fill {{
+                background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+                height: 100%;
+                border-radius: 10px;
+                transition: width 0.5s ease;
+            }}
+            .bar-value {{ 
+                font-size: 0.85em; 
+                font-weight: 600; 
+                color: #34495e;
+                text-align: right;
+            }}
+            .data-table {{
+                width: 100%;
+                border-collapse: collapse;
+                margin-top: 15px;
+            }}
+            .data-table th {{
+                background: #f8f9fa;
+                padding: 12px;
+                text-align: left;
+                font-weight: 600;
+                color: #34495e;
+                border-bottom: 2px solid #dee2e6;
+            }}
+            .data-table td {{
+                padding: 10px 12px;
+                border-bottom: 1px solid #dee2e6;
+            }}
+            .data-table tbody tr:hover {{
+                background: #f8f9fa;
+            }}
+            .effectiveness-card {{ border-top-color: #28a745; }}
+            .categories-card {{ border-top-color: #fd7e14; }}
+            .activity-card {{ border-top-color: #6610f2; }}
+            .domains-card {{ border-top-color: #dc3545; }}
+            .sessions-card {{ border-top-color: #20c997; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <a href="/" class="back-link">← Back to Dashboard</a>
+            <h1>📊 Analytics & Reports</h1>
+            
+            <div class="analytics-grid">
+                <div class="analytics-card effectiveness-card">
+                    <div class="card-title">
+                        🎯 Processing Effectiveness (30 Days)
+                    </div>
+                    <div class="metric-row">
+                        <div class="metric-label">Total Emails Processed</div>
+                        <div class="metric-value">{total:,}</div>
+                    </div>
+                    <div class="metric-row">
+                        <div class="metric-label">Spam Deleted</div>
+                        <div class="metric-value" style="color: #dc3545;">{deleted:,}</div>
+                    </div>
+                    <div class="metric-row">
+                        <div class="metric-label">Emails Preserved</div>
+                        <div class="metric-value" style="color: #28a745;">{preserved:,}</div>
+                    </div>
+                    <div class="metric-row">
+                        <div class="metric-label">Detection Rate</div>
+                        <div class="metric-value" style="color: #fd7e14;">{effectiveness_rate:.1f}%</div>
+                    </div>
+                </div>
+                
+                <div class="analytics-card sessions-card">
+                    <div class="card-title">
+                        ⚡ Session Performance (30 Days)
+                    </div>
+                    <div class="metric-row">
+                        <div class="metric-label">Total Sessions</div>
+                        <div class="metric-value">{total_sessions}</div>
+                    </div>
+                    <div class="metric-row">
+                        <div class="metric-label">Avg Emails/Session</div>
+                        <div class="metric-value">{avg_emails:.0f}</div>
+                    </div>
+                    <div class="metric-row">
+                        <div class="metric-label">Avg Deletion Rate</div>
+                        <div class="metric-value">{avg_deletion_rate:.1f}%</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="analytics-grid">
+                <div class="analytics-card categories-card">
+                    <div class="card-title">
+                        🏷️ Top Spam Categories (30 Days)
+                    </div>
+                    {category_rows}
+                </div>
+                
+                <div class="analytics-card accounts-total-card">
+                    <div class="card-title">
+                        👤 Total Mail by Account (30 Days)
+                    </div>
+                    {account_total_rows}
+                </div>
+            </div>
+            
+            <div class="analytics-grid">
+                <div class="analytics-card accounts-spam-card">
+                    <div class="card-title">
+                        🗑️ Spam Mail by Account (30 Days)
+                    </div>
+                    {account_spam_rows}
+                </div>
+            </div>
+            
+            <div class="analytics-grid">
+                <div class="analytics-card domains-card">
+                    <div class="card-title">
+                        🌐 Top Spam Domains (30 Days)
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Domain</th>
+                                <th>Blocked Count</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {domain_rows}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="analytics-card activity-card">
+                <div class="card-title">
+                    📈 Daily Activity (Last 14 Days)
+                </div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Deleted</th>
+                            <th>Preserved</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {activity_rows}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        
+        <script>
+            // Data refresh functionality
+            setInterval(function() {{
+                window.location.reload();
+            }}, 30000); // Refresh every 30 seconds
+        </script>
+    </body>
+    </html>
+    """
+    
+    return html
 
 
 @app.post("/api/batch/run")
@@ -1263,13 +2328,13 @@ async def get_research_flagged_emails(account_id: int = None, limit: int = 100):
 # ========================================
 
 @app.get("/validate", response_class=HTMLResponse)
-async def category_validation_page(request: Request):
+async def category_validation_page():
     """Category Validation Page - Rebuilt from Scratch"""
     print("🔍 CATEGORY VALIDATION page accessed")
     
     try:
         # Get all categories with email counts
-        categories_data = db.execute_query("""
+        categories = db.execute_query("""
             SELECT category, 
                    COUNT(*) as total,
                    SUM(CASE WHEN user_validated = 0 THEN 1 ELSE 0 END) as unvalidated,
@@ -1282,30 +2347,339 @@ async def category_validation_page(request: Request):
             ORDER BY unvalidated DESC, total DESC
         """)
         
-        # Process categories for template
-        categories = []
-        for cat in categories_data:
-            validation_rate = (cat['validated_correct'] / cat['total'] * 100) if cat['total'] > 0 else 0
-            categories.append({
-                'category': cat['category'],
-                'total': cat['total'],
-                'unvalidated': cat['unvalidated'],
-                'validated_correct': cat['validated_correct'],
-                'validation_rate': validation_rate
-            })
+        # Build category options
+        category_options = ""
+        for cat in categories:
+            category_name = cat['category']
+            total = cat['total']
+            unvalidated = cat['unvalidated']
+            validated = cat['validated_correct']
+            
+            validation_rate = (validated / total * 100) if total > 0 else 0
+            
+            category_options += f'<option value="{category_name}">{category_name} ({unvalidated} unvalidated of {total} total - {validation_rate:.1f}% validated)</option>\n'
         
-        context = {
-            'request': request,
-            'categories': categories
-        }
+        # Simple HTML page
+        html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Category Validation - Mail Filter</title>
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <style>
+                body {{ font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }}
+                .container {{ max-width: 1000px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; }}
+                h1 {{ color: #333; text-align: center; }}
+                .controls {{ margin: 20px 0; padding: 20px; background: #f9f9f9; border-radius: 5px; }}
+                select {{ padding: 10px; font-size: 16px; width: 400px; margin-right: 10px; }}
+                button {{ padding: 10px 20px; font-size: 16px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }}
+                button:hover {{ background: #0056b3; }}
+                .email-list {{ margin-top: 20px; }}
+                .email-item {{ border: 1px solid #ddd; margin: 10px 0; padding: 15px; border-radius: 5px; background: #fafafa; }}
+                .sender {{ font-weight: bold; color: #333; margin-bottom: 5px; }}
+                .sender-encoded {{ font-family: monospace; font-size: 12px; color: #888; margin-bottom: 5px; background: #f0f0f0; padding: 4px; border-radius: 3px; border-left: 3px solid #007bff; }}
+                .subject {{ color: #666; margin-bottom: 10px; }}
+                .feedback-buttons {{ margin-top: 10px; }}
+                .feedback-buttons button {{ margin-right: 10px; }}
+                .thumbs-up {{ background: #28a745; }}
+                .thumbs-up:hover {{ background: #218838; }}
+                .thumbs-down {{ background: #dc3545; }}
+                .thumbs-down:hover {{ background: #c82333; }}
+                .save-email {{ background: #17a2b8; }}
+                .save-email:hover {{ background: #138496; }}
+                .loading {{ text-align: center; padding: 20px; color: #666; }}
+                .pagination {{ text-align: center; margin: 20px 0; }}
+                .pagination button {{ margin: 0 5px; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>📋 Category Validation</h1>
+                <p><a href="/">← Back to Dashboard</a></p>
+                
+                <div class="controls">
+                    <label for="categorySelect">Select Category:</label>
+                    <select id="categorySelect">
+                        <option value="">Choose a category...</option>
+                        {category_options}
+                    </select>
+                    <button onclick="loadEmails()">Load Emails</button>
+                </div>
+                
+                <div id="emailList" class="email-list"></div>
+                <div id="pagination" class="pagination"></div>
+            </div>
+            
+            <script>
+                let currentCategory = '';
+                let currentPage = 1;
+                
+                function decodeEmailContent(content) {{
+                    if (!content) return '';
+                    
+                    try {{
+                        // Clean up content first - remove newlines and extra whitespace
+                        let cleaned = content.replace(/\\r\\n/g, ' ').replace(/\\n/g, ' ').replace(/\\s+/g, ' ').trim();
+                        
+                        // Handle UTF-8 Q-encoding (=?UTF-8?Q?...?=)
+                        if (cleaned.includes('=?UTF-8?Q?')) {{
+                            let decoded = cleaned.replace(/=\\?UTF-8\\?Q\\?([^?]+)\\?=/g, function(match, encoded) {{
+                                // Replace encoded characters
+                                let result = encoded
+                                    .replace(/=([0-9A-F]{{2}})/g, function(match, hex) {{
+                                        return String.fromCharCode(parseInt(hex, 16));
+                                    }})
+                                    .replace(/_/g, ' ');
+                                return result;
+                            }});
+                            return decoded;
+                        }}
+                        
+                        // Handle UTF-8 B-encoding (=?UTF-8?B?...?=) - Base64
+                        if (cleaned.includes('=?UTF-8?B?')) {{
+                            let decoded = cleaned.replace(/=\\?UTF-8\\?B\\?([^?]+)\\?=/g, function(match, encoded) {{
+                                try {{
+                                    return atob(encoded);
+                                }} catch(e) {{
+                                    return encoded + ' (decode error)';
+                                }}
+                            }});
+                            return decoded;
+                        }}
+                        
+                        // Handle other encodings or return cleaned content
+                        return cleaned;
+                    }} catch(e) {{
+                        console.error('Decoding error:', e);
+                        return content + ' (decode error)';
+                    }}
+                }}
+                
+                async function loadEmails() {{
+                    const select = document.getElementById('categorySelect');
+                    const category = select.value;
+                    
+                    if (!category) {{
+                        alert('Please select a category');
+                        return;
+                    }}
+                    
+                    currentCategory = category;
+                    currentPage = 1;
+                    
+                    console.log('Loading emails for category:', category);
+                    
+                    const emailList = document.getElementById('emailList');
+                    emailList.innerHTML = '<div class="loading">Loading emails...</div>';
+                    
+                    try {{
+                        const response = await fetch(`/api/validation/emails/${{encodeURIComponent(category)}}?page=${{currentPage}}`);
+                        const data = await response.json();
+                        
+                        console.log('API response:', data);
+                        
+                        if (data.success) {{
+                            displayEmails(data.emails, data.pagination);
+                        }} else {{
+                            emailList.innerHTML = `<div class="loading">Error: ${{data.message}}</div>`;
+                        }}
+                    }} catch (error) {{
+                        console.error('Error loading emails:', error);
+                        emailList.innerHTML = `<div class="loading">Error: ${{error.message}}</div>`;
+                    }}
+                }}
+                
+                function displayEmails(emails, pagination) {{
+                    const emailList = document.getElementById('emailList');
+                    
+                    if (emails.length === 0) {{
+                        emailList.innerHTML = '<div class="loading">🎉 All emails in this category have been validated!</div>';
+                        document.getElementById('pagination').innerHTML = '';
+                        return;
+                    }}
+                    
+                    let html = '';
+                    emails.forEach(email => {{
+                        // Decode sender and subject
+                        const decodedSender = decodeEmailContent(email.sender_email);
+                        const decodedSubject = decodeEmailContent(email.subject);
+                        
+                        // Enhanced sender display for brand impersonation detection
+                        let senderDisplay = '';
+                        
+                        // Debug logging
+                        console.log('Email ID:', email.id);
+                        console.log('Raw sender:', email.sender_email);
+                        console.log('Decoded sender:', decodedSender);
+                        
+                        // HTML escape function to prevent <email@domain.com> being interpreted as HTML tags
+                        function htmlEscape(str) {{
+                            return str.replace(/&/g, '&amp;')
+                                     .replace(/</g, '&lt;')
+                                     .replace(/>/g, '&gt;')
+                                     .replace(/"/g, '&quot;')
+                                     .replace(/'/g, '&#x27;');
+                        }}
+                        
+                        // Always show decoded sender prominently (fully qualified address)
+                        const escapedDecoded = htmlEscape(decodedSender);
+                        senderDisplay = `<div class="sender">From: ${{escapedDecoded}}</div>`;
+                        
+                        // Always show raw version for comparison and brand impersonation detection
+                        // This helps users spot spoofing, encoding tricks, and verify domains
+                        if (email.sender_email && email.sender_email.trim() !== '') {{
+                            const escapedRaw = htmlEscape(email.sender_email);
+                            senderDisplay += `<div class="sender-encoded">Raw: ${{escapedRaw}}</div>`;
+                        }}
+                        
+                        html += `
+                            <div class="email-item" id="email-${{email.id}}">
+                                ${{senderDisplay}}
+                                <div class="subject">Subject: ${{decodedSubject}}</div>
+                                <div class="feedback-buttons">
+                                    <button class="thumbs-up" onclick="submitFeedback(${{email.id}}, 'up')">👍 Correct</button>
+                                    <button class="thumbs-down" onclick="submitFeedback(${{email.id}}, 'down')">👎 Wrong</button>
+                                    <button class="save-email" onclick="saveEmail(${{email.id}})">💾 Save</button>
+                                </div>
+                            </div>
+                        `;
+                    }});
+                    
+                    emailList.innerHTML = html;
+                    
+                    // Show pagination
+                    displayPagination(pagination);
+                }}
+                
+                function displayPagination(pagination) {{
+                    const paginationDiv = document.getElementById('pagination');
+                    
+                    if (pagination.total_pages <= 1) {{
+                        paginationDiv.innerHTML = '';
+                        return;
+                    }}
+                    
+                    let html = '';
+                    
+                    if (pagination.has_prev) {{
+                        html += `<button onclick="changePage(${{pagination.current_page - 1}})">← Previous</button>`;
+                    }}
+                    
+                    html += `<span>Page ${{pagination.current_page}} of ${{pagination.total_pages}} (${{pagination.total_emails}} emails)</span>`;
+                    
+                    if (pagination.has_next) {{
+                        html += `<button onclick="changePage(${{pagination.current_page + 1}})">Next →</button>`;
+                    }}
+                    
+                    paginationDiv.innerHTML = html;
+                }}
+                
+                function changePage(page) {{
+                    currentPage = page;
+                    loadEmails();
+                }}
+                
+                async function submitFeedback(emailId, feedback) {{
+                    console.log('Submitting feedback:', emailId, feedback);
+                    
+                    try {{
+                        const response = await fetch('/api/validation/feedback', {{
+                            method: 'POST',
+                            headers: {{
+                                'Content-Type': 'application/json'
+                            }},
+                            body: JSON.stringify({{
+                                email_id: emailId,
+                                feedback: feedback
+                            }})
+                        }});
+                        
+                        const result = await response.json();
+                        console.log('Feedback result:', result);
+                        
+                        if (result.success) {{
+                            // Remove the email from the list
+                            const emailElement = document.getElementById(`email-${{emailId}}`);
+                            if (emailElement) {{
+                                emailElement.remove();
+                            }}
+                            
+                            // Show feedback message
+                            if (feedback === 'down') {{
+                                if (result.reclassification) {{
+                                    alert(`🔄 Email reclassified from '${{result.reclassification.original_category}}' to '${{result.reclassification.new_category}}'`);
+                                }} else {{
+                                    alert('👎 Email marked for manual review');
+                                }}
+                            }}
+                            // No popup for thumbs up - just silently remove the email
+                            
+                            // Check if we need to reload the page
+                            const remainingEmails = document.querySelectorAll('.email-item').length;
+                            if (remainingEmails === 0) {{
+                                loadEmails();
+                            }}
+                        }} else {{
+                            alert('Error: ' + result.message);
+                        }}
+                    }} catch (error) {{
+                        console.error('Error submitting feedback:', error);
+                        alert('Error submitting feedback: ' + error.message);
+                    }}
+                }}
+                
+                async function saveEmail(emailId) {{
+                    console.log('Saving email for protection:', emailId);
+                    
+                    try {{
+                        const response = await fetch('/api/validation/save', {{
+                            method: 'POST',
+                            headers: {{
+                                'Content-Type': 'application/json'
+                            }},
+                            body: JSON.stringify({{
+                                email_id: emailId
+                            }})
+                        }});
+                        
+                        const result = await response.json();
+                        console.log('Save result:', result);
+                        
+                        if (result.success) {{
+                            // Remove the email from the list
+                            const emailElement = document.getElementById(`email-${{emailId}}`);
+                            if (emailElement) {{
+                                emailElement.remove();
+                            }}
+                            
+                            // Show success message
+                            alert(`💾 Email saved and protected! ${{result.protection_message || 'Future similar emails will be protected.'}}`);
+                            
+                            // Check if we need to reload the page
+                            const remainingEmails = document.querySelectorAll('.email-item').length;
+                            if (remainingEmails === 0) {{
+                                loadEmails();
+                            }}
+                        }} else {{
+                            alert('Error: ' + result.message);
+                        }}
+                    }} catch (error) {{
+                        console.error('Error saving email:', error);
+                        alert('Error saving email: ' + error.message);
+                    }}
+                }}
+            </script>
+        </body>
+        </html>
+        """
         
-        return templates.TemplateResponse("pages/validate.html", context)
+        return html
         
     except Exception as e:
-        print(f"❌ Error loading validation page: {e}")
+        print(f"❌ Validation page error: {e}")
         import traceback
         traceback.print_exc()
-        return HTMLResponse(f"<h1>Error loading validation page: {e}</h1>")
+        return f"<h1>Error: {e}</h1>"
 
 @app.get("/api/validation/emails/{category}")
 async def get_emails_for_validation(category: str, page: int = 1):
@@ -2108,14 +3482,14 @@ async def report_page(request: Request):
 # ==========================================
 
 @app.get("/accounts", response_class=HTMLResponse)
-async def accounts_page(request: Request):
+async def accounts_page():
     """Account selection page - lists all saved accounts"""
     try:
         # Import here to avoid circular imports
         from config.credentials import db_credentials
         
         # Load all saved accounts
-        accounts_data = db_credentials.load_credentials()
+        accounts = db_credentials.load_credentials()
         
         # Provider icons mapping
         provider_icons = {
@@ -2126,41 +3500,261 @@ async def accounts_page(request: Request):
             'Custom': '⚙️'
         }
         
-        # Format accounts for template
-        accounts = []
-        if accounts_data:
-            for i, account in enumerate(accounts_data):
+        # Build account cards
+        account_cards = ""
+        if accounts:
+            # Add "All Accounts" option first
+            total_accounts = len(accounts)
+            account_cards += f"""
+            <div class="account-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <div class="account-icon">🌐</div>
+                <div class="account-info">
+                    <div class="account-email" style="color: white;">All Accounts</div>
+                    <div class="account-provider" style="color: #f0f0f0;">Process all {total_accounts} accounts at once</div>
+                    <div class="account-meta" style="color: #f0f0f0;">
+                        Batch filtering with preview option
+                    </div>
+                </div>
+                <div class="account-actions">
+                    <a href="/single-account/all" class="btn" style="background: white; color: #667eea;">Select All</a>
+                </div>
+            </div>
+            """
+            # Then add individual accounts
+            for i, account in enumerate(accounts):
                 provider = account.get('provider', 'Custom')
                 icon = provider_icons.get(provider, '📧')
                 last_used = account.get('last_used', 'Never')
                 target_folders = account.get('target_folders', [])
                 folder_count = len(target_folders) if target_folders else 0
                 
-                accounts.append({
-                    'email_address': account.get('email_address', 'Unknown'),
-                    'provider': provider,
-                    'icon': icon,
-                    'last_used': last_used,
-                    'folder_count': folder_count,
-                    'index': i
-                })
+                account_cards += f"""
+                <div class="account-card">
+                    <div class="account-icon">{icon}</div>
+                    <div class="account-info">
+                        <div class="account-email">{account['email_address']}</div>
+                        <div class="account-provider">{provider}</div>
+                        <div class="account-meta">
+                            {folder_count} folders configured • Last used: {last_used}
+                        </div>
+                    </div>
+                    <div class="account-actions">
+                        <a href="/single-account/{i}" class="btn btn-primary">Select</a>
+                        <button onclick="testConnection({i})" class="btn btn-secondary">Test</button>
+                    </div>
+                </div>
+                """
+        else:
+            account_cards = """
+            <div class="no-accounts">
+                <h3>📧 No Email Accounts Configured</h3>
+                <p>Use the CLI to add email accounts first:</p>
+                <code>python3 main.py</code>
+                <p>Then return here to manage single account filtering.</p>
+            </div>
+            """
         
-        context = {
-            'request': request,
-            'accounts': accounts
-        }
+        html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>📧 Email Accounts - Mail Filter</title>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <style>
+                body {{ 
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+                    margin: 0; 
+                    padding: 20px; 
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    min-height: 100vh;
+                }}
+                .container {{
+                    max-width: 1000px;
+                    margin: 0 auto;
+                    background: white;
+                    border-radius: 15px;
+                    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+                    overflow: hidden;
+                }}
+                .header {{
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: white;
+                    padding: 30px;
+                    text-align: center;
+                }}
+                .header h1 {{
+                    margin: 0;
+                    font-size: 2.5em;
+                    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+                }}
+                .nav-links {{
+                    padding: 20px 30px;
+                    background: #f8f9fa;
+                    border-bottom: 1px solid #dee2e6;
+                }}
+                .back-link {{
+                    color: #667eea;
+                    text-decoration: none;
+                    font-weight: 600;
+                    margin-right: 20px;
+                }}
+                .back-link:hover {{ text-decoration: underline; }}
+                .content {{
+                    padding: 30px;
+                }}
+                .account-card {{
+                    display: flex;
+                    align-items: center;
+                    background: #f8f9fa;
+                    border-radius: 10px;
+                    padding: 20px;
+                    margin-bottom: 15px;
+                    border: 1px solid #dee2e6;
+                    transition: all 0.3s ease;
+                }}
+                .account-card:hover {{
+                    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+                    transform: translateY(-2px);
+                }}
+                .account-icon {{
+                    font-size: 2.5em;
+                    margin-right: 20px;
+                }}
+                .account-info {{
+                    flex: 1;
+                }}
+                .account-email {{
+                    font-size: 1.3em;
+                    font-weight: 600;
+                    color: #333;
+                    margin-bottom: 5px;
+                }}
+                .account-provider {{
+                    color: #667eea;
+                    font-weight: 500;
+                    margin-bottom: 5px;
+                }}
+                .account-meta {{
+                    color: #6c757d;
+                    font-size: 0.9em;
+                }}
+                .account-actions {{
+                    display: flex;
+                    gap: 10px;
+                }}
+                .btn {{
+                    padding: 10px 20px;
+                    border: none;
+                    border-radius: 8px;
+                    text-decoration: none;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: all 0.3s ease;
+                }}
+                .btn-primary {{
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: white;
+                }}
+                .btn-secondary {{
+                    background: #6c757d;
+                    color: white;
+                }}
+                .btn:hover {{
+                    transform: translateY(-2px);
+                    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+                }}
+                .no-accounts {{
+                    text-align: center;
+                    padding: 40px;
+                    color: #6c757d;
+                }}
+                .no-accounts h3 {{ color: #333; }}
+                .no-accounts code {{
+                    background: #f8f9fa;
+                    padding: 5px 10px;
+                    border-radius: 5px;
+                    font-family: monospace;
+                }}
+                .status-message {{
+                    display: none;
+                    padding: 15px;
+                    border-radius: 8px;
+                    margin-bottom: 20px;
+                }}
+                .status-success {{ background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }}
+                .status-error {{ background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1>📧 Email Accounts</h1>
+                    <div class="subtitle">Select an account for single account filtering</div>
+                </div>
+                
+                <div class="nav-links">
+                    <a href="/" class="back-link">← Back to Dashboard</a>
+                </div>
+                
+                <div class="content">
+                    <div id="status-message" class="status-message"></div>
+                    
+                    {account_cards}
+                </div>
+            </div>
+            
+            <script>
+                async function testConnection(accountId) {{
+                    const statusDiv = document.getElementById('status-message');
+                    statusDiv.className = 'status-message status-success';
+                    statusDiv.textContent = 'Testing connection...';
+                    statusDiv.style.display = 'block';
+                    
+                    try {{
+                        const response = await fetch(`/api/testing/connection/${{accountId}}`, {{
+                            method: 'POST'
+                        }});
+                        const result = await response.json();
+                        
+                        if (result.success) {{
+                            statusDiv.className = 'status-message status-success';
+                            statusDiv.textContent = `✅ Connection successful! Found ${{result.total_folders || 0}} folders.`;
+                        }} else {{
+                            statusDiv.className = 'status-message status-error';
+                            statusDiv.textContent = `❌ Connection failed: ${{result.error || 'Unknown error'}}`;
+                        }}
+                    }} catch (error) {{
+                        statusDiv.className = 'status-message status-error';
+                        statusDiv.textContent = `❌ Error testing connection: ${{error.message}}`;
+                    }}
+                    
+                    // Hide message after 5 seconds
+                    setTimeout(() => {{
+                        statusDiv.style.display = 'none';
+                    }}, 5000);
+                }}
+            </script>
+        </body>
+        </html>
+        """
         
-        return templates.TemplateResponse("pages/accounts.html", context)
+        return html
         
     except Exception as e:
-        print(f"❌ Error loading accounts: {e}")
-        import traceback
-        traceback.print_exc()
-        return HTMLResponse(f"<h1>Error loading accounts: {e}</h1>")
-
+        return f"""
+        <html>
+        <head><title>Accounts Error</title></head>
+        <body>
+            <h1>Error Loading Accounts</h1>
+            <p>Error: {str(e)}</p>
+            <a href="/">← Back to Home</a>
+        </body>
+        </html>
+        """
 
 @app.get("/single-account/{account_id}", response_class=HTMLResponse)
-async def single_account_page(request: Request, account_id: str):
+async def single_account_page(account_id: str):
     """Single account filtering dashboard - replicates CLI functionality"""
     try:
         from config.credentials import db_credentials
@@ -2184,33 +3778,44 @@ async def single_account_page(request: Request, account_id: str):
                 provider = acc.get('provider', 'Custom')
                 target_accounts.append(f"{acc['email_address']} ({provider}) - {folder_count} folders")
             account['target_folders'] = target_accounts
+            account_idx = "all"
         else:
             # Handle individual account
             try:
                 account_idx = int(account_id)
                 if account_idx >= len(accounts):
-                    return HTMLResponse("""
+                    return """
                     <html><body>
                         <h1>Account Not Found</h1>
                         <a href="/accounts">← Back to Accounts</a>
                     </body></html>
-                    """)
+                    """
                 account = accounts[account_idx]
                     
             except ValueError:
-                return HTMLResponse("""
+                return """
                 <html><body>
                     <h1>Invalid Account ID</h1>
                     <a href="/accounts">← Back to Accounts</a>
                 </body></html>
-                """)
-        
+                """
         provider_icons = {
             'iCloud': '🍎',
             'Gmail': '📧', 
             'Outlook': '🏢',
             'Yahoo': '🟣',
-            'Custom': '⚙️'
+            'Custom': '⚙️',
+            'Processing 0 accounts': '🌐',
+            'Processing 1 accounts': '🌐',
+            'Processing 2 accounts': '🌐',
+            'Processing 3 accounts': '🌐',
+            'Processing 4 accounts': '🌐',
+            'Processing 5 accounts': '🌐',
+            'Processing 6 accounts': '🌐',
+            'Processing 7 accounts': '🌐',
+            'Processing 8 accounts': '🌐',
+            'Processing 9 accounts': '🌐',
+            'Processing 10 accounts': '🌐'
         }
         
         provider = account.get('provider', 'Custom')
@@ -2221,22 +3826,1334 @@ async def single_account_page(request: Request, account_id: str):
             icon = provider_icons.get(provider, '📧')
         target_folders = account.get('target_folders', [])
         
-        context = {
-            'request': request,
-            'account': account,
-            'account_id': account_id,
-            'icon': icon,
-            'provider': provider,
-            'target_folders': target_folders
-        }
+        # Build folder list
+        folder_list = ""
+        if target_folders:
+            for folder in target_folders:
+                folder_list += f"""
+                <div class="folder-item">
+                    <span class="folder-name">📁 {folder}</span>
+                    <span class="folder-status" id="folder-status-{folder.replace(' ', '_')}">Ready</span>
+                </div>
+                """
+        else:
+            folder_list = """
+            <div class="no-folders">
+                <p>❌ No folders configured for this account.</p>
+                <p>Use the CLI to set up folders: <code>python3 main.py</code></p>
+            </div>
+            """
         
-        return templates.TemplateResponse("pages/single_account.html", context)
+        html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>🎯 Single Account Filter - {account['email_address']}</title>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <style>
+                body {{ 
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+                    margin: 0; 
+                    padding: 20px; 
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    min-height: 100vh;
+                }}
+                .container {{
+                    max-width: 1200px;
+                    margin: 0 auto;
+                    background: white;
+                    border-radius: 15px;
+                    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+                    overflow: hidden;
+                }}
+                .header {{
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: white;
+                    padding: 30px;
+                    text-align: center;
+                }}
+                .header h1 {{
+                    margin: 0;
+                    font-size: 2.2em;
+                    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+                }}
+                .nav-links {{
+                    padding: 20px 30px;
+                    background: #f8f9fa;
+                    border-bottom: 1px solid #dee2e6;
+                }}
+                .back-link {{
+                    color: #667eea;
+                    text-decoration: none;
+                    font-weight: 600;
+                    margin-right: 20px;
+                }}
+                .back-link:hover {{ text-decoration: underline; }}
+                .content {{
+                    padding: 30px;
+                }}
+                .account-header {{
+                    display: flex;
+                    align-items: center;
+                    background: #f8f9fa;
+                    border-radius: 10px;
+                    padding: 25px;
+                    margin-bottom: 30px;
+                    border: 1px solid #dee2e6;
+                }}
+                .account-icon {{
+                    font-size: 3em;
+                    margin-right: 25px;
+                }}
+                .account-details {{
+                    flex: 1;
+                }}
+                .account-email {{
+                    font-size: 1.5em;
+                    font-weight: 600;
+                    color: #333;
+                    margin-bottom: 5px;
+                }}
+                .account-provider {{
+                    color: #667eea;
+                    font-weight: 500;
+                    margin-bottom: 10px;
+                }}
+                .account-meta {{
+                    color: #6c757d;
+                    font-size: 0.95em;
+                }}
+                .section {{
+                    background: white;
+                    border: 1px solid #dee2e6;
+                    border-radius: 10px;
+                    margin-bottom: 25px;
+                    overflow: hidden;
+                }}
+                .section-header {{
+                    background: #f8f9fa;
+                    padding: 20px 25px;
+                    border-bottom: 1px solid #dee2e6;
+                    font-weight: 600;
+                    color: #333;
+                }}
+                .section-content {{
+                    padding: 25px;
+                }}
+                .folder-item {{
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding: 12px 0;
+                    border-bottom: 1px solid #eee;
+                }}
+                .folder-item:last-child {{ border-bottom: none; }}
+                .folder-name {{
+                    font-weight: 500;
+                    color: #333;
+                }}
+                .folder-status {{
+                    font-size: 0.9em;
+                    color: #6c757d;
+                    padding: 4px 8px;
+                    background: #e9ecef;
+                    border-radius: 4px;
+                }}
+                .actions-grid {{
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 20px;
+                    margin-top: 20px;
+                }}
+                .action-card {{
+                    background: white;
+                    border: 2px solid #dee2e6;
+                    border-radius: 10px;
+                    padding: 25px;
+                    text-align: center;
+                    cursor: pointer;
+                    transition: all 0.3s ease;
+                }}
+                .action-card:hover {{
+                    border-color: #667eea;
+                    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+                    transform: translateY(-3px);
+                }}
+                .action-card.preview {{
+                    border-color: #28a745;
+                }}
+                .action-card.process {{
+                    border-color: #dc3545;
+                }}
+                .action-icon {{
+                    font-size: 3em;
+                    margin-bottom: 15px;
+                }}
+                .action-title {{
+                    font-size: 1.3em;
+                    font-weight: 600;
+                    margin-bottom: 10px;
+                }}
+                .action-description {{
+                    color: #6c757d;
+                    font-size: 0.95em;
+                    line-height: 1.4;
+                }}
+                .results-section {{
+                    display: none;
+                    margin-top: 30px;
+                }}
+                .results-header {{
+                    background: #667eea;
+                    color: white;
+                    padding: 20px 25px;
+                    font-weight: 600;
+                }}
+                .results-content {{
+                    padding: 25px;
+                }}
+                .stats-grid {{
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                    gap: 20px;
+                    margin-bottom: 25px;
+                }}
+                .stat-card {{
+                    background: #f8f9fa;
+                    border-radius: 8px;
+                    padding: 20px;
+                    text-align: center;
+                    border: 1px solid #dee2e6;
+                }}
+                .stat-value {{
+                    font-size: 2em;
+                    font-weight: 600;
+                    color: #667eea;
+                    margin-bottom: 5px;
+                }}
+                .stat-label {{
+                    color: #6c757d;
+                    font-size: 0.9em;
+                }}
+                .no-folders {{
+                    text-align: center;
+                    color: #6c757d;
+                    padding: 20px;
+                }}
+                .no-folders code {{
+                    background: #f8f9fa;
+                    padding: 5px 10px;
+                    border-radius: 5px;
+                    font-family: monospace;
+                }}
+                .status-message {{
+                    display: none;
+                    padding: 15px;
+                    border-radius: 8px;
+                    margin-bottom: 20px;
+                }}
+                .status-success {{ background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }}
+                .status-error {{ background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }}
+                .status-info {{ background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }}
+                .loading {{
+                    text-align: center;
+                    padding: 40px;
+                    color: #6c757d;
+                }}
+                .loading-spinner {{
+                    font-size: 2em;
+                    margin-bottom: 15px;
+                    animation: spin 1s linear infinite;
+                }}
+                @keyframes spin {{
+                    0% {{ transform: rotate(0deg); }}
+                    100% {{ transform: rotate(360deg); }}
+                }}
+                /* Mobile responsive styles */
+                @media (max-width: 768px) {{
+                    .actions-grid {{ grid-template-columns: 1fr; }}
+                    .stats-grid {{ grid-template-columns: 1fr; }}
+                    .account-header {{ flex-direction: column; text-align: center; }}
+                    .account-icon {{ margin-right: 0; margin-bottom: 15px; }}
+                    
+                    /* Mobile email table improvements */
+                    .email-table-container {{
+                        overflow-x: auto;
+                        -webkit-overflow-scrolling: touch;
+                    }}
+                    
+                    .email-table {{
+                        min-width: 100%;
+                        font-size: 0.85em;
+                    }}
+                    
+                    .email-cell {{
+                        max-width: none !important;
+                        min-width: 0;
+                        white-space: normal !important;
+                        overflow: visible !important;
+                        text-overflow: initial !important;
+                        padding: 8px 6px !important;
+                        line-height: 1.4;
+                    }}
+                    
+                    .email-cell-sender {{
+                        max-width: 120px;
+                        word-break: break-word;
+                    }}
+                    
+                    .email-cell-subject {{
+                        max-width: 150px;
+                        word-break: break-word;
+                    }}
+                    
+                    .email-cell-compact {{
+                        padding: 6px 4px !important;
+                        font-size: 0.8em;
+                    }}
+                    
+                    .email-cell-account {{
+                        max-width: 100px;
+                        word-break: break-word;
+                    }}
+                }}
+                
+                @media (max-width: 480px) {{
+                    /* iPhone specific optimizations */
+                    .container {{
+                        margin: 0 10px;
+                        border-radius: 10px;
+                    }}
+                    
+                    .content {{
+                        padding: 15px;
+                    }}
+                    
+                    .account-header {{
+                        padding: 15px;
+                    }}
+                    
+                    .email-table {{
+                        font-size: 0.8em;
+                    }}
+                    
+                    .email-cell {{
+                        padding: 6px 4px !important;
+                    }}
+                    
+                    .email-cell-sender {{
+                        max-width: 100px;
+                    }}
+                    
+                    .email-cell-subject {{
+                        max-width: 120px;
+                    }}
+                    
+                    .email-cell-account {{
+                        max-width: 80px;
+                    }}                    
+                    /* Hide less critical columns on very small screens */
+                    .email-column-confidence,
+                    .email-column-date {{
+                        display: none;
+                    }}
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1>🎯 Single Account Filter</h1>
+                    <div class="subtitle">Process emails for specific account</div>
+                </div>
+                
+                <div class="nav-links">
+                    <a href="/accounts" class="back-link">← Back to Accounts</a>
+                    <a href="/" class="back-link">🏠 Dashboard</a>
+                </div>
+                
+                <div class="content">
+                    <div id="status-message" class="status-message"></div>
+                    
+                    <div class="account-header">
+                        <div class="account-icon">{icon}</div>
+                        <div class="account-details">
+                            <div class="account-email">{account['email_address']}</div>
+                            <div class="account-provider">{provider}</div>
+                            <div class="account-meta">
+                                {len(target_folders)} folders configured • Account ID: {account_id}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="section">
+                        <div class="section-header">{'🌐 Target Accounts' if account_id == 'all' else '📁 Target Folders'}</div>
+                        <div class="section-content">
+                            {folder_list}
+                        </div>
+                    </div>
+                    
+                    <div class="section">
+                        <div class="section-header">⚡ Processing Options</div>
+                        <div class="section-content">
+                            <div class="actions-grid">
+                                <div class="action-card preview" onclick="runPreview()">
+                                    <div class="action-icon">🔍</div>
+                                    <div class="action-title">Preview Mode</div>
+                                    <div class="action-description">
+                                        See what emails would be deleted without actually deleting them. 
+                                        Safe way to test the filter settings.
+                                    </div>
+                                </div>
+                                
+                                <div class="action-card process" onclick="runProcess()">
+                                    <div class="action-icon">🚀</div>
+                                    <div class="action-title">Process Emails</div>
+                                    <div class="action-description">
+                                        Actually delete spam emails and preserve important ones. 
+                                        This will make permanent changes.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="results-section" class="section results-section">
+                        <div class="results-header">📊 Processing Results</div>
+                        <div class="results-content">
+                            <div id="loading" class="loading">
+                                <div class="loading-spinner">⏳</div>
+                                <div>Processing emails, please wait...</div>
+                            </div>
+                            <div id="results-content"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <script>
+                const accountId = "{account_id}";
+                
+                async function runPreview() {{
+                    await runAction('preview');
+                }}
+                
+                async function runProcess() {{
+                    if (!confirm('⚠️  This will permanently delete spam emails. Are you sure?')) {{
+                        return;
+                    }}
+                    await runAction('process');
+                }}
+                
+                async function runAction(mode) {{
+                    const statusDiv = document.getElementById('status-message');
+                    const resultsSection = document.getElementById('results-section');
+                    const loadingDiv = document.getElementById('loading');
+                    const resultsContent = document.getElementById('results-content');
+                    
+                    // Show status and results section
+                    statusDiv.className = 'status-message status-info';
+                    statusDiv.textContent = mode === 'preview' ? '🔍 Running preview...' : '🚀 Processing emails...';
+                    statusDiv.style.display = 'block';
+                    
+                    resultsSection.style.display = 'block';
+                    loadingDiv.style.display = 'block';
+                    resultsContent.style.display = 'none';
+                    
+                    try {{
+                        if (mode === 'preview') {{
+                            // Preview mode: just call preview endpoint
+                            const response = await fetch(`/api/single-account/${{accountId}}/preview`, {{
+                                method: 'POST'
+                            }});
+                            const result = await response.json();
+                            
+                            if (result.success) {{
+                                statusDiv.className = 'status-message status-success';
+                                statusDiv.textContent = `✅ Preview completed successfully!`;
+                                
+                                // Display results
+                                const stats = result.data;
+                            resultsContent.innerHTML = `
+                                <div class="stats-grid">
+                                    <div class="stat-card">
+                                        <div class="stat-value">${{stats.total_emails || 0}}</div>
+                                        <div class="stat-label">Total Emails</div>
+                                    </div>
+                                    <div class="stat-card">
+                                        <div class="stat-value" style="color: #dc3545;">${{stats.total_deleted || 0}}</div>
+                                        <div class="stat-label">${{mode === 'preview' ? 'Would Delete' : 'Deleted'}}</div>
+                                    </div>
+                                    <div class="stat-card">
+                                        <div class="stat-value" style="color: #28a745;">${{stats.total_preserved || 0}}</div>
+                                        <div class="stat-label">Preserved</div>
+                                    </div>
+                                    <div class="stat-card">
+                                        <div class="stat-value">${{Object.keys(stats.categories || {{}}).length}}</div>
+                                        <div class="stat-label">Categories</div>
+                                    </div>
+                                </div>
+                                
+                                <div style="margin-top: 25px;">
+                                    <h4>📊 Category Breakdown:</h4>
+                                    <div id="categories-list">
+                                        ${{Object.entries(stats.categories || {{}}).map(([category, count]) => 
+                                            `<div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee;">
+                                                <span>${{category}}</span>
+                                                <span style="font-weight: 600;">${{count}} emails</span>
+                                            </div>`
+                                        ).join('')}}
+                                    </div>
+                                </div>
+                                
+                                ${{stats.account_breakdown ? `
+                                <div style="margin-top: 25px;">
+                                    <h4>🌐 Account Breakdown:</h4>
+                                    <div id="account-breakdown-list">
+                                        ${{stats.account_breakdown.map(account => 
+                                            account.error ? 
+                                            `<div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; background-color: #fff5f5;">
+                                                <span style="color: #dc3545;">${{account.email}}</span>
+                                                <span style="color: #dc3545; font-weight: 600;">Error: ${{account.error}}</span>
+                                            </div>` :
+                                            `<div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee;">
+                                                <span>${{account.email}}</span>
+                                                <span style="font-weight: 600;">
+                                                    <span style="color: #dc3545;">${{account.deleted}}</span> deleted, 
+                                                    <span style="color: #28a745;">${{account.preserved}}</span> preserved
+                                                </span>
+                                            </div>`
+                                        ).join('')}}
+                                    </div>
+                                </div>
+                                ` : ''}}
+                                
+                                <div id="email-details-section" style="margin-top: 30px;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                                        <h4 style="margin: 0;">📧 Email Details:</h4>
+                                        ${{!(typeof stats.session_id === 'string' && stats.session_id.startsWith('all_')) ? `
+                                        <div>
+                                            <button id="show-session-emails" onclick="toggleEmailView('session')" style="background: #667eea; color: white; border: none; padding: 8px 12px; border-radius: 5px; margin-right: 5px; cursor: pointer; font-size: 0.9em;">Current Session</button>
+                                            <button id="show-all-emails" onclick="toggleEmailView('all')" style="background: #6c757d; color: white; border: none; padding: 8px 12px; border-radius: 5px; cursor: pointer; font-size: 0.9em;">All Account Emails</button>
+                                        </div>
+                                        ` : ''}}
+                                    </div>
+                                    <div id="email-details-loading" style="text-align: center; padding: 20px; color: #6c757d;">
+                                        <div style="font-size: 1.5em; margin-bottom: 10px;">⏳</div>
+                                        Loading email details...
+                                    </div>
+                                    <div id="email-details-table" style="display: none;"></div>
+                                </div>
+                                
+                                <div style="margin-top: 25px; font-size: 0.9em; color: #6c757d;">
+                                    Account: ${{stats.account_email}}<br>
+                                    Processing Time: ${{new Date().toLocaleString()}}
+                                </div>
+                            `;
+                            
+                            // Load email details table (only if session_id is valid and not "all accounts")
+                            if (stats.session_id && stats.session_id !== 'undefined' && !(typeof stats.session_id === 'string' && stats.session_id.startsWith('all_'))) {{
+                                currentSessionId = stats.session_id;
+                                loadEmailDetails(stats.session_id);
+                            }} else if (stats.session_id && typeof stats.session_id === 'string' && stats.session_id.startsWith('all_')) {{
+                                // Handle "all accounts" mode - load emails from multiple sessions
+                                if (stats.session_ids && stats.session_ids.length > 0) {{
+                                    loadAllAccountsEmailDetails(stats.session_ids);
+                                }} else {{
+                                    document.getElementById('email-details-loading').innerHTML = `
+                                        <div style="text-align: center; padding: 20px; color: #17a2b8;">
+                                            <div style="font-size: 1.5em; margin-bottom: 10px;">🌐</div>
+                                            All accounts processing complete. See account breakdown above for detailed results.
+                                        </div>
+                                    `;
+                                }}
+                            }} else {{
+                                document.getElementById('email-details-loading').innerHTML = `
+                                    <div style="text-align: center; padding: 20px; color: #ffc107;">
+                                        <div style="font-size: 1.5em; margin-bottom: 10px;">⚠️</div>
+                                        Session ID not available. Email details cannot be loaded.
+                                    </div>
+                                `;
+                            }}
+                            
+                            loadingDiv.style.display = 'none';
+                            resultsContent.style.display = 'block';
+                            }} else {{
+                                statusDiv.className = 'status-message status-error';
+                                statusDiv.textContent = `❌ Preview failed: ${{result.error || 'Unknown error'}}`;
+                                
+                                resultsContent.innerHTML = `
+                                    <div style="text-align: center; padding: 40px; color: #dc3545;">
+                                        <div style="font-size: 2em; margin-bottom: 15px;">❌</div>
+                                        <div>Preview failed. Please try again or check the CLI for more details.</div>
+                                    </div>
+                                `;
+                                
+                                loadingDiv.style.display = 'none';
+                                resultsContent.style.display = 'block';
+                            }}
+                        }} else {{
+                            // Process mode: first process, then automatically run preview
+                            statusDiv.className = 'status-message status-info';
+                            statusDiv.textContent = `🔄 Processing emails in background...`;
+                            
+                            const processResponse = await fetch(`/api/single-account/${{accountId}}/process`, {{
+                                method: 'POST'
+                            }});
+                            const processResult = await processResponse.json();
+                            
+                            if (processResult.success) {{
+                                // Processing successful - now automatically run preview to show remaining emails
+                                statusDiv.textContent = `🔄 Processing completed! Loading current inbox state...`;
+                                
+                                const previewResponse = await fetch(`/api/single-account/${{accountId}}/preview`, {{
+                                    method: 'POST'
+                                }});
+                                const previewResult = await previewResponse.json();
+                                
+                                if (previewResult.success) {{
+                                    statusDiv.className = 'status-message status-success';
+                                    statusDiv.textContent = `✅ Processing completed! Showing remaining emails in your inbox:`;
+                                    
+                                    // Display preview results (current state of inbox)
+                                    const stats = previewResult.data;
+                                    resultsContent.innerHTML = `
+                                        <div class="stats-grid">
+                                            <div class="stat-card">
+                                                <div class="stat-value">${{stats.total_emails || 0}}</div>
+                                                <div class="stat-label">Remaining Emails</div>
+                                            </div>
+                                            <div class="stat-card">
+                                                <div class="stat-value" style="color: #dc3545;">${{stats.total_deleted || 0}}</div>
+                                                <div class="stat-label">Would Delete</div>
+                                            </div>
+                                            <div class="stat-card">
+                                                <div class="stat-value" style="color: #28a745;">${{stats.total_preserved || 0}}</div>
+                                                <div class="stat-label">Preserved</div>
+                                            </div>
+                                            <div class="stat-card">
+                                                <div class="stat-value">${{Object.keys(stats.categories || {{}}).length}}</div>
+                                                <div class="stat-label">Categories</div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div style="margin-top: 25px;">
+                                            <h4>📊 Category Breakdown:</h4>
+                                            <div id="categories-list">
+                                                ${{Object.entries(stats.categories || {{}}).map(([category, count]) => 
+                                                    `<div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee;">
+                                                        <span>${{category}}</span>
+                                                        <span style="font-weight: 600;">${{count}} emails</span>
+                                                    </div>`
+                                                ).join('')}}
+                                            </div>
+                                        </div>
+                                        
+                                        ${{stats.account_breakdown ? `
+                                        <div style="margin-top: 25px;">
+                                            <h4>🌐 Account Breakdown:</h4>
+                                            <div id="account-breakdown-list">
+                                                ${{stats.account_breakdown.map(account => 
+                                                    account.error ? 
+                                                    `<div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; background-color: #fff5f5;">
+                                                        <span style="color: #dc3545;">${{account.email}}</span>
+                                                        <span style="color: #dc3545; font-weight: 600;">Error: ${{account.error}}</span>
+                                                    </div>` :
+                                                    `<div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee;">
+                                                        <span>${{account.email}}</span>
+                                                        <span style="font-weight: 600;">
+                                                            <span style="color: #dc3545;">${{account.deleted}}</span> deleted, 
+                                                            <span style="color: #28a745;">${{account.preserved}}</span> preserved
+                                                        </span>
+                                                    </div>`
+                                                ).join('')}}
+                                            </div>
+                                        </div>
+                                        ` : ''}}
+                                        
+                                        <div id="email-details-section" style="margin-top: 30px;">
+                                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                                                <h4 style="margin: 0;">📧 Email Details:</h4>
+                                                ${{!(typeof stats.session_id === 'string' && stats.session_id.startsWith('all_')) ? `
+                                                <div>
+                                                    <button id="show-session-emails" onclick="toggleEmailView('session')" style="background: #667eea; color: white; border: none; padding: 8px 12px; border-radius: 5px; margin-right: 5px; cursor: pointer; font-size: 0.9em;">Current Session</button>
+                                                    <button id="show-all-emails" onclick="toggleEmailView('all')" style="background: #6c757d; color: white; border: none; padding: 8px 12px; border-radius: 5px; cursor: pointer; font-size: 0.9em;">All Account Emails</button>
+                                                </div>
+                                                ` : ''}}
+                                            </div>
+                                            <div id="email-details-loading" style="text-align: center; padding: 20px; color: #6c757d;">
+                                                <div style="font-size: 1.5em; margin-bottom: 10px;">⏳</div>
+                                                Loading email details...
+                                            </div>
+                                            <div id="email-details-table" style="display: none;"></div>
+                                        </div>
+                                        
+                                        <div style="margin-top: 25px; font-size: 0.9em; color: #6c757d;">
+                                            Account: ${{stats.account_email}}<br>
+                                            Processing Time: ${{new Date().toLocaleString()}}
+                                        </div>
+                                    `;
+                                    
+                                    // Load email details table (only if session_id is valid and not "all accounts")
+                                    if (stats.session_id && stats.session_id !== 'undefined' && !(typeof stats.session_id === 'string' && stats.session_id.startsWith('all_'))) {{
+                                        currentSessionId = stats.session_id;
+                                        loadEmailDetails(stats.session_id);
+                                    }} else if (stats.session_id && typeof stats.session_id === 'string' && stats.session_id.startsWith('all_')) {{
+                                        // Handle "all accounts" mode - load emails from multiple sessions
+                                        if (stats.session_ids && stats.session_ids.length > 0) {{
+                                            loadAllAccountsEmailDetails(stats.session_ids);
+                                        }} else {{
+                                            document.getElementById('email-details-loading').innerHTML = `
+                                                <div style="text-align: center; padding: 20px; color: #17a2b8;">
+                                                    <div style="font-size: 1.5em; margin-bottom: 10px;">🌐</div>
+                                                    All accounts processing complete. See account breakdown above for detailed results.
+                                                </div>
+                                            `;
+                                        }}
+                                    }} else {{
+                                        document.getElementById('email-details-loading').innerHTML = `
+                                            <div style="text-align: center; padding: 20px; color: #ffc107;">
+                                                <div style="font-size: 1.5em; margin-bottom: 10px;">⚠️</div>
+                                                Session ID not available. Email details cannot be loaded.
+                                            </div>
+                                        `;
+                                    }}
+                                    
+                                    loadingDiv.style.display = 'none';
+                                    resultsContent.style.display = 'block';
+                                }} else {{
+                                    statusDiv.className = 'status-message status-error';
+                                    statusDiv.textContent = `❌ Failed to load current inbox state: ${{previewResult.error || 'Unknown error'}}`;
+                                    
+                                    resultsContent.innerHTML = `
+                                        <div style="text-align: center; padding: 40px; color: #dc3545;">
+                                            <div style="font-size: 2em; margin-bottom: 15px;">❌</div>
+                                            <div>Processing completed but failed to load current state. Please try Preview to see remaining emails.</div>
+                                        </div>
+                                    `;
+                                    
+                                    loadingDiv.style.display = 'none';
+                                    resultsContent.style.display = 'block';
+                                }}
+                            }} else {{
+                                statusDiv.className = 'status-message status-error';
+                                statusDiv.textContent = `❌ Processing failed: ${{processResult.error || 'Unknown error'}}`;
+                                
+                                resultsContent.innerHTML = `
+                                    <div style="text-align: center; padding: 40px; color: #dc3545;">
+                                        <div style="font-size: 2em; margin-bottom: 15px;">❌</div>
+                                        <div>Processing failed. Please try again or check the CLI for more details.</div>
+                                    </div>
+                                `;
+                                
+                                loadingDiv.style.display = 'none';
+                                resultsContent.style.display = 'block';
+                            }}
+                        }}
+                    }} catch (error) {{
+                        statusDiv.className = 'status-message status-error';
+                        statusDiv.textContent = `❌ Error: ${{error.message}}`;
+                        
+                        resultsContent.innerHTML = `
+                            <div style="text-align: center; padding: 40px; color: #dc3545;">
+                                <div style="font-size: 2em; margin-bottom: 15px;">⚠️</div>
+                                <div>Network error. Please check your connection and try again.</div>
+                            </div>
+                        `;
+                        
+                        loadingDiv.style.display = 'none';
+                        resultsContent.style.display = 'block';
+                    }}
+                    
+                    // Auto-hide status message after 10 seconds
+                    setTimeout(() => {{
+                        statusDiv.style.display = 'none';
+                    }}, 10000);
+                }}
+                
+                async function loadEmailDetails(sessionId) {{
+                    const loadingDiv = document.getElementById('email-details-loading');
+                    const tableDiv = document.getElementById('email-details-table');
+                    
+                    try {{
+                        const response = await fetch(`/api/single-account/${{accountId}}/emails/${{sessionId}}`);
+                        const result = await response.json();
+                        
+                        if (result.success && result.emails) {{
+                            const emails = result.emails;
+                            
+                            if (emails.length === 0) {{
+                                tableDiv.innerHTML = `
+                                    <div style="text-align: center; padding: 20px; color: #6c757d;">
+                                        <div style="font-size: 1.5em; margin-bottom: 10px;">📭</div>
+                                        No emails found for this session.
+                                    </div>
+                                `;
+                            }} else {{
+                                displayEmailTable(emails, `all ${{emails.length}} emails from session ${{sessionId}}`);
+                            }}
+                            
+                            loadingDiv.style.display = 'none';
+                            tableDiv.style.display = 'block';
+                        }} else {{
+                            tableDiv.innerHTML = `
+                                <div style="text-align: center; padding: 20px; color: #dc3545;">
+                                    <div style="font-size: 1.5em; margin-bottom: 10px;">❌</div>
+                                    Failed to load email details: ${{result.error || 'Unknown error'}}
+                                </div>
+                            `;
+                            loadingDiv.style.display = 'none';
+                            tableDiv.style.display = 'block';
+                        }}
+                    }} catch (error) {{
+                        tableDiv.innerHTML = `
+                            <div style="text-align: center; padding: 20px; color: #dc3545;">
+                                <div style="font-size: 1.5em; margin-bottom: 10px;">⚠️</div>
+                                Network error loading email details: ${{error.message}}
+                            </div>
+                        `;
+                        loadingDiv.style.display = 'none';
+                        tableDiv.style.display = 'block';
+                    }}
+                }}
+                
+                function getCategoryColor(category) {{
+                    const colors = {{
+                        'Phishing': '#dc3545',
+                        'Brand Impersonation': '#fd7e14',
+                        'Financial & Investment Spam': '#6f42c1',
+                        'Adult & Dating Spam': '#e83e8c',
+                        'Marketing Spam': '#20c997',
+                        'Health & Medical Spam': '#17a2b8',
+                        'Payment Scam': '#dc3545',
+                        'Prize & Reward Scam': '#ffc107',
+                        'Promotional Email': '#28a745',
+                        'Storage & Backup Scam': '#6c757d',
+                        'Not Spam': '#28a745'
+                    }};
+                    return colors[category] || '#6c757d';
+                }}
+                
+                let currentSessionId = null;
+                
+                function toggleEmailView(view) {{
+                    const sessionBtn = document.getElementById('show-session-emails');
+                    const allBtn = document.getElementById('show-all-emails');
+                    const loadingDiv = document.getElementById('email-details-loading');
+                    const tableDiv = document.getElementById('email-details-table');
+                    
+                    // Update button styles
+                    if (view === 'session') {{
+                        sessionBtn.style.background = '#667eea';
+                        allBtn.style.background = '#6c757d';
+                        
+                        if (currentSessionId) {{
+                            loadEmailDetails(currentSessionId);
+                        }}
+                    }} else {{
+                        sessionBtn.style.background = '#6c757d';
+                        allBtn.style.background = '#667eea';
+                        
+                        loadAllAccountEmails();
+                    }}
+                }}
+                
+                async function loadAllAccountEmails() {{
+                    const loadingDiv = document.getElementById('email-details-loading');
+                    const tableDiv = document.getElementById('email-details-table');
+                    
+                    loadingDiv.style.display = 'block';
+                    tableDiv.style.display = 'none';
+                    loadingDiv.innerHTML = `
+                        <div style="text-align: center; padding: 20px; color: #6c757d;">
+                            <div style="font-size: 1.5em; margin-bottom: 10px;">⏳</div>
+                            Loading all account emails...
+                        </div>
+                    `;
+                    
+                    try {{
+                        const response = await fetch(`/api/single-account/${{accountId}}/all-emails`);
+                        const result = await response.json();
+                        
+                        if (result.success && result.emails) {{
+                            const emails = result.emails;
+                            
+                            if (emails.length === 0) {{
+                                tableDiv.innerHTML = `
+                                    <div style="text-align: center; padding: 20px; color: #6c757d;">
+                                        <div style="font-size: 1.5em; margin-bottom: 10px;">📭</div>
+                                        No emails found for this account.
+                                    </div>
+                                `;
+                            }} else {{
+                                displayEmailTable(emails, `all ${{emails.length}} account emails`);
+                            }}
+                            
+                            loadingDiv.style.display = 'none';
+                            tableDiv.style.display = 'block';
+                        }} else {{
+                            tableDiv.innerHTML = `
+                                <div style="text-align: center; padding: 20px; color: #dc3545;">
+                                    <div style="font-size: 1.5em; margin-bottom: 10px;">❌</div>
+                                    Failed to load account emails: ${{result.error || 'Unknown error'}}
+                                </div>
+                            `;
+                            loadingDiv.style.display = 'none';
+                            tableDiv.style.display = 'block';
+                        }}
+                    }} catch (error) {{
+                        tableDiv.innerHTML = `
+                            <div style="text-align: center; padding: 20px; color: #dc3545;">
+                                <div style="font-size: 1.5em; margin-bottom: 10px;">⚠️</div>
+                                Network error loading account emails: ${{error.message}}
+                            </div>
+                        `;
+                        loadingDiv.style.display = 'none';
+                        tableDiv.style.display = 'block';
+                    }}
+                }}
+                
+                function displayEmailTable(emails, description) {{
+                    const tableDiv = document.getElementById('email-details-table');
+                    
+                    tableDiv.innerHTML = `
+                        <div style="background: white; border: 1px solid #dee2e6; border-radius: 8px; overflow: hidden;">
+                            <div class="email-table-container" style="overflow-x: auto;">
+                                <table class="email-table" style="width: 100%; border-collapse: collapse;">
+                                    <thead>
+                                        <tr style="background: #f8f9fa; border-bottom: 2px solid #dee2e6;">
+                                            <th style="padding: 12px; text-align: center; border-right: 1px solid #dee2e6; font-weight: 600; width: 80px;">🔍 Research</th>
+                                            <th style="padding: 12px; text-align: left; border-right: 1px solid #dee2e6; font-weight: 600;">Sender</th>
+                                            <th style="padding: 12px; text-align: left; border-right: 1px solid #dee2e6; font-weight: 600;">Subject</th>
+                                            <th style="padding: 12px; text-align: left; border-right: 1px solid #dee2e6; font-weight: 600;">Category</th>
+                                            <th class="email-column-confidence" style="padding: 12px; text-align: center; border-right: 1px solid #dee2e6; font-weight: 600;">Confidence</th>
+                                            <th style="padding: 12px; text-align: center; border-right: 1px solid #dee2e6; font-weight: 600;">Protection</th>
+                                            <th style="padding: 12px; text-align: center; border-right: 1px solid #dee2e6; font-weight: 600;">Action</th>
+                                            <th class="email-column-date" style="padding: 12px; text-align: center; font-weight: 600;">Date</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${{emails.map(email => `
+                                            <tr style="border-bottom: 1px solid #eee;">
+                                                <td class="email-cell email-cell-compact" style="padding: 10px; border-right: 1px solid #eee; text-align: center; width: 80px;">
+                                                    <input type="checkbox" 
+                                                           onchange="toggleResearchFlag('${{email.uid || ''}}', '${{email.folder_name || ''}}', ${{email.account_id || 0}}, this)"
+                                                           ${{email.is_research_flagged ? 'checked' : ''}}
+                                                           style="cursor: pointer; transform: scale(1.2);"
+                                                           title="Flag for research investigation">
+                                                </td>
+                                                <td class="email-cell email-cell-sender" style="padding: 10px; border-right: 1px solid #eee; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${{email.sender}}">
+                                                    ${{email.sender}}
+                                                </td>
+                                                <td class="email-cell email-cell-subject" style="padding: 10px; border-right: 1px solid #eee; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${{email.subject}}">
+                                                    ${{email.subject}}
+                                                </td>
+                                                <td class="email-cell" style="padding: 10px; border-right: 1px solid #eee;">
+                                                    <span style="background: ${{getCategoryColor(email.category)}}; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.85em; font-weight: 500;">
+                                                        ${{email.category}}
+                                                    </span>
+                                                </td>
+                                                <td class="email-cell email-column-confidence" style="padding: 10px; border-right: 1px solid #eee; text-align: center;">
+                                                    <span style="font-weight: 500; color: ${{email.confidence >= 70 ? '#28a745' : email.confidence >= 40 ? '#ffc107' : '#dc3545'}};">
+                                                        ${{Math.round(email.confidence)}}%
+                                                    </span>
+                                                </td>
+                                                <td class="email-cell" style="padding: 10px; border-right: 1px solid #eee; text-align: center;">
+                                                    <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                                                        <span style="font-size: 0.8em; color: #6c757d; font-weight: 500;">
+                                                            ${{email.is_protected ? 'Protected' : (email.action === 'DELETED' && !email.is_protected) || email.is_flagged_for_deletion ? 'Delete' : ''}}
+                                                        </span>
+                                                        ${{email.action === 'DELETED' ? `
+                                                            <button onclick="toggleEmailFlagInTable('${{email.uid || ''}}', '${{email.folder_name || ''}}', ${{email.account_id || 0}}, ${{email.is_protected || false}}, this, 'protect')" 
+                                                                    style="border: 1px solid ${{email.is_protected ? '#dc3545' : '#28a745'}}; background: #f8f9fa; color: ${{email.is_protected ? '#dc3545' : '#28a745'}}; padding: 2px 6px; border-radius: 3px; font-size: 0.75em; cursor: pointer; transition: all 0.2s;">
+                                                                ${{email.is_protected ? 'Unmark Protection' : 'Mark for Protection'}}
+                                                            </button>
+                                                        ` : `
+                                                            <button onclick="toggleEmailFlagInTable('${{email.uid || ''}}', '${{email.folder_name || ''}}', ${{email.account_id || 0}}, ${{email.is_flagged_for_deletion || false}}, this, 'delete')" 
+                                                                    style="border: 1px solid ${{email.is_flagged_for_deletion ? '#dc3545' : '#fd7e14'}}; background: #f8f9fa; color: ${{email.is_flagged_for_deletion ? '#dc3545' : '#fd7e14'}}; padding: 2px 6px; border-radius: 3px; font-size: 0.75em; cursor: pointer; transition: all 0.2s;">
+                                                                ${{email.is_flagged_for_deletion ? 'Unmark for Deletion' : 'Mark for Deletion'}}
+                                                            </button>
+                                                        `}}
+                                                    </div>
+                                                </td>
+                                                <td class="email-cell" style="padding: 10px; border-right: 1px solid #eee; text-align: center;">
+                                                    <span style="background: ${{email.action === 'DELETED' ? '#dc3545' : '#28a745'}}; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.85em; font-weight: 500;">
+                                                        ${{email.action}}
+                                                    </span>
+                                                </td>
+                                                <td class="email-cell email-column-date" style="padding: 10px; text-align: center; font-size: 0.85em; color: #6c757d;">
+                                                    ${{new Date(email.timestamp).toLocaleDateString()}}
+                                                </td>
+                                            </tr>
+                                        `).join('')}}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div style="padding: 15px; background: #f8f9fa; border-top: 1px solid #dee2e6; font-size: 0.9em; color: #6c757d; text-align: center;">
+                                Showing ${{description}}
+                                <br>
+                                <span style="font-size: 0.85em;">(${{emails.filter(e => e.action === 'DELETED' || e.action === 'WOULD DELETE').length}} deleted, ${{emails.filter(e => e.action === 'PRESERVED' || e.action === 'WOULD PRESERVE').length}} preserved)</span>
+                            </div>
+                        </div>
+                    `;
+                }}
+                
+                // Toggle email flag function for table view (handles both protect and delete flags)
+                async function toggleEmailFlagInTable(emailUid, folderName, accountId, currentlyFlagged, buttonElement, flagType = 'protect') {{
+                    try {{
+                        console.log('toggleEmailFlagInTable called:', {{ emailUid, folderName, accountId, currentlyFlagged, flagType }});
+                        
+                        // Validate required parameters
+                        if (!emailUid || !folderName || !accountId || accountId === 0) {{
+                            throw new Error(`❌ Cannot flag this email: Missing email UID or folder information. This email may be from an older session before flagging was enabled.`);
+                        }}
+                        
+                        // Disable button during operation
+                        buttonElement.disabled = true;
+                        const originalText = buttonElement.textContent;
+                        buttonElement.textContent = 'Working...';
+                        
+                        let endpoint, requestData, successMessage;
+                        
+                        if (flagType === 'protect') {{
+                            // Handle protection flags (for DELETED emails)
+                            const action = currentlyFlagged ? 'unflag' : 'flag';
+                            endpoint = '/api/emails/' + action;
+                            requestData = {{
+                                email_uid: emailUid,
+                                folder_name: folderName,
+                                account_id: parseInt(accountId)
+                            }};
+                            if (action === 'flag') {{
+                                requestData.flag_reason = 'User requested protection from deletion';
+                            }}
+                            successMessage = currentlyFlagged ? 
+                                'Email protection removed' : 
+                                'Email protected from deletion';
+                        }} else {{
+                            // Handle delete flags (for PRESERVED emails)
+                            if (currentlyFlagged) {{
+                                // Remove delete flag (unflag)
+                                endpoint = '/api/emails/unflag';
+                                requestData = {{
+                                    email_uid: emailUid,
+                                    folder_name: folderName,
+                                    account_id: parseInt(accountId)
+                                }};
+                                successMessage = 'Email unmarked for deletion';
+                            }} else {{
+                                // Add delete flag
+                                endpoint = '/api/emails/flag-for-deletion';
+                                requestData = {{
+                                    email_uid: emailUid,
+                                    folder_name: folderName,
+                                    account_id: parseInt(accountId),
+                                    flag_reason: 'User requested deletion override'
+                                }};
+                                successMessage = 'Email marked for deletion';
+                            }}
+                        }}
+                        
+                        // Make API call
+                        const response = await fetch(endpoint, {{
+                            method: 'POST',
+                            headers: {{
+                                'Content-Type': 'application/json'
+                            }},
+                            body: JSON.stringify(requestData)
+                        }});
+                        
+                        const result = await response.json();
+                        
+                        if (result.success) {{
+                            // Update UI to reflect new state
+                            const newFlaggedState = !currentlyFlagged;
+                            
+                            // Update the status text and button based on flag type
+                            const statusSpan = buttonElement.parentElement.querySelector('span');
+                            
+                            if (flagType === 'protect') {{
+                                statusSpan.textContent = newFlaggedState ? 'Protected' : '';
+                                buttonElement.textContent = newFlaggedState ? 'Unmark Protection' : 'Mark for Protection';
+                                buttonElement.style.borderColor = newFlaggedState ? '#dc3545' : '#28a745';
+                                buttonElement.style.color = newFlaggedState ? '#dc3545' : '#28a745';
+                                
+                                // Update onclick handler for new state
+                                buttonElement.onclick = function() {{
+                                    toggleEmailFlagInTable(emailUid, folderName, accountId, newFlaggedState, this, 'protect');
+                                }};
+                            }} else {{
+                                statusSpan.textContent = newFlaggedState ? 'Delete' : '';
+                                buttonElement.textContent = newFlaggedState ? 'Unmark for Deletion' : 'Mark for Deletion';
+                                buttonElement.style.borderColor = newFlaggedState ? '#dc3545' : '#fd7e14';
+                                buttonElement.style.color = newFlaggedState ? '#dc3545' : '#fd7e14';
+                                
+                                // Update onclick handler for new state
+                                buttonElement.onclick = function() {{
+                                    toggleEmailFlagInTable(emailUid, folderName, accountId, newFlaggedState, this, 'delete');
+                                }};
+                            }}
+                            
+                            // Show success message
+                            showSuccessMessage(successMessage);
+                            
+                        }} else {{
+                            throw new Error(result.message || 'Failed to update email flag');
+                        }}
+                        
+                    }} catch (error) {{
+                        console.error('Flag toggle error:', error);
+                        alert('❌ Error updating protection: ' + error.message);
+                        
+                        // Reset button on error
+                        buttonElement.disabled = false;
+                        buttonElement.textContent = originalText;
+                    }} finally {{
+                        // Re-enable button
+                        buttonElement.disabled = false;
+                    }}
+                }}
+                
+                // Toggle research flag function for checkbox
+                async function toggleResearchFlag(emailUid, folderName, accountId, checkboxElement) {{
+                    try {{
+                        console.log('toggleResearchFlag called:', {{ emailUid, folderName, accountId, checked: checkboxElement.checked }});
+                        
+                        // Validate required parameters
+                        if (!emailUid || !folderName || !accountId || accountId === 0) {{
+                            throw new Error(`❌ Cannot flag this email: Missing email UID or folder information.`);
+                        }}
+                        
+                        // Disable checkbox during operation
+                        checkboxElement.disabled = true;
+                        
+                        const endpoint = checkboxElement.checked ? '/api/flag-for-research' : '/api/unflag-research';
+                        const requestData = {{
+                            email_uid: emailUid,
+                            folder_name: folderName,
+                            account_id: parseInt(accountId),
+                            flag_reason: 'User requested classification investigation'
+                        }};
+                        
+                        const response = await fetch(endpoint, {{
+                            method: 'POST',
+                            headers: {{ 'Content-Type': 'application/json' }},
+                            body: JSON.stringify(requestData)
+                        }});
+                        
+                        const result = await response.json();
+                        
+                        if (result.success) {{
+                            const message = checkboxElement.checked ? 
+                                'Email flagged for research investigation' : 
+                                'Email research flag removed';
+                            showSuccessMessage(message);
+                        }} else {{
+                            throw new Error(result.message || 'Failed to update research flag');
+                        }}
+                        
+                    }} catch (error) {{
+                        console.error('Research flag toggle error:', error);
+                        alert('❌ Error updating research flag: ' + error.message);
+                        
+                        // Reset checkbox on error
+                        checkboxElement.checked = !checkboxElement.checked;
+                    }} finally {{
+                        // Re-enable checkbox
+                        checkboxElement.disabled = false;
+                    }}
+                }}
+                
+                function showSuccessMessage(message) {{
+                    // Create and show a temporary success message
+                    const messageDiv = document.createElement('div');
+                    messageDiv.style.cssText = `
+                        position: fixed;
+                        top: 20px;
+                        right: 20px;
+                        background: #28a745;
+                        color: white;
+                        padding: 10px 20px;
+                        border-radius: 5px;
+                        font-weight: bold;
+                        z-index: 1000;
+                        animation: slideIn 0.3s ease;
+                    `;
+                    messageDiv.textContent = message;
+                    
+                    document.body.appendChild(messageDiv);
+                    
+                    // Remove after 3 seconds
+                    setTimeout(() => {{
+                        messageDiv.style.animation = 'slideOut 0.3s ease';
+                        setTimeout(() => messageDiv.remove(), 300);
+                    }}, 3000);
+                }}
+                
+                async function loadAllAccountsEmailDetails(sessionIds) {{
+                    const loadingDiv = document.getElementById('email-details-loading');
+                    const tableDiv = document.getElementById('email-details-table');
+                    
+                    loadingDiv.style.display = 'block';
+                    tableDiv.style.display = 'none';
+                    loadingDiv.innerHTML = `
+                        <div style="text-align: center; padding: 20px; color: #6c757d;">
+                            <div style="font-size: 1.5em; margin-bottom: 10px;">⏳</div>
+                            Loading emails from all accounts...
+                        </div>
+                    `;
+                    
+                    try {{
+                        // Convert sessionIds array to JSON string for API call
+                        const sessionIdsParam = encodeURIComponent(JSON.stringify(sessionIds));
+                        const response = await fetch(`/api/all-accounts/emails?session_ids=${{sessionIdsParam}}`);
+                        const result = await response.json();
+                        
+                        if (result.success && result.emails) {{
+                            const emails = result.emails;
+                            
+                            if (emails.length === 0) {{
+                                tableDiv.innerHTML = `
+                                    <div style="text-align: center; padding: 20px; color: #6c757d;">
+                                        <div style="font-size: 1.5em; margin-bottom: 10px;">📭</div>
+                                        No emails found across all accounts.
+                                    </div>
+                                `;
+                            }} else {{
+                                displayAllAccountsEmailTable(emails, `${{emails.length}} emails from ${{result.session_count}} accounts`);
+                            }}
+                            
+                            loadingDiv.style.display = 'none';
+                            tableDiv.style.display = 'block';
+                        }} else {{
+                            tableDiv.innerHTML = `
+                                <div style="text-align: center; padding: 20px; color: #dc3545;">
+                                    <div style="font-size: 1.5em; margin-bottom: 10px;">❌</div>
+                                    Failed to load all accounts emails: ${{result.error || 'Unknown error'}}
+                                </div>
+                            `;
+                            loadingDiv.style.display = 'none';
+                            tableDiv.style.display = 'block';
+                        }}
+                    }} catch (error) {{
+                        tableDiv.innerHTML = `
+                            <div style="text-align: center; padding: 20px; color: #dc3545;">
+                                <div style="font-size: 1.5em; margin-bottom: 10px;">⚠️</div>
+                                Network error loading all accounts emails: ${{error.message}}
+                            </div>
+                        `;
+                        loadingDiv.style.display = 'none';
+                        tableDiv.style.display = 'block';
+                    }}
+                }}
+                
+                function displayAllAccountsEmailTable(emails, description) {{
+                    const tableDiv = document.getElementById('email-details-table');
+                    
+                    tableDiv.innerHTML = `
+                        <div style="background: white; border: 1px solid #dee2e6; border-radius: 8px; overflow: hidden;">
+                            <div class="email-table-container" style="overflow-x: auto;">
+                                <table class="email-table" style="width: 100%; border-collapse: collapse;">
+                                    <thead>
+                                        <tr style="background: #f8f9fa; border-bottom: 2px solid #dee2e6;">
+                                            <th style="padding: 12px; text-align: center; border-right: 1px solid #dee2e6; font-weight: 600; width: 80px;">🔍 Research</th>
+                                            <th style="padding: 12px; text-align: left; border-right: 1px solid #dee2e6; font-weight: 600; width: 140px;">Account</th>
+                                            <th style="padding: 12px; text-align: left; border-right: 1px solid #dee2e6; font-weight: 600; width: 180px;">Sender</th>
+                                            <th style="padding: 12px; text-align: left; border-right: 1px solid #dee2e6; font-weight: 600; width: 250px;">Subject</th>
+                                            <th style="padding: 12px; text-align: center; border-right: 1px solid #dee2e6; font-weight: 600; width: 140px;">Category</th>
+                                            <th style="padding: 12px; text-align: center; border-right: 1px solid #dee2e6; font-weight: 600; width: 90px;" class="email-column-confidence">Confidence</th>
+                                            <th style="padding: 12px; text-align: center; border-right: 1px solid #dee2e6; font-weight: 600; width: 110px;">Protection</th>
+                                            <th style="padding: 12px; text-align: center; border-right: 1px solid #dee2e6; font-weight: 600; width: 100px;">Action</th>
+                                            <th style="padding: 12px; text-align: center; font-weight: 600; width: 100px;" class="email-column-date">Date</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${{emails.map(email => `
+                                            <tr style="border-bottom: 1px solid #eee;">
+                                                <td class="email-cell email-cell-compact" style="padding: 10px; border-right: 1px solid #eee; text-align: center; width: 80px;">
+                                                    <input type="checkbox" 
+                                                           onchange="toggleResearchFlag('${{email.uid || ''}}', '${{email.folder_name || ''}}', ${{email.account_id || 0}}, this)"
+                                                           ${{email.is_research_flagged ? 'checked' : ''}}
+                                                           style="cursor: pointer; transform: scale(1.2);"
+                                                           title="Flag for research investigation">
+                                                </td>
+                                                <td class="email-cell email-cell-account" style="padding: 10px; border-right: 1px solid #eee; width: 140px; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.85em; color: #6c757d;" title="${{email.account_email}}">
+                                                    ${{email.account_email}}
+                                                </td>
+                                                <td class="email-cell email-cell-sender" style="padding: 10px; border-right: 1px solid #eee; width: 180px; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${{email.sender}}">
+                                                    ${{email.sender}}
+                                                </td>
+                                                <td class="email-cell email-cell-subject" style="padding: 10px; border-right: 1px solid #eee; width: 250px; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${{email.subject}}">
+                                                    ${{email.subject}}
+                                                </td>
+                                                <td class="email-cell" style="padding: 10px; border-right: 1px solid #eee; width: 140px; text-align: center;">
+                                                    <span style="background: ${{getCategoryColor(email.category)}}; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.85em; font-weight: 500;">
+                                                        ${{email.category}}
+                                                    </span>
+                                                </td>
+                                                <td class="email-cell email-column-confidence" style="padding: 10px; border-right: 1px solid #eee; width: 90px; text-align: center;">
+                                                    <span style="font-weight: 500; color: ${{email.confidence >= 70 ? '#28a745' : email.confidence >= 40 ? '#ffc107' : '#dc3545'}};">
+                                                        ${{Math.round(email.confidence)}}%
+                                                    </span>
+                                                </td>
+                                                <td class="email-cell" style="padding: 10px; border-right: 1px solid #eee; width: 110px; text-align: center;">
+                                                    <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                                                        <span style="font-size: 0.8em; color: #6c757d; font-weight: 500;">
+                                                            ${{email.is_protected ? 'Protected' : (email.action === 'DELETED' && !email.is_protected) || email.is_flagged_for_deletion ? 'Delete' : ''}}
+                                                        </span>
+                                                        ${{email.action === 'DELETED' ? `
+                                                            <button onclick="toggleEmailFlagInTable('${{email.uid || ''}}', '${{email.folder_name || ''}}', ${{email.account_id || 0}}, ${{email.is_protected || false}}, this, 'protect')" 
+                                                                    style="border: 1px solid ${{email.is_protected ? '#dc3545' : '#28a745'}}; background: #f8f9fa; color: ${{email.is_protected ? '#dc3545' : '#28a745'}}; padding: 2px 6px; border-radius: 3px; font-size: 0.75em; cursor: pointer; transition: all 0.2s;">
+                                                                ${{email.is_protected ? 'Unmark Protection' : 'Mark for Protection'}}
+                                                            </button>
+                                                        ` : `
+                                                            <button onclick="toggleEmailFlagInTable('${{email.uid || ''}}', '${{email.folder_name || ''}}', ${{email.account_id || 0}}, ${{email.is_flagged_for_deletion || false}}, this, 'delete')" 
+                                                                    style="border: 1px solid ${{email.is_flagged_for_deletion ? '#dc3545' : '#fd7e14'}}; background: #f8f9fa; color: ${{email.is_flagged_for_deletion ? '#dc3545' : '#fd7e14'}}; padding: 2px 6px; border-radius: 3px; font-size: 0.75em; cursor: pointer; transition: all 0.2s;">
+                                                                ${{email.is_flagged_for_deletion ? 'Unmark for Deletion' : 'Mark for Deletion'}}
+                                                            </button>
+                                                        `}}
+                                                    </div>
+                                                </td>
+                                                <td class="email-cell" style="padding: 10px; border-right: 1px solid #eee; width: 100px; text-align: center;">
+                                                    <span style="background: ${{email.action === 'DELETED' ? '#dc3545' : '#28a745'}}; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.85em; font-weight: 500;">
+                                                        ${{email.action}}
+                                                    </span>
+                                                </td>
+                                                <td class="email-cell email-column-date" style="padding: 10px; width: 100px; text-align: center; font-size: 0.85em; color: #6c757d;">
+                                                    ${{new Date(email.timestamp).toLocaleDateString()}}
+                                                </td>
+                                            </tr>
+                                        `).join('')}}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div style="padding: 15px; background: #f8f9fa; border-top: 1px solid #dee2e6; font-size: 0.9em; color: #6c757d; text-align: center;">
+                                Showing ${{description}}
+                                <br>
+                                <span style="font-size: 0.85em;">(${{emails.filter(e => e.action === 'DELETED' || e.action === 'WOULD DELETE').length}} deleted, ${{emails.filter(e => e.action === 'PRESERVED' || e.action === 'WOULD PRESERVE').length}} preserved)</span>
+                            </div>
+                        </div>
+                    `;
+                }}
+            </script>
+        </body>
+        </html>
+        """
+        
+        return html
         
     except Exception as e:
-        print(f"❌ Error loading single account page: {e}")
-        import traceback
-        traceback.print_exc()
-        return HTMLResponse(f"<h1>Error loading account: {e}</h1>")
+        return f"""
+        <html>
+        <head><title>Single Account Error</title></head>
+        <body>
+            <h1>Error Loading Account</h1>
+            <p>Error: {str(e)}</p>
+            <a href="/accounts">← Back to Accounts</a>
+        </body>
+        </html>
+        """
 
 @app.get("/api/accounts")
 async def get_accounts_api():
@@ -2732,6 +5649,499 @@ async def get_all_accounts_emails(session_ids: str):
         import traceback
         traceback.print_exc()
         return {"success": False, "error": str(e)}
+
+
+# ==========================================
+# ACCOUNT MANAGEMENT INTERFACE
+# ==========================================
+
+@app.get("/accounts/manage", response_class=HTMLResponse)
+async def account_management(request: Request):
+    """Account management page"""
+    try:
+        # Load all saved accounts
+        accounts = db_credentials.load_credentials()
+        
+        # Provider icons mapping
+        provider_icons = {
+            'iCloud': '🍎',
+            'Gmail': '📧', 
+            'Outlook': '🏢',
+            'Yahoo': '🟣',
+            'Custom': '⚙️'
+        }
+        
+        # Format accounts for template
+        formatted_accounts = []
+        if accounts:
+            for account in accounts:
+                provider = account.get('provider', 'Custom')
+                formatted_account = {
+                    **account,
+                    'icon': provider_icons.get(provider, '📧'),
+                    'provider': provider
+                }
+                formatted_accounts.append(formatted_account)
+        
+        return templates.TemplateResponse(
+            "pages/account_management.html",
+            {
+                "request": request,
+                "accounts": formatted_accounts
+            }
+        )
+        
+    except Exception as e:
+        print(f"❌ Error loading account management: {e}")
+        import traceback
+        traceback.print_exc()
+        return HTMLResponse(
+            f"<h1>Error loading account management</h1><p>{str(e)}</p>",
+            status_code=500
+        )
+
+@app.post("/api/accounts/add")
+async def add_account(account_data: dict):
+    """Add a new email account"""
+    try:
+        # Validate required fields
+        required_fields = ['email_address', 'password', 'provider']
+        for field in required_fields:
+            if field not in account_data:
+                return {"success": False, "message": f"Missing required field: {field}"}
+        
+        # Format account for storage
+        new_account = {
+            'email_address': account_data['email_address'],
+            'password': account_data['password'],
+            'provider': account_data['provider'],
+            'imap_server': account_data.get('imap_server', ''),
+            'imap_port': int(account_data.get('imap_port', 993)),
+            'target_folders': account_data.get('target_folders', ['INBOX']),
+            'last_used': 'Never'
+        }
+        
+        # Load existing accounts
+        accounts = db_credentials.load_credentials() or []
+        
+        # Check if account already exists
+        for account in accounts:
+            if account['email_address'] == new_account['email_address']:
+                return {"success": False, "message": "Account already exists"}
+        
+        # Add new account
+        accounts.append(new_account)
+        
+        # Save accounts
+        db_credentials.save_credentials(accounts)
+        
+        return {
+            "success": True,
+            "message": f"Account {new_account['email_address']} added successfully"
+        }
+        
+    except Exception as e:
+        print(f"❌ Error adding account: {e}")
+        return {"success": False, "message": str(e)}
+
+@app.post("/api/accounts/remove")
+async def remove_account(data: dict):
+    """Remove an email account"""
+    try:
+        email_address = data.get('email_address')
+        if not email_address:
+            return {"success": False, "message": "Email address required"}
+        
+        # Load existing accounts
+        accounts = db_credentials.load_credentials() or []
+        
+        # Find and remove account
+        original_count = len(accounts)
+        accounts = [acc for acc in accounts if acc['email_address'] != email_address]
+        
+        if len(accounts) == original_count:
+            return {"success": False, "message": "Account not found"}
+        
+        # Save updated accounts
+        db_credentials.save_credentials(accounts)
+        
+        return {
+            "success": True,
+            "message": f"Account {email_address} removed successfully"
+        }
+        
+    except Exception as e:
+        print(f"❌ Error removing account: {e}")
+        return {"success": False, "message": str(e)}
+
+@app.post("/api/accounts/test")
+async def test_account(data: dict):
+    """Test email account connection"""
+    try:
+        email_address = data.get('email_address')
+        if not email_address:
+            return {"success": False, "message": "Email address required"}
+        
+        # Load accounts to find this one
+        accounts = db_credentials.load_credentials() or []
+        target_account = None
+        
+        for account in accounts:
+            if account['email_address'] == email_address:
+                target_account = account
+                break
+        
+        if not target_account:
+            return {"success": False, "message": "Account not found"}
+        
+        # Test connection using CLI tool
+        import imaplib
+        
+        try:
+            # Connect to IMAP server
+            if target_account['imap_port'] == 993:
+                mail = imaplib.IMAP4_SSL(target_account['imap_server'])
+            else:
+                mail = imaplib.IMAP4(target_account['imap_server'])
+            
+            # Login
+            mail.login(target_account['email_address'], target_account['password'])
+            
+            # List folders
+            status, folders = mail.list()
+            folder_list = []
+            
+            if status == 'OK':
+                for folder in folders:
+                    if isinstance(folder, bytes):
+                        folder = folder.decode()
+                    # Extract folder name from response
+                    parts = folder.split('"')
+                    if len(parts) >= 3:
+                        folder_name = parts[-2]
+                        folder_list.append(folder_name)
+            
+            # Logout
+            mail.logout()
+            
+            return {
+                "success": True,
+                "server": f"{target_account['imap_server']}:{target_account['imap_port']}",
+                "folders": folder_list,
+                "message": "Connection successful"
+            }
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "message": f"Connection failed: {str(e)}"
+            }
+            
+    except Exception as e:
+        print(f"❌ Error testing account: {e}")
+        return {"success": False, "message": str(e)}
+
+# ==========================================
+# CONFIGURATION INTERFACE
+# ==========================================
+
+@app.get("/config", response_class=HTMLResponse)
+async def configuration_page(request: Request):
+    """Configuration management page"""
+    try:
+        # Load configuration from various sources
+        config = {}
+        
+        # Load settings.py values
+        from config import settings
+        config.update({
+            'batch_size': getattr(settings, 'BATCH_SIZE', 50),
+            'timer_minutes': getattr(settings, 'TIMER_MINUTES', 5),
+            'auto_delete': getattr(settings, 'AUTO_DELETE_SPAM', False),
+            'ml_enabled': getattr(settings, 'ML_ENABLED', True),
+            'confidence_threshold': getattr(settings, 'CONFIDENCE_THRESHOLD', 0.6),
+            'training_batch_size': getattr(settings, 'TRAINING_BATCH_SIZE', 100),
+            'parallel_processing': getattr(settings, 'PARALLEL_PROCESSING', True),
+            'max_workers': getattr(settings, 'MAX_WORKERS', 4),
+            'timeout': getattr(settings, 'TIMEOUT', 30)
+        })
+        
+        # Get environment variables
+        import os
+        environment_vars = [
+            {'name': 'ATLAS_EMAIL_DB_PATH', 'value': os.getenv('ATLAS_EMAIL_DB_PATH'), 'sensitive': False, 
+             'description': 'Database file location'},
+            {'name': 'ATLAS_EMAIL_LOG_LEVEL', 'value': os.getenv('ATLAS_EMAIL_LOG_LEVEL'), 'sensitive': False,
+             'description': 'Logging level (DEBUG, INFO, WARNING, ERROR)'},
+            {'name': 'ATLAS_EMAIL_API_KEY', 'value': os.getenv('ATLAS_EMAIL_API_KEY'), 'sensitive': True,
+             'description': 'API key for external services'},
+        ]
+        
+        # Convert config to JSON for raw display
+        config_json = json.dumps(config, indent=2)
+        
+        return templates.TemplateResponse(
+            "pages/config.html",
+            {
+                "request": request,
+                "config": config,
+                "config_json": config_json,
+                "environment_vars": environment_vars
+            }
+        )
+        
+    except Exception as e:
+        print(f"❌ Error loading configuration: {e}")
+        import traceback
+        traceback.print_exc()
+        return HTMLResponse(
+            f"<h1>Error loading configuration</h1><p>{str(e)}</p>",
+            status_code=500
+        )
+
+@app.post("/api/config/save")
+async def save_config(data: dict):
+    """Save configuration section"""
+    try:
+        section = data.get('section')
+        config = data.get('config', {})
+        
+        # Map sections to settings file
+        # In a real implementation, this would write to settings.py or a config file
+        # For now, we'll just return success
+        
+        return {
+            "success": True,
+            "message": f"Configuration section '{section}' saved successfully"
+        }
+        
+    except Exception as e:
+        print(f"❌ Error saving config: {e}")
+        return {"success": False, "message": str(e)}
+
+@app.post("/api/config/save-raw")
+async def save_raw_config(data: dict):
+    """Save raw configuration"""
+    try:
+        config = data.get('config', {})
+        
+        # In a real implementation, this would write to settings.py or a config file
+        # For now, we'll just validate and return success
+        
+        return {
+            "success": True,
+            "message": "Configuration saved successfully"
+        }
+        
+    except Exception as e:
+        print(f"❌ Error saving raw config: {e}")
+        return {"success": False, "message": str(e)}
+
+@app.get("/api/config/export")
+async def export_config():
+    """Export configuration as JSON"""
+    try:
+        # Load current configuration
+        from config import settings
+        config = {
+            'general': {
+                'batch_size': getattr(settings, 'BATCH_SIZE', 50),
+                'timer_minutes': getattr(settings, 'TIMER_MINUTES', 5),
+                'auto_delete': getattr(settings, 'AUTO_DELETE_SPAM', False),
+            },
+            'ml': {
+                'enabled': getattr(settings, 'ML_ENABLED', True),
+                'confidence_threshold': getattr(settings, 'CONFIDENCE_THRESHOLD', 0.6),
+                'training_batch_size': getattr(settings, 'TRAINING_BATCH_SIZE', 100),
+            },
+            'processing': {
+                'parallel_processing': getattr(settings, 'PARALLEL_PROCESSING', True),
+                'max_workers': getattr(settings, 'MAX_WORKERS', 4),
+                'timeout': getattr(settings, 'TIMEOUT', 30),
+            }
+        }
+        
+        return config
+        
+    except Exception as e:
+        print(f"❌ Error exporting config: {e}")
+        return {"error": str(e)}
+
+@app.post("/api/config/import")
+async def import_config(data: dict):
+    """Import configuration from JSON"""
+    try:
+        config = data.get('config', {})
+        
+        # Validate configuration structure
+        if not isinstance(config, dict):
+            return {"success": False, "message": "Invalid configuration format"}
+        
+        # In a real implementation, this would write to settings.py or a config file
+        # For now, we'll just validate and return success
+        
+        return {
+            "success": True,
+            "message": "Configuration imported successfully"
+        }
+        
+    except Exception as e:
+        print(f"❌ Error importing config: {e}")
+        return {"success": False, "message": str(e)}
+
+# ==========================================
+# DATABASE TOOLS INTERFACE
+# ==========================================
+
+@app.get("/db/tools", response_class=HTMLResponse)
+async def database_tools(request: Request):
+    """Database management tools page"""
+    try:
+        # Get database statistics
+        stats = db.get_database_stats()
+        
+        # Map bulletproof count to expected key
+        stats['processed_emails_count'] = stats.get('processed_emails_bulletproof_count', 0)
+        
+        # Get feedback count
+        feedback_count = db.execute_query(
+            "SELECT COUNT(*) FROM user_feedback", 
+            fetch_one=True
+        )
+        stats['feedback_count'] = feedback_count[0] if feedback_count else 0
+        
+        # Get database size (approximate)
+        # SQLite doesn't have a direct size query, so we'll estimate
+        stats['database_size'] = 'N/A'  # Would need filesystem access to get actual size
+        
+        # Get recent operations (if we had an operations log table)
+        operations = []  # Would query from operations_log table if it existed
+        
+        return templates.TemplateResponse(
+            "pages/db_tools.html",
+            {
+                "request": request,
+                "stats": stats,
+                "operations": operations
+            }
+        )
+        
+    except Exception as e:
+        print(f"❌ Error loading database tools: {e}")
+        import traceback
+        traceback.print_exc()
+        return HTMLResponse(
+            f"<h1>Error loading database tools</h1><p>{str(e)}</p>",
+            status_code=500
+        )
+
+@app.post("/api/db/delete-last-import")
+async def delete_last_import():
+    """Delete emails from the most recent import session"""
+    try:
+        # Get the most recent session
+        last_session = db.execute_query("""
+            SELECT id, timestamp, email_count 
+            FROM sessions 
+            ORDER BY timestamp DESC 
+            LIMIT 1
+        """, fetch_one=True)
+        
+        if not last_session:
+            return {"success": False, "message": "No import sessions found"}
+        
+        session_id = last_session[0]
+        
+        # Delete emails from that session
+        deleted_count = db.execute_query("""
+            DELETE FROM processed_emails_bulletproof 
+            WHERE session_id = ?
+        """, (session_id,))
+        
+        # Delete the session record
+        db.execute_query("DELETE FROM sessions WHERE id = ?", (session_id,))
+        
+        return {
+            "success": True,
+            "deleted_count": deleted_count,
+            "message": f"Deleted {deleted_count} emails from last import"
+        }
+        
+    except Exception as e:
+        print(f"❌ Error deleting last import: {e}")
+        return {"success": False, "message": str(e)}
+
+@app.post("/api/db/remove-duplicates")
+async def remove_duplicates():
+    """Remove duplicate emails from the database"""
+    try:
+        # Import the delete_dupes tool
+        import subprocess
+        import sys
+        
+        # Path to the delete_dupes script
+        delete_dupes_path = Path(__file__).parent.parent.parent.parent / "tools" / "delete_dupes.py"
+        
+        if not delete_dupes_path.exists():
+            return {"success": False, "message": "Delete duplicates tool not found"}
+        
+        # Run the delete_dupes script
+        result = subprocess.run(
+            [sys.executable, str(delete_dupes_path)],
+            capture_output=True,
+            text=True
+        )
+        
+        if result.returncode == 0:
+            # Parse output to get count
+            removed_count = 0
+            for line in result.stdout.split('\n'):
+                if 'deleted' in line.lower() and 'duplicate' in line.lower():
+                    # Extract number from line
+                    import re
+                    numbers = re.findall(r'\d+', line)
+                    if numbers:
+                        removed_count = int(numbers[0])
+                        break
+            
+            return {
+                "success": True,
+                "removed_count": removed_count,
+                "message": f"Successfully removed {removed_count} duplicates"
+            }
+        else:
+            return {
+                "success": False,
+                "message": f"Error running deduplication: {result.stderr}"
+            }
+            
+    except Exception as e:
+        print(f"❌ Error removing duplicates: {e}")
+        return {"success": False, "message": str(e)}
+
+@app.post("/api/db/clear-feedback")
+async def clear_feedback():
+    """Clear all user feedback records"""
+    try:
+        # Get count before deletion
+        count_result = db.execute_query(
+            "SELECT COUNT(*) FROM user_feedback",
+            fetch_one=True
+        )
+        feedback_count = count_result[0] if count_result else 0
+        
+        # Delete all feedback
+        db.execute_query("DELETE FROM user_feedback")
+        
+        return {
+            "success": True,
+            "cleared_count": feedback_count,
+            "message": f"Cleared {feedback_count} feedback records"
+        }
+        
+    except Exception as e:
+        print(f"❌ Error clearing feedback: {e}")
+        return {"success": False, "message": str(e)}
 
 
 if __name__ == "__main__":

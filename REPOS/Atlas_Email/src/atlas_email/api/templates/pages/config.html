@@ -1,0 +1,291 @@
+{% extends "base.html" %}
+
+{% block title %}Configuration - Atlas Email{% endblock %}
+
+{% block page_title %}System Configuration{% endblock %}
+{% block page_subtitle %}View and edit CLI configuration settings{% endblock %}
+
+{% block content %}
+<!-- Configuration Sections -->
+<div class="analytics-grid">
+    <!-- General Settings -->
+    <div class="analytics-card">
+        <h3 class="card-title">⚙️ General Settings</h3>
+        <form onsubmit="return saveConfig('general', event)">
+            <div class="metric-row">
+                <span class="metric-label">Batch Size</span>
+                <input type="number" name="batch_size" value="{{ config.batch_size | default(50) }}" 
+                       class="form-control" style="width: 100px;">
+            </div>
+            <div class="metric-row">
+                <span class="metric-label">Timer Minutes</span>
+                <input type="number" name="timer_minutes" value="{{ config.timer_minutes | default(5) }}" 
+                       class="form-control" style="width: 100px;">
+            </div>
+            <div class="metric-row">
+                <span class="metric-label">Auto Delete Spam</span>
+                <select name="auto_delete" class="form-control" style="width: 100px;">
+                    <option value="true" {% if config.auto_delete %}selected{% endif %}>Yes</option>
+                    <option value="false" {% if not config.auto_delete %}selected{% endif %}>No</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary mt-2">Save General</button>
+        </form>
+    </div>
+
+    <!-- ML Settings -->
+    <div class="analytics-card">
+        <h3 class="card-title">🤖 Machine Learning</h3>
+        <form onsubmit="return saveConfig('ml', event)">
+            <div class="metric-row">
+                <span class="metric-label">ML Enabled</span>
+                <select name="ml_enabled" class="form-control" style="width: 100px;">
+                    <option value="true" {% if config.ml_enabled %}selected{% endif %}>Yes</option>
+                    <option value="false" {% if not config.ml_enabled %}selected{% endif %}>No</option>
+                </select>
+            </div>
+            <div class="metric-row">
+                <span class="metric-label">Confidence Threshold</span>
+                <input type="number" name="confidence_threshold" value="{{ config.confidence_threshold | default(0.6) }}" 
+                       step="0.1" min="0" max="1" class="form-control" style="width: 100px;">
+            </div>
+            <div class="metric-row">
+                <span class="metric-label">Training Batch Size</span>
+                <input type="number" name="training_batch_size" value="{{ config.training_batch_size | default(100) }}" 
+                       class="form-control" style="width: 100px;">
+            </div>
+            <button type="submit" class="btn btn-primary mt-2">Save ML</button>
+        </form>
+    </div>
+
+    <!-- Processing Settings -->
+    <div class="analytics-card">
+        <h3 class="card-title">⚡ Processing</h3>
+        <form onsubmit="return saveConfig('processing', event)">
+            <div class="metric-row">
+                <span class="metric-label">Parallel Processing</span>
+                <select name="parallel_processing" class="form-control" style="width: 100px;">
+                    <option value="true" {% if config.parallel_processing %}selected{% endif %}>Yes</option>
+                    <option value="false" {% if not config.parallel_processing %}selected{% endif %}>No</option>
+                </select>
+            </div>
+            <div class="metric-row">
+                <span class="metric-label">Max Workers</span>
+                <input type="number" name="max_workers" value="{{ config.max_workers | default(4) }}" 
+                       min="1" max="16" class="form-control" style="width: 100px;">
+            </div>
+            <div class="metric-row">
+                <span class="metric-label">Timeout (seconds)</span>
+                <input type="number" name="timeout" value="{{ config.timeout | default(30) }}" 
+                       class="form-control" style="width: 100px;">
+            </div>
+            <button type="submit" class="btn btn-primary mt-2">Save Processing</button>
+        </form>
+    </div>
+</div>
+
+<!-- Environment Variables -->
+<div class="analytics-card mt-3">
+    <h3 class="card-title">🔐 Environment Variables</h3>
+    <div class="table-container">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Variable</th>
+                    <th>Value</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for env in environment_vars %}
+                <tr>
+                    <td><code>{{ env.name }}</code></td>
+                    <td>
+                        {% if env.sensitive %}
+                            <span class="text-muted">••••••••</span>
+                        {% else %}
+                            {{ env.value | default('Not set') }}
+                        {% endif %}
+                    </td>
+                    <td>{{ env.description }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="3" class="text-center text-muted">No environment variables configured</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Import/Export -->
+<div class="analytics-card mt-3">
+    <h3 class="card-title">📦 Import/Export Configuration</h3>
+    <div class="controls">
+        <button class="btn btn-info" onclick="exportConfig()">
+            📥 Export Configuration
+        </button>
+        <button class="btn btn-warning" onclick="document.getElementById('importFile').click()">
+            📤 Import Configuration
+        </button>
+        <input type="file" id="importFile" accept=".json" style="display: none;" onchange="importConfig(event)">
+    </div>
+</div>
+
+<!-- Raw Configuration -->
+<div class="analytics-card mt-3">
+    <h3 class="card-title">📝 Raw Configuration (JSON)</h3>
+    <form onsubmit="return saveRawConfig(event)">
+        <textarea id="rawConfig" class="form-control" rows="10" style="font-family: monospace;">{{ config_json }}</textarea>
+        <button type="submit" class="btn btn-primary mt-2">Save Raw Config</button>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.form-control {
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.metric-row input,
+.metric-row select {
+    margin-left: auto;
+}
+
+textarea.form-control {
+    width: 100%;
+    resize: vertical;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+async function saveConfig(section, event) {
+    event.preventDefault();
+    
+    const formData = new FormData(event.target);
+    const config = Object.fromEntries(formData);
+    
+    // Convert string booleans to actual booleans
+    for (const [key, value] of Object.entries(config)) {
+        if (value === 'true') config[key] = true;
+        else if (value === 'false') config[key] = false;
+        else if (!isNaN(value)) config[key] = Number(value);
+    }
+    
+    try {
+        const response = await fetch('/api/config/save', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                section: section,
+                config: config
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert(`✅ ${section} configuration saved successfully`);
+        } else {
+            alert('❌ Error: ' + (result.message || 'Failed to save configuration'));
+        }
+    } catch (error) {
+        alert('❌ Error: ' + error.message);
+    }
+}
+
+async function saveRawConfig(event) {
+    event.preventDefault();
+    
+    const rawConfig = document.getElementById('rawConfig').value;
+    
+    try {
+        // Validate JSON
+        const config = JSON.parse(rawConfig);
+        
+        const response = await fetch('/api/config/save-raw', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ config: config })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert('✅ Configuration saved successfully');
+            window.location.reload();
+        } else {
+            alert('❌ Error: ' + (result.message || 'Failed to save configuration'));
+        }
+    } catch (error) {
+        if (error instanceof SyntaxError) {
+            alert('❌ Invalid JSON format');
+        } else {
+            alert('❌ Error: ' + error.message);
+        }
+    }
+}
+
+async function exportConfig() {
+    try {
+        const response = await fetch('/api/config/export');
+        const config = await response.json();
+        
+        // Create download
+        const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'atlas-email-config.json';
+        a.click();
+        URL.revokeObjectURL(url);
+    } catch (error) {
+        alert('❌ Error exporting configuration: ' + error.message);
+    }
+}
+
+async function importConfig(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    try {
+        const text = await file.text();
+        const config = JSON.parse(text);
+        
+        if (!confirm('This will replace your current configuration. Continue?')) {
+            return;
+        }
+        
+        const response = await fetch('/api/config/import', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ config: config })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert('✅ Configuration imported successfully');
+            window.location.reload();
+        } else {
+            alert('❌ Error: ' + (result.message || 'Failed to import configuration'));
+        }
+    } catch (error) {
+        alert('❌ Error: ' + error.message);
+    }
+}
+</script>
+{% endblock %}
