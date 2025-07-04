@@ -1,0 +1,8 @@
+{
+  "deployment_date": "2025-07-04T00:36:10.245977",
+  "database_migrated": true,
+  "classifier_trained": false,
+  "ab_testing_enabled": false,
+  "rollout_percentage": 0,
+  "notes": "Database migration complete. Classifier needs training on production server."
+}
