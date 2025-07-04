@@ -14,25 +14,91 @@
     {{ spam_detected_card(stats.spam_count) }}
 </div>
 
-<div class="container">
-    <h2>Recent Activity</h2>
-    <div class="activity-table">
-        <table>
+<!-- 4-Category Classification Display -->
+<div class="analytics-card mb-3">
+    <h3 class="card-title">📊 Email Classification Overview</h3>
+    <div class="stats-grid">
+        <div class="stat-card" style="border-top-color: #28a745;">
+            <div class="stat-icon">🟢</div>
+            <div class="stat-content">
+                <div class="stat-value">{{ stats.legitimate_count | default(0) }}</div>
+                <div class="stat-label">Legitimate</div>
+                <div class="stat-sublabel">Business & Personal</div>
+            </div>
+        </div>
+        <div class="stat-card" style="border-top-color: #ffc107;">
+            <div class="stat-icon">🟡</div>
+            <div class="stat-content">
+                <div class="stat-value">{{ stats.marketing_count | default(0) }}</div>
+                <div class="stat-label">Marketing</div>
+                <div class="stat-sublabel">Newsletters & Promotions</div>
+            </div>
+        </div>
+        <div class="stat-card" style="border-top-color: #fd7e14;">
+            <div class="stat-icon">🟠</div>
+            <div class="stat-content">
+                <div class="stat-value">{{ stats.suspicious_count | default(0) }}</div>
+                <div class="stat-label">Suspicious</div>
+                <div class="stat-sublabel">Potential Threats</div>
+            </div>
+        </div>
+        <div class="stat-card" style="border-top-color: #dc3545;">
+            <div class="stat-icon">🔴</div>
+            <div class="stat-content">
+                <div class="stat-value">{{ stats.spam_count | default(0) }}</div>
+                <div class="stat-label">Spam/Phishing</div>
+                <div class="stat-sublabel">Confirmed Threats</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Emails with 4-Category Display -->
+<div class="analytics-card">
+    <h3 class="card-title">📧 Recent Email Activity</h3>
+    <div class="table-container">
+        <table class="data-table">
             <thead>
                 <tr>
                     <th>Time</th>
-                    <th>Account</th>
+                    <th>Sender</th>
+                    <th>Subject</th>
+                    <th>Category</th>
+                    <th>Confidence</th>
                     <th>Action</th>
-                    <th>Count</th>
                 </tr>
             </thead>
             <tbody>
-                {% for email in emails %}
+                {% for email in recent_emails %}
                 <tr>
                     <td>{{ email.timestamp }}</td>
-                    <td>{{ email.account | escape }}</td>
-                    <td>{{ email.action | escape }}</td>
-                    <td>{{ email.count }}</td>
+                    <td>{{ email.sender | escape }}</td>
+                    <td>{{ email.subject | escape | truncate(50) }}</td>
+                    <td>
+                        <span class="category-badge category-{{ email.new_category | lower }}">
+                            {% if email.new_category == 'LEGITIMATE' %}
+                                🟢 {{ email.new_category }}
+                            {% elif email.new_category == 'MARKETING' %}
+                                🟡 {{ email.new_category }}
+                            {% elif email.new_category == 'SUSPICIOUS' %}
+                                🟠 {{ email.new_category }}
+                            {% elif email.new_category == 'SPAM' %}
+                                🔴 {{ email.new_category }}
+                            {% else %}
+                                {{ email.category }}
+                            {% endif %}
+                        </span>
+                    </td>
+                    <td>{{ "%.1f%%" | format(email.confidence_score * 100) }}</td>
+                    <td>
+                        <span class="action-{{ email.action | lower }}">
+                            {{ email.action }}
+                        </span>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" class="text-center text-muted">No recent emails processed</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -44,5 +110,52 @@
     <a href="/timer" class="btn btn-primary">Timer Control</a>
     <a href="/analytics" class="btn btn-info">Analytics</a>
     <a href="/accounts" class="btn btn-success">Manage Accounts</a>
+    <a href="/batch/run" class="btn btn-warning" onclick="return confirm('Run batch processing now?')">Run Batch</a>
 </div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.category-badge {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.85em;
+    font-weight: 600;
+}
+
+.category-legitimate {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.category-marketing {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.category-suspicious {
+    background-color: #ffe4b5;
+    color: #d2691e;
+}
+
+.category-spam {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+.action-keep {
+    color: #28a745;
+    font-weight: 600;
+}
+
+.action-delete {
+    color: #dc3545;
+    font-weight: 600;
+}
+
+.action-review {
+    color: #ffc107;
+    font-weight: 600;
+}
+</style>
 {% endblock %}

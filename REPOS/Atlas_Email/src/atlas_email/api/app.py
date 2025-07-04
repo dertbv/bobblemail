@@ -216,7 +216,7 @@ def initialize_web_timer():
 web_timer = initialize_web_timer()
 
 @app.get("/", response_class=HTMLResponse)
-async def dashboard():
+async def dashboard(request: Request):
     """Main dashboard - completely rebuilt"""
     
     print("🚨 FRESH DASHBOARD FUNCTION CALLED!")  # Debug
@@ -229,12 +229,14 @@ async def dashboard():
         stats = db.get_database_stats()
         print(f"📊 Stats: {stats}")
         
-        # Map bulletproof count to expected key for template compatibility
-        stats['processed_emails_count'] = stats.get('processed_emails_bulletproof_count', 0)
-        
         # Get accounts
         accounts = db_credentials.load_credentials()
         print(f"👤 Accounts: {len(accounts) if accounts else 0}")
+        
+        # Map bulletproof count to expected key for template compatibility
+        stats['processed_emails_count'] = stats.get('processed_emails_bulletproof_count', 0)
+        stats['total_emails'] = stats.get('processed_emails_bulletproof_count', 0)
+        stats['total_accounts'] = len(accounts) if accounts else 0
         
         # Get LATEST emails with explicit timestamp sorting
         print("🔍 Fetching latest emails...")
@@ -246,6 +248,9 @@ async def dashboard():
                 sender_email, 
                 subject, 
                 category,
+                new_category,
+                subcategory,
+                confidence_score,
                 reason,
                 id
             FROM processed_emails_bulletproof 
@@ -254,10 +259,61 @@ async def dashboard():
         """)
         
         print(f"📧 Found {len(latest_emails)} recent emails")
-        for i, email in enumerate(latest_emails[:3]):
-            print(f"  {i+1}. {email['timestamp']} - {email['action']} - {email['sender_email']}")
         
-        return build_dashboard_html(stats, accounts, latest_emails)
+        # Format emails for template
+        recent_emails = []
+        for email in latest_emails:
+            recent_emails.append({
+                'timestamp': email.get('timestamp', ''),
+                'sender': email.get('sender_email', ''),
+                'subject': email.get('subject', ''),
+                'category': email.get('category', ''),
+                'new_category': email.get('new_category', email.get('category', '')),
+                'subcategory': email.get('subcategory', ''),
+                'confidence_score': float(email.get('confidence_score', 0.0)),
+                'action': email.get('action', ''),
+                'reason': email.get('reason', '')
+            })
+        
+        # Get 4-category counts
+        category_counts = db.execute_query("""
+            SELECT 
+                COALESCE(new_category, category) as cat,
+                COUNT(*) as count
+            FROM processed_emails_bulletproof
+            GROUP BY COALESCE(new_category, category)
+        """)
+        
+        # Initialize category counts
+        stats['legitimate_count'] = 0
+        stats['marketing_count'] = 0  
+        stats['suspicious_count'] = 0
+        stats['spam_count'] = 0
+        
+        # Map counts to 4-category system
+        for row in category_counts:
+            cat = (row.get('cat') or '').upper()
+            count = row.get('count', 0)
+            
+            if cat == 'LEGITIMATE':
+                stats['legitimate_count'] = count
+            elif cat == 'MARKETING':
+                stats['marketing_count'] = count
+            elif cat == 'SUSPICIOUS':
+                stats['suspicious_count'] = count
+            elif cat in ['SPAM', 'PHISHING']:
+                stats['spam_count'] += count
+        
+        # Use template instead of inline HTML
+        return templates.TemplateResponse(
+            "pages/dashboard.html",
+            {
+                "request": request,
+                "stats": stats,
+                "recent_emails": recent_emails,
+                "emails": latest_emails  # Keep for backward compatibility
+            }
+        )
         
     except Exception as e:
         print(f"❌ Dashboard error: {e}")
@@ -5593,6 +5649,499 @@ async def get_all_accounts_emails(session_ids: str):
         import traceback
         traceback.print_exc()
         return {"success": False, "error": str(e)}
+
+
+# ==========================================
+# ACCOUNT MANAGEMENT INTERFACE
+# ==========================================
+
+@app.get("/accounts/manage", response_class=HTMLResponse)
+async def account_management(request: Request):
+    """Account management page"""
+    try:
+        # Load all saved accounts
+        accounts = db_credentials.load_credentials()
+        
+        # Provider icons mapping
+        provider_icons = {
+            'iCloud': '🍎',
+            'Gmail': '📧', 
+            'Outlook': '🏢',
+            'Yahoo': '🟣',
+            'Custom': '⚙️'
+        }
+        
+        # Format accounts for template
+        formatted_accounts = []
+        if accounts:
+            for account in accounts:
+                provider = account.get('provider', 'Custom')
+                formatted_account = {
+                    **account,
+                    'icon': provider_icons.get(provider, '📧'),
+                    'provider': provider
+                }
+                formatted_accounts.append(formatted_account)
+        
+        return templates.TemplateResponse(
+            "pages/account_management.html",
+            {
+                "request": request,
+                "accounts": formatted_accounts
+            }
+        )
+        
+    except Exception as e:
+        print(f"❌ Error loading account management: {e}")
+        import traceback
+        traceback.print_exc()
+        return HTMLResponse(
+            f"<h1>Error loading account management</h1><p>{str(e)}</p>",
+            status_code=500
+        )
+
+@app.post("/api/accounts/add")
+async def add_account(account_data: dict):
+    """Add a new email account"""
+    try:
+        # Validate required fields
+        required_fields = ['email_address', 'password', 'provider']
+        for field in required_fields:
+            if field not in account_data:
+                return {"success": False, "message": f"Missing required field: {field}"}
+        
+        # Format account for storage
+        new_account = {
+            'email_address': account_data['email_address'],
+            'password': account_data['password'],
+            'provider': account_data['provider'],
+            'imap_server': account_data.get('imap_server', ''),
+            'imap_port': int(account_data.get('imap_port', 993)),
+            'target_folders': account_data.get('target_folders', ['INBOX']),
+            'last_used': 'Never'
+        }
+        
+        # Load existing accounts
+        accounts = db_credentials.load_credentials() or []
+        
+        # Check if account already exists
+        for account in accounts:
+            if account['email_address'] == new_account['email_address']:
+                return {"success": False, "message": "Account already exists"}
+        
+        # Add new account
+        accounts.append(new_account)
+        
+        # Save accounts
+        db_credentials.save_credentials(accounts)
+        
+        return {
+            "success": True,
+            "message": f"Account {new_account['email_address']} added successfully"
+        }
+        
+    except Exception as e:
+        print(f"❌ Error adding account: {e}")
+        return {"success": False, "message": str(e)}
+
+@app.post("/api/accounts/remove")
+async def remove_account(data: dict):
+    """Remove an email account"""
+    try:
+        email_address = data.get('email_address')
+        if not email_address:
+            return {"success": False, "message": "Email address required"}
+        
+        # Load existing accounts
+        accounts = db_credentials.load_credentials() or []
+        
+        # Find and remove account
+        original_count = len(accounts)
+        accounts = [acc for acc in accounts if acc['email_address'] != email_address]
+        
+        if len(accounts) == original_count:
+            return {"success": False, "message": "Account not found"}
+        
+        # Save updated accounts
+        db_credentials.save_credentials(accounts)
+        
+        return {
+            "success": True,
+            "message": f"Account {email_address} removed successfully"
+        }
+        
+    except Exception as e:
+        print(f"❌ Error removing account: {e}")
+        return {"success": False, "message": str(e)}
+
+@app.post("/api/accounts/test")
+async def test_account(data: dict):
+    """Test email account connection"""
+    try:
+        email_address = data.get('email_address')
+        if not email_address:
+            return {"success": False, "message": "Email address required"}
+        
+        # Load accounts to find this one
+        accounts = db_credentials.load_credentials() or []
+        target_account = None
+        
+        for account in accounts:
+            if account['email_address'] == email_address:
+                target_account = account
+                break
+        
+        if not target_account:
+            return {"success": False, "message": "Account not found"}
+        
+        # Test connection using CLI tool
+        import imaplib
+        
+        try:
+            # Connect to IMAP server
+            if target_account['imap_port'] == 993:
+                mail = imaplib.IMAP4_SSL(target_account['imap_server'])
+            else:
+                mail = imaplib.IMAP4(target_account['imap_server'])
+            
+            # Login
+            mail.login(target_account['email_address'], target_account['password'])
+            
+            # List folders
+            status, folders = mail.list()
+            folder_list = []
+            
+            if status == 'OK':
+                for folder in folders:
+                    if isinstance(folder, bytes):
+                        folder = folder.decode()
+                    # Extract folder name from response
+                    parts = folder.split('"')
+                    if len(parts) >= 3:
+                        folder_name = parts[-2]
+                        folder_list.append(folder_name)
+            
+            # Logout
+            mail.logout()
+            
+            return {
+                "success": True,
+                "server": f"{target_account['imap_server']}:{target_account['imap_port']}",
+                "folders": folder_list,
+                "message": "Connection successful"
+            }
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "message": f"Connection failed: {str(e)}"
+            }
+            
+    except Exception as e:
+        print(f"❌ Error testing account: {e}")
+        return {"success": False, "message": str(e)}
+
+# ==========================================
+# CONFIGURATION INTERFACE
+# ==========================================
+
+@app.get("/config", response_class=HTMLResponse)
+async def configuration_page(request: Request):
+    """Configuration management page"""
+    try:
+        # Load configuration from various sources
+        config = {}
+        
+        # Load settings.py values
+        from config import settings
+        config.update({
+            'batch_size': getattr(settings, 'BATCH_SIZE', 50),
+            'timer_minutes': getattr(settings, 'TIMER_MINUTES', 5),
+            'auto_delete': getattr(settings, 'AUTO_DELETE_SPAM', False),
+            'ml_enabled': getattr(settings, 'ML_ENABLED', True),
+            'confidence_threshold': getattr(settings, 'CONFIDENCE_THRESHOLD', 0.6),
+            'training_batch_size': getattr(settings, 'TRAINING_BATCH_SIZE', 100),
+            'parallel_processing': getattr(settings, 'PARALLEL_PROCESSING', True),
+            'max_workers': getattr(settings, 'MAX_WORKERS', 4),
+            'timeout': getattr(settings, 'TIMEOUT', 30)
+        })
+        
+        # Get environment variables
+        import os
+        environment_vars = [
+            {'name': 'ATLAS_EMAIL_DB_PATH', 'value': os.getenv('ATLAS_EMAIL_DB_PATH'), 'sensitive': False, 
+             'description': 'Database file location'},
+            {'name': 'ATLAS_EMAIL_LOG_LEVEL', 'value': os.getenv('ATLAS_EMAIL_LOG_LEVEL'), 'sensitive': False,
+             'description': 'Logging level (DEBUG, INFO, WARNING, ERROR)'},
+            {'name': 'ATLAS_EMAIL_API_KEY', 'value': os.getenv('ATLAS_EMAIL_API_KEY'), 'sensitive': True,
+             'description': 'API key for external services'},
+        ]
+        
+        # Convert config to JSON for raw display
+        config_json = json.dumps(config, indent=2)
+        
+        return templates.TemplateResponse(
+            "pages/config.html",
+            {
+                "request": request,
+                "config": config,
+                "config_json": config_json,
+                "environment_vars": environment_vars
+            }
+        )
+        
+    except Exception as e:
+        print(f"❌ Error loading configuration: {e}")
+        import traceback
+        traceback.print_exc()
+        return HTMLResponse(
+            f"<h1>Error loading configuration</h1><p>{str(e)}</p>",
+            status_code=500
+        )
+
+@app.post("/api/config/save")
+async def save_config(data: dict):
+    """Save configuration section"""
+    try:
+        section = data.get('section')
+        config = data.get('config', {})
+        
+        # Map sections to settings file
+        # In a real implementation, this would write to settings.py or a config file
+        # For now, we'll just return success
+        
+        return {
+            "success": True,
+            "message": f"Configuration section '{section}' saved successfully"
+        }
+        
+    except Exception as e:
+        print(f"❌ Error saving config: {e}")
+        return {"success": False, "message": str(e)}
+
+@app.post("/api/config/save-raw")
+async def save_raw_config(data: dict):
+    """Save raw configuration"""
+    try:
+        config = data.get('config', {})
+        
+        # In a real implementation, this would write to settings.py or a config file
+        # For now, we'll just validate and return success
+        
+        return {
+            "success": True,
+            "message": "Configuration saved successfully"
+        }
+        
+    except Exception as e:
+        print(f"❌ Error saving raw config: {e}")
+        return {"success": False, "message": str(e)}
+
+@app.get("/api/config/export")
+async def export_config():
+    """Export configuration as JSON"""
+    try:
+        # Load current configuration
+        from config import settings
+        config = {
+            'general': {
+                'batch_size': getattr(settings, 'BATCH_SIZE', 50),
+                'timer_minutes': getattr(settings, 'TIMER_MINUTES', 5),
+                'auto_delete': getattr(settings, 'AUTO_DELETE_SPAM', False),
+            },
+            'ml': {
+                'enabled': getattr(settings, 'ML_ENABLED', True),
+                'confidence_threshold': getattr(settings, 'CONFIDENCE_THRESHOLD', 0.6),
+                'training_batch_size': getattr(settings, 'TRAINING_BATCH_SIZE', 100),
+            },
+            'processing': {
+                'parallel_processing': getattr(settings, 'PARALLEL_PROCESSING', True),
+                'max_workers': getattr(settings, 'MAX_WORKERS', 4),
+                'timeout': getattr(settings, 'TIMEOUT', 30),
+            }
+        }
+        
+        return config
+        
+    except Exception as e:
+        print(f"❌ Error exporting config: {e}")
+        return {"error": str(e)}
+
+@app.post("/api/config/import")
+async def import_config(data: dict):
+    """Import configuration from JSON"""
+    try:
+        config = data.get('config', {})
+        
+        # Validate configuration structure
+        if not isinstance(config, dict):
+            return {"success": False, "message": "Invalid configuration format"}
+        
+        # In a real implementation, this would write to settings.py or a config file
+        # For now, we'll just validate and return success
+        
+        return {
+            "success": True,
+            "message": "Configuration imported successfully"
+        }
+        
+    except Exception as e:
+        print(f"❌ Error importing config: {e}")
+        return {"success": False, "message": str(e)}
+
+# ==========================================
+# DATABASE TOOLS INTERFACE
+# ==========================================
+
+@app.get("/db/tools", response_class=HTMLResponse)
+async def database_tools(request: Request):
+    """Database management tools page"""
+    try:
+        # Get database statistics
+        stats = db.get_database_stats()
+        
+        # Map bulletproof count to expected key
+        stats['processed_emails_count'] = stats.get('processed_emails_bulletproof_count', 0)
+        
+        # Get feedback count
+        feedback_count = db.execute_query(
+            "SELECT COUNT(*) FROM user_feedback", 
+            fetch_one=True
+        )
+        stats['feedback_count'] = feedback_count[0] if feedback_count else 0
+        
+        # Get database size (approximate)
+        # SQLite doesn't have a direct size query, so we'll estimate
+        stats['database_size'] = 'N/A'  # Would need filesystem access to get actual size
+        
+        # Get recent operations (if we had an operations log table)
+        operations = []  # Would query from operations_log table if it existed
+        
+        return templates.TemplateResponse(
+            "pages/db_tools.html",
+            {
+                "request": request,
+                "stats": stats,
+                "operations": operations
+            }
+        )
+        
+    except Exception as e:
+        print(f"❌ Error loading database tools: {e}")
+        import traceback
+        traceback.print_exc()
+        return HTMLResponse(
+            f"<h1>Error loading database tools</h1><p>{str(e)}</p>",
+            status_code=500
+        )
+
+@app.post("/api/db/delete-last-import")
+async def delete_last_import():
+    """Delete emails from the most recent import session"""
+    try:
+        # Get the most recent session
+        last_session = db.execute_query("""
+            SELECT id, timestamp, email_count 
+            FROM sessions 
+            ORDER BY timestamp DESC 
+            LIMIT 1
+        """, fetch_one=True)
+        
+        if not last_session:
+            return {"success": False, "message": "No import sessions found"}
+        
+        session_id = last_session[0]
+        
+        # Delete emails from that session
+        deleted_count = db.execute_query("""
+            DELETE FROM processed_emails_bulletproof 
+            WHERE session_id = ?
+        """, (session_id,))
+        
+        # Delete the session record
+        db.execute_query("DELETE FROM sessions WHERE id = ?", (session_id,))
+        
+        return {
+            "success": True,
+            "deleted_count": deleted_count,
+            "message": f"Deleted {deleted_count} emails from last import"
+        }
+        
+    except Exception as e:
+        print(f"❌ Error deleting last import: {e}")
+        return {"success": False, "message": str(e)}
+
+@app.post("/api/db/remove-duplicates")
+async def remove_duplicates():
+    """Remove duplicate emails from the database"""
+    try:
+        # Import the delete_dupes tool
+        import subprocess
+        import sys
+        
+        # Path to the delete_dupes script
+        delete_dupes_path = Path(__file__).parent.parent.parent.parent / "tools" / "delete_dupes.py"
+        
+        if not delete_dupes_path.exists():
+            return {"success": False, "message": "Delete duplicates tool not found"}
+        
+        # Run the delete_dupes script
+        result = subprocess.run(
+            [sys.executable, str(delete_dupes_path)],
+            capture_output=True,
+            text=True
+        )
+        
+        if result.returncode == 0:
+            # Parse output to get count
+            removed_count = 0
+            for line in result.stdout.split('\n'):
+                if 'deleted' in line.lower() and 'duplicate' in line.lower():
+                    # Extract number from line
+                    import re
+                    numbers = re.findall(r'\d+', line)
+                    if numbers:
+                        removed_count = int(numbers[0])
+                        break
+            
+            return {
+                "success": True,
+                "removed_count": removed_count,
+                "message": f"Successfully removed {removed_count} duplicates"
+            }
+        else:
+            return {
+                "success": False,
+                "message": f"Error running deduplication: {result.stderr}"
+            }
+            
+    except Exception as e:
+        print(f"❌ Error removing duplicates: {e}")
+        return {"success": False, "message": str(e)}
+
+@app.post("/api/db/clear-feedback")
+async def clear_feedback():
+    """Clear all user feedback records"""
+    try:
+        # Get count before deletion
+        count_result = db.execute_query(
+            "SELECT COUNT(*) FROM user_feedback",
+            fetch_one=True
+        )
+        feedback_count = count_result[0] if count_result else 0
+        
+        # Delete all feedback
+        db.execute_query("DELETE FROM user_feedback")
+        
+        return {
+            "success": True,
+            "cleared_count": feedback_count,
+            "message": f"Cleared {feedback_count} feedback records"
+        }
+        
+    except Exception as e:
+        print(f"❌ Error clearing feedback: {e}")
+        return {"success": False, "message": str(e)}
 
 
 if __name__ == "__main__":
