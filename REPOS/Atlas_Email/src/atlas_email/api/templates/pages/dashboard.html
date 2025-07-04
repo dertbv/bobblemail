@@ -1,38 +1,223 @@
 {% extends "base.html" %}
 
-{% block title %}Dashboard - Atlas Email{% endblock %}
+{% block title %}Mail Filter Dashboard - Fresh{% endblock %}
 
-{% block page_title %}Atlas Email Dashboard{% endblock %}
+{% block page_title %}🛡️ Mail Filter Dashboard{% endblock %}
+
+{% block extra_css %}
+<meta http-equiv="refresh" content="30">
+<style>
+    .status-indicator {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #28a745;
+        color: white;
+        padding: 10px 20px;
+        border-radius: 20px;
+        font-size: 0.9em;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    }
+    
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+        margin: 30px 0;
+    }
+    
+    .stat-card {
+        background: white;
+        padding: 25px;
+        border-radius: 15px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+    }
+    
+    .stat-icon {
+        font-size: 3em;
+    }
+    
+    .stat-content {
+        flex: 1;
+    }
+    
+    .stat-value {
+        font-size: 2.5em;
+        font-weight: 700;
+        color: #333;
+        line-height: 1;
+    }
+    
+    .stat-label {
+        color: #666;
+        font-size: 0.9em;
+        margin-bottom: 5px;
+    }
+    
+    .stat-sublabel {
+        color: #999;
+        font-size: 0.8em;
+        margin-top: 5px;
+    }
+    
+    .controls {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin: 30px 0;
+    }
+    
+    .recent-activity {
+        margin-top: 40px;
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+    }
+    
+    .activity-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+    }
+    
+    .activity-table th {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 15px 10px;
+        text-align: left;
+        border: none;
+        font-weight: 600;
+    }
+    
+    .activity-table th:first-child { border-top-left-radius: 10px; }
+    .activity-table th:last-child { border-top-right-radius: 10px; }
+    
+    .activity-table td {
+        padding: 12px 10px;
+        border-bottom: 1px solid #eee;
+        vertical-align: top;
+    }
+    
+    .activity-table tbody tr:hover {
+        background: #f8f9fa;
+    }
+    
+    .table-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        margin: 15px 0;
+        border-radius: 8px;
+    }
+    
+    @media (max-width: 480px) {
+        .status-indicator {
+            position: static;
+            display: block;
+            text-align: center;
+            margin-bottom: 15px;
+            top: auto;
+            right: auto;
+        }
+    }
+</style>
+{% endblock %}
 
 {% block content %}
+<div class="status-indicator">🟢 Live Dashboard</div>
+
 <div class="stats-grid">
-    {% from "components/stat_card.html" import email_accounts_card, emails_processed_card, accuracy_card, spam_detected_card %}
+    <div class="stat-card">
+        <div class="stat-icon">📧</div>
+        <div class="stat-content">
+            <div class="stat-label">Email Accounts</div>
+            <div class="stat-value">{{ stats.total_accounts }}</div>
+            <div class="stat-sublabel">{% if stats.total_accounts > 0 %}Active{% else %}None configured{% endif %}</div>
+        </div>
+    </div>
     
-    {{ email_accounts_card(stats.total_accounts) }}
-    {{ emails_processed_card(stats.total_emails) }}
-    {{ accuracy_card("95.6") }}
-    {{ spam_detected_card(stats.spam_count) }}
+    <div class="stat-card">
+        <div class="stat-icon">📊</div>
+        <div class="stat-content">
+            <div class="stat-label">Emails Processed</div>
+            <div class="stat-value">{{ stats.total_emails }}</div>
+            <div class="stat-sublabel">Total lifetime</div>
+        </div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-icon">🎯</div>
+        <div class="stat-content">
+            <div class="stat-label">Total Sessions</div>
+            <div class="stat-value">{{ stats.sessions_count }}</div>
+            <div class="stat-sublabel">Processing runs</div>
+        </div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-icon">💾</div>
+        <div class="stat-content">
+            <div class="stat-label">Database Size</div>
+            <div class="stat-value">{{ stats.db_size_mb }} MB</div>
+            <div class="stat-sublabel">SQLite storage</div>
+        </div>
+    </div>
 </div>
 
-<div class="container">
-    <h2>Recent Activity</h2>
-    <div class="activity-table">
-        <table>
+<div class="controls">
+    <button class="btn btn-success" onclick="runBatch()">🚀 Run Batch Processing</button>
+    <a href="/accounts" class="btn btn-primary">🎯 Single Account Filter</a>
+    <a href="/analytics" class="btn btn-warning">📊 Analytics & Reports</a>
+    <a href="/report" class="btn btn-primary">📋 Last Import Report</a>
+    <a href="/validate" class="btn btn-info">🔍 Category Validation</a>
+    <a href="/timer" class="btn btn-info">⏰ Timer Control</a>
+    <button class="btn" onclick="window.location.reload()">🔄 Refresh Data</button>
+</div>
+
+<div class="recent-activity">
+    <h2>📋 Latest Email Activity</h2>
+    <div class="table-container">
+        <table class="activity-table">
             <thead>
                 <tr>
-                    <th>Time</th>
-                    <th>Account</th>
+                    <th>Date/Time</th>
                     <th>Action</th>
-                    <th>Count</th>
+                    <th>Category</th>
+                    <th>Sender</th>
+                    <th>Subject</th>
                 </tr>
             </thead>
             <tbody>
                 {% for email in emails %}
                 <tr>
                     <td>{{ email.timestamp }}</td>
-                    <td>{{ email.account | escape }}</td>
-                    <td>{{ email.action | escape }}</td>
-                    <td>{{ email.count }}</td>
+                    <td style="color: {% if email.action == 'DELETED' %}#dc3545{% else %}#28a745{% endif %}; font-weight: bold;">
+                        {% if email.action == 'DELETED' %}🗑️{% else %}🛡️{% endif %} {{ email.action | escape }}
+                    </td>
+                    <td>{{ email.category | escape }}</td>
+                    <td style="font-family: monospace; font-size: 0.9em;">
+                        {% if email.sender_email|length > 30 %}
+                            {{ email.sender_email[:30] | escape }}...
+                        {% else %}
+                            {{ email.sender_email | escape }}
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if email.subject|length > 40 %}
+                            {{ email.subject[:40] | escape }}...
+                        {% else %}
+                            {{ email.subject | escape }}
+                        {% endif %}
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -40,9 +225,23 @@
     </div>
 </div>
 
-<div class="controls">
-    <a href="/timer" class="btn btn-primary">Timer Control</a>
-    <a href="/analytics" class="btn btn-info">Analytics</a>
-    <a href="/accounts" class="btn btn-success">Manage Accounts</a>
+<div style="text-align: center; margin-top: 40px; color: #666;">
+    <small>Fresh Mail Filter Interface • Auto-refresh every 30 seconds • Last updated: {{ last_updated }}</small>
 </div>
+
+<script>
+function runBatch() {
+    if (confirm('Run batch processing now? This will process all accounts.')) {
+        fetch('/process-now', {method: 'POST'})
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message || 'Batch processing started!');
+                setTimeout(() => window.location.reload(), 2000);
+            })
+            .catch(error => {
+                alert('Error: ' + error);
+            });
+    }
+}
+</script>
 {% endblock %}
