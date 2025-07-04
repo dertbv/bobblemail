@@ -24,6 +24,10 @@ maintenance: remove_resolved_add_new_critical
 - **Complexity Radar**: Partner consultation required for >100 line changes
 
 ## Agent Deployment (IMPORTANT)
+- **Deployment Method**: Commands in `.claude/COMMANDS/` are TEMPLATES - copy/paste to terminal to run
+- **Six Agent System**: Copy from `deploy-agents.md`, paste to terminal
+- **Three Stooges**: Copy from `three-stooges-deploy.md`, paste to terminal
+- **Recursive Companion**: Use `recursive-companion-generator.md` to create refine/incremental_refine commands
 - **Results Preservation**: NEVER remove agent worktrees without extracting results first
 - **iTerm2 Commands**: Always provide native integration commands after deployment
 - **Autonomous Authority**: Include "option 2 yes and don't ask again" in missions
