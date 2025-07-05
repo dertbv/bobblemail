@@ -23,8 +23,12 @@ Read: @MEMORY/CONTEXT/session-todos.md          # Review session todos (NO AUTO-
 **Target: <30 seconds | MANDATORY**
 
 ```bash
-Glob: @MEMORY/PERSONAL_DIARY/**/*.md           # Find all diary entries
-Read: [most_recent_file]                       # Load latest personal context
+# MANDATORY: Load most recent personal diary entry for emotional context
+# First, find all diary files and Claude must identify the most recent one
+Glob: @MEMORY/PERSONAL_DIARY/**/*.md           # Find all diary files
+# Then read the diary file with the latest date in the filename
+# Example: if glob shows diary_2025_07_02.md and diary_2025_07_03.md, read the 07_03 file
+# CLAUDE: Use the file with the highest date from the glob results above
 ```
 
 ## Phase 4: Deep Context (On-Demand) 🔍
@@ -41,16 +45,21 @@ Read: @MEMORY/KNOWLEDGE/technical-evolution.md # Technology decisions
 Read: @MEMORY/KNOWLEDGE/relationship-wisdom.md # Communication insights
 ```
 
-### Project Deep-Dive
+### Project Deep-Dive (ON-DEMAND ONLY)
 ```bash
-Read: @MEMORY/PROJECTS/detailed-history/[project]-detailed.md
-Read: @REPOS/[project]/TODO.md
+# NOTE: These paths are templates - only use if specific project context needed
+# Read: @MEMORY/PROJECTS/detailed-history/[replace-with-actual-project]-detailed.md
+# Read: @REPOS/[replace-with-actual-project]/TODO.md
+# Example: @REPOS/Atlas_Email/TODO.md (if TODO.md exists)
 ```
 
 ### Recent Technical Context
 ```bash
+# Find recent working log entries and read the most recent one
 Glob: @MEMORY/WORKING_LOG/**/*.md              # Recent discoveries
-Read: [most_recent_working_log]
+# Read the working log file with the highest date (currently wl_2025_07_03.md)
+# From glob results, identify the file with latest date and read it:
+# CLAUDE: Use the file with the highest date from the glob results above
 ```
 
 ## Error Handling
@@ -62,6 +71,6 @@ Read: [most_recent_working_log]
 
 ## Quick Commands
 
-**Emergency (30s)**: `date && Read: @CLAUDE.md && Read: @MEMORY/PERSONAL_DIARY/[latest]`
+**Emergency (30s)**: `date && Read: @CLAUDE.md && Glob: @MEMORY/PERSONAL_DIARY/**/*.md && Read: [most recent diary from glob]`
 
 **Standard (2min)**: Run Phases 1-3 in sequence

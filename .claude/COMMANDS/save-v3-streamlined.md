@@ -1,6 +1,6 @@
 # 🚀 ATLAS SESSION SAVE PROTOCOL v3.0 (STREAMLINED)
 
-**PERFORMANCE TARGET**: <30 seconds for typical session
+**PERFORMANCE TARGET**: <30 seconds for typical session (up to 35 seconds with diary)
 
 ## What Changed from v2.0
 
@@ -17,9 +17,10 @@
 ### KEPT (Essential only):
 - ✅ Current session context (what we're working on NOW)
 - ✅ Active todos (work continuity)
+- ✅ Personal diary (IF meaningful moments)
 - ✅ Project status (IF changed)
 
-## STREAMLINED PROTOCOL (2-3 steps only)
+## STREAMLINED PROTOCOL (2-4 steps based on session content)
 
 ## Step 1: Core Context Save (ALWAYS)
 **SINGLE EDIT** combining essential updates:
@@ -40,7 +41,22 @@ Edit: @MEMORY/CONTEXT/session-todos.md (JSON array)
 ```
 **Skip if**: All todos completed or no todos exist
 
-## Step 3: Project Status (IF PROJECT CHANGED)
+## Step 3: Personal Diary Save (IF SIGNIFICANT MOMENTS)
+```markdown
+# Only save diary entries for high-value partnership or breakthrough moments
+# CRITERIA: Save diary if ANY of these occurred:
+#   - Meaningful partnership interactions or emotional moments
+#   - Technical breakthroughs or "aha!" moments  
+#   - User expressions of joy, frustration, or appreciation
+#   - Lessons learned that changed understanding
+#   - Problem-solving insights or creative solutions
+# If YES to any criteria, create diary entry:
+Write: @MEMORY/PERSONAL_DIARY/[YYYY]/[MM-mmm]/diary_[YYYY_MM_DD].md
+# Include: session highlights, partnership moments, technical breakthroughs, personal reflections
+```
+**Skip if**: Routine work session with no significant partnership or personal moments
+
+## Step 4: Project Status (IF PROJECT CHANGED)
 ```markdown
 Edit: @MEMORY/PROJECTS/current-status.md
 - Update ONLY the project that changed (1 sentence)
@@ -61,10 +77,10 @@ Edit: @MEMORY/PROJECTS/current-status.md
 | Project status | 15s | 5s (conditional) | 10s |
 | Detailed history | 40s | 0s (milestones only) | 40s |
 | Cross-project | 30s | 0s (weekly batch) | 30s |
-| Personal diary | 25s | 0s (true moments only) | 25s |
+| Personal diary | 25s | 5s (conditional) | 20s |
 | Working log | 20s | 0s (breakthroughs only) | 20s |
 | Validation | 15s | 0s (automated) | 15s |
-| **TOTAL** | **222s** | **20s** | **202s saved!** |
+| **TOTAL** | **222s** | **25s** | **197s saved!** |
 
 ## WHEN TO USE FULL SAVES
 
@@ -93,14 +109,17 @@ Edit: @MEMORY/PROJECTS/current-status.md
   - Include enough detail to restore full context
 
 ### Session with todos:
-- Steps 1-2: Current session + todos (15 seconds)
+- Steps 1-2: Current session + todos (20 seconds)
 
-### Project progress session:
-- Steps 1-3: All three updates (20 seconds)
+### Session with partnership moments:
+- Steps 1-3: Current session + diary entry (25 seconds)
+
+### Complete session (todos + diary + project progress):
+- Steps 1-4: All updates (30-35 seconds)
 
 ### Major breakthrough (rare):
 - Use save-v2.0 for comprehensive capture
 
 ---
 
-**THE DIFFERENCE**: 90% reduction in save time by focusing ONLY on what changes between sessions!
+**THE DIFFERENCE**: 89% reduction in save time by focusing ONLY on what changes between sessions!
