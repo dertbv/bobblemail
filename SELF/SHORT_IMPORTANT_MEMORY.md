@@ -9,30 +9,23 @@ atlas_context_memory:
     review_preferences: "clearly_state_development_gone_off_track_prefers_practical_solutions"
   
   project_overview:
-    active_projects: "email_project_stocks_project_atlas_email_triple_active"
+    active_projects: "atlas_email_production_system"
     
-    email_project:
-      purpose: "ml_based_spam_filtering"
+    atlas_email:
+      purpose: "production_email_management_ml_spam_filtering"
       accuracy: "95.6%"
-      users: "personal_small_business"
-      phase: "production_ready_post_refactor"
-      hidden_complexity: "circular_import_resolution_ensemble_ml_voting"
-      technical_debt: "sqlite_wont_scale_needs_postgresql"
-    
-    stocks_project:
-      purpose: "agentic_loop_penny_stock_analysis"
-      users: "individual_investors_seeking_30_day_growth_picks"
-      phase: "active_development_category_analysis"
-      hidden_complexity: "memory_caching_preventing_real_time_updates"
-      technical_debt: "no_test_coverage_regulatory_compliance_gaps"
+      users: "personal_accounts_4_active"
+      phase: "production_deployed_4_category_system"
+      features: "4_category_classification_subcategory_analytics_geographic_intelligence"
+      recent_wins: "template_system_100_percent_complete_zero_security_vulnerabilities"
   
   technology_stack:
-    frontend: "flask_templates_both_projects_html_css_javascript_dashboards"
-    backend: "python_3_13_flask_web_apps_fastapi_email_yfinance_api_stocks"
-    database: "email_sqlite_analytics_stocks_json_files_fcntl_locking"
-    deployment: "local_development_no_cicd_pipeline_yet"
-    version_control: "git_main_branch"
-    gotchas: "flask_memory_caching_persists_across_requests_flask_url_for_incompatible_fastapi_templates"
+    frontend: "jinja2_templates_100_percent_implemented_html_css_javascript_dashboards"
+    backend: "python_3_13_fastapi_web_app_ml_classifiers"
+    database: "sqlite_mail_filter_db_18mb_production"
+    deployment: "local_deployment_desktop_application"
+    version_control: "git_main_branch_github"
+    gotchas: "fastapi_staticfiles_mounting_required_templates"
   
   key_conventions:
     code_style: "extensive_emoji_use_logs_kiss_yagni_dry_principles"
@@ -45,17 +38,17 @@ atlas_context_memory:
     main_repository: "@REPOS/"
     atlas_core: ". (@CLAUDE.md, @SELF/, @WORKING_LOG/, @MEMORY/)"
     documentation: "@CLAUDE.md, @DEVELOPMENT_BELIEFS.md, @WORKING_LOG/"
-    staging_environment: "local_flask_dev_servers_ports_5000_5006"
-    production_environment: "not_yet_deployed"
-    hidden_dependencies: "yfinance_api_rate_limited_imap_providers_gmail_icloud_personal_whitelist_domains"
+    staging_environment: "local_dev_server_port_8001"
+    production_environment: "desktop_application_4_accounts"
+    hidden_dependencies: "imap_providers_gmail_icloud_specific_ml_thresholds"
   
   critical_notes:
-    memory_cache_bug: "flask_global_variables_persist_across_requests_requires_explicit_clearing"
-    file_locking_required: "json_operations_need_fcntl_locking_prevent_corruption_concurrent_access"
+    template_system: "100_percent_complete_all_routes_using_templates_response"
+    four_category_system: "dangerous_commercial_spam_scams_legitimate_marketing"
     ml_provider_thresholds: "gmail_85_percent_icloud_80_percent_confidence_thresholds_spam_detection"
-    circular_imports: "use_classification_utils_py_config_loader_py_bridge_modules"
-    domain_validation: "advanced_gibberish_detection_entropy_analysis_performance_optimized_regex"
+    security_status: "zero_vulnerabilities_xss_sql_injection_eliminated"
+    claude_cli: "use_claude_not_claude_code_command"
   
   surprise_factor_test: "would_competent_engineer_be_surprised_by_this"
   
-  last_updated: "2025-06-22_post_repository_survey_stocks_project_debugging"
+  last_updated: "2025-07-05_project_cleanup_atlas_email_only"

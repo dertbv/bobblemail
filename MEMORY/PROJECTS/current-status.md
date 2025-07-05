@@ -11,10 +11,6 @@ maintenance: update_active_projects_only
 **Recent**: Dashboard restored, 2,244 emails reclassified into proper 4 categories
 **Next**: Verify results in web interface, cleanup obsolete categories, document implementation
 
-## stocks_project  
-**Status**: ✅ Enterprise-grade active development with 5-phase analysis pipeline
-**Recent**: TTL cache memory leak fixed, investment rationale generation complete
-**Next**: UI improvements using template patterns from Atlas_Email
 
 ## three_stooges_framework
 **Status**: 🚀 Fully implemented and proven effective for complex analysis
