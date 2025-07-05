@@ -682,57 +682,37 @@
         const loadingPopup = document.createElement('div');
         loadingPopup.innerHTML = `
             <div class="country-popup-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; align-items: center; justify-content: center;" onclick="this.remove()">
-                <div style="background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); max-width: 500px; width: 90%;" onclick="event.stopPropagation()">
+                <div style="background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); max-width: 600px; width: 90%;" onclick="event.stopPropagation()">
                     <h3 style="margin: 0 0 20px 0; color: #333; text-align: center;">🌍 ${countryName}</h3>
                     <div style="text-align: center; margin: 20px 0;">
-                        <div style="font-size: 1.2em; color: #666;">Loading classification breakdown...</div>
+                        <div style="font-size: 1.2em; color: #666;">Loading subcategory breakdown...</div>
                     </div>
                 </div>
             </div>
         `;
         document.body.appendChild(loadingPopup);
         
-        // Fetch classification data
-        fetch(`/api/country-classifications/${countryCode}`)
+        // Fetch subcategory data for this country
+        fetch(`/api/country-subcategories/${countryCode}`)
             .then(response => response.json())
             .then(data => {
                 // Remove loading popup
                 document.querySelector('.country-popup-overlay').remove();
                 
-                if (data.success && data.classifications.length > 0) {
-                    // Build classification table
-                    let classificationRows = '';
-                    data.classifications.forEach(cls => {
-                        classificationRows += `
-                            <tr>
-                                <td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">${cls.category}</td>
-                                <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">${cls.count.toLocaleString()}</td>
-                                <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">${cls.percentage.toFixed(1)}%</td>
-                            </tr>
-                        `;
-                    });
-                    
+                if (data.success && data.subcategories.length > 0) {
+                    // Create popup with canvas for pie chart
                     const popup = document.createElement('div');
                     popup.innerHTML = `
                         <div class="country-popup-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; align-items: center; justify-content: center;" onclick="this.remove()">
-                            <div style="background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); max-width: 500px; width: 90%;" onclick="event.stopPropagation()">
+                            <div style="background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); max-width: 700px; width: 90%;" onclick="event.stopPropagation()">
                                 <h3 style="margin: 0 0 20px 0; color: #333; text-align: center;">🌍 ${countryName}</h3>
                                 <div style="text-align: center; margin-bottom: 20px;">
-                                    <div style="font-weight: bold; color: #666;">Top Classifications (${emailCount.toLocaleString()} total emails)</div>
+                                    <div style="font-weight: bold; color: #666;">Spam Subcategories (${emailCount.toLocaleString()} total emails)</div>
                                 </div>
-                                <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
-                                    <thead>
-                                        <tr style="background: #f8f9fa;">
-                                            <th style="padding: 10px; text-align: left; border-bottom: 2px solid #dee2e6;">Category</th>
-                                            <th style="padding: 10px; text-align: right; border-bottom: 2px solid #dee2e6;">Count</th>
-                                            <th style="padding: 10px; text-align: right; border-bottom: 2px solid #dee2e6;">%</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        ${classificationRows}
-                                    </tbody>
-                                </table>
-                                <div style="text-align: center;">
+                                <div style="height: 400px; position: relative;">
+                                    <canvas id="countryPieChart"></canvas>
+                                </div>
+                                <div style="text-align: center; margin-top: 20px;">
                                     <button onclick="document.querySelector('.country-popup-overlay').remove()" 
                                             style="background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">
                                         Close
@@ -742,6 +722,74 @@
                         </div>
                     `;
                     document.body.appendChild(popup);
+                    
+                    // Create pie chart
+                    const ctx = document.getElementById('countryPieChart').getContext('2d');
+                    const labels = data.subcategories.map(item => item.subcategory);
+                    const values = data.subcategories.map(item => item.count);
+                    const percentages = data.subcategories.map(item => item.percentage.toFixed(1));
+                    
+                    // Generate colors
+                    const colors = [
+                        '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
+                        '#FF9F40', '#FF6384', '#C45850', '#F39C12', '#27AE60',
+                        '#8E44AD', '#3498DB', '#E74C3C', '#1ABC9C', '#34495E'
+                    ];
+                    
+                    new Chart(ctx, {
+                        type: 'pie',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                data: values,
+                                backgroundColor: colors.slice(0, labels.length),
+                                borderWidth: 2,
+                                borderColor: '#fff'
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    position: 'right',
+                                    labels: {
+                                        padding: 10,
+                                        font: {
+                                            size: 12
+                                        },
+                                        generateLabels: function(chart) {
+                                            const data = chart.data;
+                                            if (data.labels.length && data.datasets.length) {
+                                                return data.labels.map((label, i) => {
+                                                    const dataset = data.datasets[0];
+                                                    const value = dataset.data[i];
+                                                    const percentage = percentages[i];
+                                                    return {
+                                                        text: `${label} (${percentage}%)`,
+                                                        fillStyle: dataset.backgroundColor[i],
+                                                        hidden: false,
+                                                        index: i
+                                                    };
+                                                });
+                                            }
+                                            return [];
+                                        }
+                                    }
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(context) {
+                                            const label = context.label || '';
+                                            const value = context.parsed || 0;
+                                            const percentage = percentages[context.dataIndex];
+                                            return `${label}: ${value.toLocaleString()} (${percentage}%)`;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
                 } else {
                     // Show no data message
                     const popup = document.createElement('div');

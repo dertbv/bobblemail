@@ -263,73 +263,56 @@ async def dashboard(request: Request):
         # Format emails for template
         recent_emails = []
         for email in latest_emails:
-            # Map detailed category to 4-category system
-            detailed_cat = (email['primary_category'] or email['category'] or '').upper()
-            
-            # Map to 4-category system
-            if detailed_cat in ['LEGITIMATE MARKETING', 'PROMOTIONAL EMAIL', 'COMMUNITY EMAIL']:
-                four_cat = 'MARKETING'
-            elif detailed_cat in ['PHISHING', 'PAYMENT SCAM', 'BRAND IMPERSONATION', 'DANGEROUS', 'LEGAL & COMPENSATION SCAMS']:
-                four_cat = 'SPAM'
-            elif detailed_cat in ['FINANCIAL & INVESTMENT SPAM', 'HEALTH & MEDICAL SPAM', 'COMMERCIAL SPAM', 'MARKETING SPAM', 
-                                'ADULT & DATING SPAM', 'GAMBLING SPAM', 'REAL ESTATE SPAM', 'EDUCATION/TRAINING SPAM', 
-                                'BUSINESS OPPORTUNITY SPAM']:
-                four_cat = 'SUSPICIOUS'
-            elif detailed_cat in ['SCAMS', 'FLAGGED FOR DELETION']:
-                four_cat = 'SPAM'
-            elif detailed_cat == 'USER KEYWORD':
-                four_cat = 'LEGITIMATE'
-            else:
-                four_cat = 'SUSPICIOUS'
+            # Use the actual category from database
+            category = email['category'] or ''
             
             recent_emails.append({
                 'timestamp': email['timestamp'] or '',
                 'sender': email['sender_email'] or '',
                 'subject': email['subject'] or '',
-                'category': email['category'] or '',
-                'primary_category': four_cat,  # Use mapped 4-category
+                'category': category,
+                'primary_category': category,  # Use actual category
                 'subcategory': email['subcategory'] or '',
                 'confidence_score': float(email['confidence_score'] or 0.0),
                 'action': email['action'] or '',
                 'reason': email['reason'] or ''
             })
         
-        # Get 4-category counts
+        # Get actual category counts from database
         category_counts = db.execute_query("""
             SELECT 
-                COALESCE(primary_category, category) as cat,
+                category,
                 COUNT(*) as count
             FROM processed_emails_bulletproof
-            GROUP BY COALESCE(primary_category, category)
+            GROUP BY category
+            ORDER BY COUNT(*) DESC
         """)
         
-        # Initialize category counts
-        stats['legitimate_count'] = 0
-        stats['marketing_count'] = 0  
-        stats['suspicious_count'] = 0
-        stats['spam_count'] = 0
+        # Initialize counts for our actual 4 categories
+        stats['dangerous_count'] = 0
+        stats['commercial_spam_count'] = 0
+        stats['scams_count'] = 0
+        stats['legitimate_marketing_count'] = 0
         
-        # Map counts to 4-category system
+        # Map the actual categories
         for row in category_counts:
-            cat = (row['cat'] or '').upper()
+            cat = row['category'] or ''
             count = row['count'] or 0
             
-            # Map detailed categories to 4-category system
-            if cat in ['LEGITIMATE MARKETING', 'PROMOTIONAL EMAIL', 'COMMUNITY EMAIL']:
-                stats['marketing_count'] += count
-            elif cat in ['PHISHING', 'PAYMENT SCAM', 'BRAND IMPERSONATION', 'DANGEROUS', 'LEGAL & COMPENSATION SCAMS']:
-                stats['spam_count'] += count  # High threat
-            elif cat in ['FINANCIAL & INVESTMENT SPAM', 'HEALTH & MEDICAL SPAM', 'COMMERCIAL SPAM', 'MARKETING SPAM', 
-                        'ADULT & DATING SPAM', 'GAMBLING SPAM', 'REAL ESTATE SPAM', 'EDUCATION/TRAINING SPAM', 
-                        'BUSINESS OPPORTUNITY SPAM']:
-                stats['suspicious_count'] += count  # Medium threat
-            elif cat in ['SCAMS', 'FLAGGED FOR DELETION']:
-                stats['spam_count'] += count
-            elif cat == 'USER KEYWORD':
-                stats['legitimate_count'] += count
-            else:
-                # For any unmapped categories, put in suspicious for now
-                stats['suspicious_count'] += count
+            if cat == 'Dangerous':
+                stats['dangerous_count'] = count
+            elif cat == 'Commercial Spam':
+                stats['commercial_spam_count'] = count
+            elif cat == 'Scams':
+                stats['scams_count'] = count
+            elif cat == 'Legitimate Marketing':
+                stats['legitimate_marketing_count'] = count
+            # Note: ignoring stragglers for now (Brand Impersonation, etc.)
+        
+        # Calculate total spam (everything except Legitimate Marketing)
+        stats['spam_count'] = (stats['dangerous_count'] + 
+                              stats['commercial_spam_count'] + 
+                              stats['scams_count'])
         
         # Use template instead of inline HTML
         return templates.TemplateResponse(
@@ -1125,6 +1108,70 @@ async def get_country_classifications(country_code: str):
         print(f"❌ Country classifications error: {e}")
         return {"success": False, "message": f"Error getting classifications: {str(e)}"}
 
+@app.get("/api/country-subcategories/{country_code}")
+async def get_country_subcategories(country_code: str):
+    """Get spam subcategory breakdown for a specific country"""
+    print(f"🌍 COUNTRY SUBCATEGORIES API called for {country_code}")
+    
+    try:
+        subcategories_raw = db.execute_query("""
+            SELECT 
+                subcategory,
+                COUNT(*) as count,
+                COUNT(*) * 100.0 / SUM(COUNT(*)) OVER() as percentage
+            FROM processed_emails_bulletproof 
+            WHERE sender_country_code = ?
+            AND subcategory IS NOT NULL
+            AND action = 'DELETED'
+            AND category NOT IN ('Legitimate Marketing', 'Transactional', 'TRANSACTIONAL', 'BUSINESS_TRANSACTION')
+            GROUP BY subcategory
+            ORDER BY count DESC 
+            LIMIT 15
+        """, (country_code,))
+        
+        subcategories = [dict(row) for row in subcategories_raw]
+        
+        return {
+            "success": True,
+            "country_code": country_code,
+            "subcategories": subcategories
+        }
+        
+    except Exception as e:
+        print(f"❌ Country subcategories error: {e}")
+        return {"success": False, "message": f"Error getting subcategories: {str(e)}"}
+
+@app.get("/api/category-subcategories/{category}")
+async def get_category_subcategories(category: str):
+    """Get subcategory breakdown for a specific category"""
+    print(f"🏷️ CATEGORY SUBCATEGORIES API called for {category}")
+    
+    try:
+        subcategories_raw = db.execute_query("""
+            SELECT 
+                subcategory,
+                COUNT(*) as count,
+                COUNT(*) * 100.0 / SUM(COUNT(*)) OVER() as percentage
+            FROM processed_emails_bulletproof 
+            WHERE category = ?
+            AND subcategory IS NOT NULL
+            GROUP BY subcategory
+            ORDER BY count DESC 
+            LIMIT 20
+        """, (category,))
+        
+        subcategories = [dict(row) for row in subcategories_raw]
+        
+        return {
+            "success": True,
+            "category": category,
+            "subcategories": subcategories
+        }
+        
+    except Exception as e:
+        print(f"❌ Category subcategories error: {e}")
+        return {"success": False, "message": f"Error getting subcategories: {str(e)}"}
+
 @app.get("/analytics", response_class=HTMLResponse)
 async def analytics_dashboard(request: Request):
     """Analytics and reporting dashboard using Jinja2 template"""
@@ -1160,6 +1207,7 @@ async def analytics_dashboard(request: Request):
             "account_breakdown_total": analytics_data['account_breakdown_total'],
             "account_breakdown_spam": analytics_data['account_breakdown_spam'],
             "geographic_data": analytics_data['geographic_data'],
+            "category_breakdown_data": analytics_data.get('category_breakdown_data', []),
             "provider_icons": provider_icons
         })
         
@@ -1287,9 +1335,30 @@ def get_analytics_data():
         AND category NOT IN ('Legitimate Marketing', 'Transactional', 'TRANSACTIONAL', 'BUSINESS_TRANSACTION')
         GROUP BY sender_country_code, sender_country_name
         ORDER BY count DESC 
-        LIMIT 15
+        LIMIT 10
     """)
     geographic_data = [dict(row) for row in geographic_data_raw]
+    
+    # Get category breakdown for subcategory analysis
+    category_breakdown_raw = db.execute_query("""
+        SELECT 
+            category,
+            COUNT(*) as email_count,
+            COUNT(DISTINCT subcategory) as subcategory_count,
+            COUNT(*) * 100.0 / SUM(COUNT(*)) OVER() as percentage
+        FROM processed_emails_bulletproof 
+        WHERE category IN ('Dangerous', 'Commercial Spam', 'Scams', 'Legitimate Marketing')
+        GROUP BY category
+        ORDER BY 
+            CASE category
+                WHEN 'Dangerous' THEN 1
+                WHEN 'Commercial Spam' THEN 2
+                WHEN 'Scams' THEN 3
+                WHEN 'Legitimate Marketing' THEN 4
+                ELSE 5
+            END
+    """)
+    category_breakdown_data = [dict(row) for row in category_breakdown_raw]
     
     return {
         'effectiveness': effectiveness,
@@ -1299,7 +1368,8 @@ def get_analytics_data():
         'session_stats': session_stats,
         'account_breakdown_total': account_breakdown_total,
         'account_breakdown_spam': account_breakdown_spam,
-        'geographic_data': geographic_data
+        'geographic_data': geographic_data,
+        'category_breakdown_data': category_breakdown_data
     }
 
 def build_analytics_html(data):

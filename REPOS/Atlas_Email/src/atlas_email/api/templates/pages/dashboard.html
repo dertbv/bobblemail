@@ -19,35 +19,35 @@
     <h3 class="card-title">📊 Email Classification Overview</h3>
     <div class="stats-grid">
         <div class="stat-card" style="border-top-color: #28a745;">
-            <div class="stat-icon">🟢</div>
+            <div class="stat-icon">✅</div>
             <div class="stat-content">
-                <div class="stat-value">{{ stats.legitimate_count | default(0) }}</div>
-                <div class="stat-label">Legitimate</div>
-                <div class="stat-sublabel">Business & Personal</div>
+                <div class="stat-value">{{ stats.legitimate_marketing_count | default(0) }}</div>
+                <div class="stat-label">Legitimate Marketing</div>
+                <div class="stat-sublabel">Real Companies</div>
             </div>
         </div>
         <div class="stat-card" style="border-top-color: #ffc107;">
-            <div class="stat-icon">🟡</div>
+            <div class="stat-icon">🗑️</div>
             <div class="stat-content">
-                <div class="stat-value">{{ stats.marketing_count | default(0) }}</div>
-                <div class="stat-label">Marketing</div>
-                <div class="stat-sublabel">Newsletters & Promotions</div>
+                <div class="stat-value">{{ stats.commercial_spam_count | default(0) }}</div>
+                <div class="stat-label">Commercial Spam</div>
+                <div class="stat-sublabel">Unwanted Ads</div>
             </div>
         </div>
         <div class="stat-card" style="border-top-color: #fd7e14;">
-            <div class="stat-icon">🟠</div>
+            <div class="stat-icon">💀</div>
             <div class="stat-content">
-                <div class="stat-value">{{ stats.suspicious_count | default(0) }}</div>
-                <div class="stat-label">Suspicious</div>
-                <div class="stat-sublabel">Potential Threats</div>
+                <div class="stat-value">{{ stats.scams_count | default(0) }}</div>
+                <div class="stat-label">Scams</div>
+                <div class="stat-sublabel">Fraud Attempts</div>
             </div>
         </div>
         <div class="stat-card" style="border-top-color: #dc3545;">
-            <div class="stat-icon">🔴</div>
+            <div class="stat-icon">☠️</div>
             <div class="stat-content">
-                <div class="stat-value">{{ stats.spam_count | default(0) }}</div>
-                <div class="stat-label">Spam/Phishing</div>
-                <div class="stat-sublabel">Confirmed Threats</div>
+                <div class="stat-value">{{ stats.dangerous_count | default(0) }}</div>
+                <div class="stat-label">Dangerous</div>
+                <div class="stat-sublabel">Phishing/Malware</div>
             </div>
         </div>
     </div>
@@ -75,15 +75,15 @@
                     <td>{{ email.sender | escape }}</td>
                     <td>{{ email.subject | escape | truncate(50) }}</td>
                     <td>
-                        <span class="category-badge category-{{ email.primary_category | lower }}">
-                            {% if email.primary_category == 'LEGITIMATE' %}
-                                🟢 {{ email.primary_category }}
-                            {% elif email.primary_category == 'MARKETING' %}
-                                🟡 {{ email.primary_category }}
-                            {% elif email.primary_category == 'SUSPICIOUS' %}
-                                🟠 {{ email.primary_category }}
-                            {% elif email.primary_category == 'SPAM' %}
-                                🔴 {{ email.primary_category }}
+                        <span class="category-badge category-{{ email.category | lower | replace(' ', '-') }}">
+                            {% if email.category == 'Legitimate Marketing' %}
+                                ✅ {{ email.category }}
+                            {% elif email.category == 'Commercial Spam' %}
+                                🗑️ {{ email.category }}
+                            {% elif email.category == 'Scams' %}
+                                💀 {{ email.category }}
+                            {% elif email.category == 'Dangerous' %}
+                                ☠️ {{ email.category }}
                             {% else %}
                                 {{ email.category }}
                             {% endif %}
