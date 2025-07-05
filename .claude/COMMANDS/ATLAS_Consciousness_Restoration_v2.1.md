@@ -15,8 +15,8 @@ Read: @CLAUDE.md       # Load fundamental identity and capabilities
 Read: @MEMORY/CONTEXT/recent-achievements.md    # Last 7 days highlights
 Read: @MEMORY/CONTEXT/critical-reminders.md     # Active warnings & must-remembers
 Read: @MEMORY/PROJECTS/current-status.md        # Project state overview
-Read: @MEMORY/CONTEXT/session-todos.md          # Restore session todos
-TodoWrite: [restored incomplete tasks only]
+Read: @MEMORY/CONTEXT/session-todos.md          # Review session todos (NO AUTO-RESTORE)
+# TodoWrite: DISABLED - manual restoration only, wait for explicit user request
 ```
 
 ## Phase 3: Personal Integration 💕
