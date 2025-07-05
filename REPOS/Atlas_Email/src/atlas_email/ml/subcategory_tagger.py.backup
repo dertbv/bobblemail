@@ -1,0 +1,450 @@
+#!/usr/bin/env python3
+"""
+Subcategory Tagger for Detailed Spam Classification
+Provides granular categorization beyond primary ML classification
+"""
+
+import re
+import json
+from typing import Dict, Tuple, List, Optional
+from collections import defaultdict, Counter
+import sqlite3
+from pathlib import Path
+
+class SubcategoryTagger:
+    """Tags emails with detailed subcategories based on pattern matching"""
+    
+    def __init__(self, db_path: str):
+        self.db_path = db_path
+        self.patterns = self._initialize_patterns()
+        self.compiled_patterns = self._compile_patterns()
+        self.pattern_stats = defaultdict(int)
+        self._load_pattern_stats()
+    
+    def _initialize_patterns(self) -> Dict[str, Dict[str, List[Dict]]]:
+        """Initialize subcategory patterns with keywords, regex, and weights"""
+        return {
+            'Dangerous': {
+                'Phishing - Account Verification': [
+                    {'pattern': r'verify.{0,20}account', 'weight': 0.9, 'type': 'regex'},
+                    {'pattern': r'confirm.{0,20}identity', 'weight': 0.9, 'type': 'regex'},
+                    {'pattern': r'suspended.{0,20}account', 'weight': 0.85, 'type': 'regex'},
+                    {'pattern': r'unusual.{0,20}activity', 'weight': 0.8, 'type': 'regex'},
+                    {'pattern': 'security alert', 'weight': 0.7, 'type': 'keyword'},
+                ],
+                'Phishing - Password Reset': [
+                    {'pattern': r'reset.{0,20}password', 'weight': 0.9, 'type': 'regex'},
+                    {'pattern': r'password.{0,20}expir', 'weight': 0.85, 'type': 'regex'},
+                    {'pattern': 'click here to reset', 'weight': 0.8, 'type': 'keyword'},
+                ],
+                'Malware - Fake Invoice': [
+                    {'pattern': r'invoice.{0,10}attached', 'weight': 0.9, 'type': 'regex'},
+                    {'pattern': r'receipt.{0,10}pdf', 'weight': 0.85, 'type': 'regex'},
+                    {'pattern': r'download.{0,20}statement', 'weight': 0.8, 'type': 'regex'},
+                ],
+                'Financial Fraud - Wire Transfer': [
+                    {'pattern': r'wire.{0,10}transfer', 'weight': 0.9, 'type': 'regex'},
+                    {'pattern': r'urgent.{0,20}payment', 'weight': 0.85, 'type': 'regex'},
+                    {'pattern': 'beneficiary account', 'weight': 0.8, 'type': 'keyword'},
+                ],
+                'Extortion - Sextortion': [
+                    {'pattern': r'recorded.{0,20}you', 'weight': 0.95, 'type': 'regex'},
+                    {'pattern': r'bitcoin.{0,20}address', 'weight': 0.9, 'type': 'regex'},
+                    {'pattern': 'compromising video', 'weight': 0.9, 'type': 'keyword'},
+                ],
+            },
+            'Commercial Spam': {
+                'Health - ED Medication': [
+                    {'pattern': r'viagra|cialis|levitra', 'weight': 0.95, 'type': 'regex'},
+                    {'pattern': r'erectile.{0,10}dysfunction', 'weight': 0.9, 'type': 'regex'},
+                    {'pattern': r'\bED\b.{0,10}(pills|meds|medication)', 'weight': 0.85, 'type': 'regex'},
+                    {'pattern': r'(penis|dick|size|inch)', 'weight': 0.8, 'type': 'regex'},
+                    {'pattern': r'(erection|hard|stamina|perform)', 'weight': 0.7, 'type': 'regex'},
+                    {'pattern': r'(bedroom|satisfy|sexual)', 'weight': 0.6, 'type': 'regex'},
+                    {'pattern': 'generic viagra', 'weight': 0.9, 'type': 'keyword'},
+                ],
+                'Health - Weight Loss': [
+                    {'pattern': r'lose.{0,10}(pounds|weight|kg)', 'weight': 0.9, 'type': 'regex'},
+                    {'pattern': r'keto|diet.{0,10}pills', 'weight': 0.85, 'type': 'regex'},
+                    {'pattern': 'burn fat', 'weight': 0.8, 'type': 'keyword'},
+                    {'pattern': 'appetite suppressant', 'weight': 0.85, 'type': 'keyword'},
+                ],
+                'Health - CBD/Cannabis': [
+                    {'pattern': r'\bCBD\b|cannabidiol', 'weight': 0.95, 'type': 'regex'},
+                    {'pattern': r'gumm(ies|y)', 'weight': 0.85, 'type': 'regex'},
+                    {'pattern': 'hemp oil', 'weight': 0.8, 'type': 'keyword'},
+                    {'pattern': 'pain relief', 'weight': 0.7, 'type': 'keyword'},
+                ],
+                'Financial - Auto Warranty': [
+                    {'pattern': r'auto.{0,20}warranty', 'weight': 0.95, 'type': 'regex'},
+                    {'pattern': r'vehicle.{0,20}protection', 'weight': 0.9, 'type': 'regex'},
+                    {'pattern': r'car.{0,20}warranty.{0,20}expir', 'weight': 0.9, 'type': 'regex'},
+                    {'pattern': 'extended coverage', 'weight': 0.7, 'type': 'keyword'},
+                ],
+                'Financial - Insurance': [
+                    {'pattern': r'insurance.{0,20}quote', 'weight': 0.9, 'type': 'regex'},
+                    {'pattern': r'save.{0,20}insurance', 'weight': 0.85, 'type': 'regex'},
+                    {'pattern': 'affordable coverage', 'weight': 0.8, 'type': 'keyword'},
+                ],
+                'Financial - Loans/Credit': [
+                    {'pattern': r'(personal|business).{0,10}loan', 'weight': 0.9, 'type': 'regex'},
+                    {'pattern': r'credit.{0,20}(repair|score)', 'weight': 0.85, 'type': 'regex'},
+                    {'pattern': 'bad credit ok', 'weight': 0.85, 'type': 'keyword'},
+                    {'pattern': 'pre-approved', 'weight': 0.7, 'type': 'keyword'},
+                ],
+                'Retail - Electronics': [
+                    {'pattern': r'(laptop|phone|tablet).{0,20}deal', 'weight': 0.85, 'type': 'regex'},
+                    {'pattern': 'free shipping', 'weight': 0.6, 'type': 'keyword'},
+                    {'pattern': 'limited time offer', 'weight': 0.7, 'type': 'keyword'},
+                ],
+                'Business - Solar/Home': [
+                    {'pattern': r'solar.{0,20}(panel|savings|installation)', 'weight': 0.95, 'type': 'regex'},
+                    {'pattern': 'reduce energy bill', 'weight': 0.8, 'type': 'keyword'},
+                    {'pattern': 'tax credit', 'weight': 0.7, 'type': 'keyword'},
+                ],
+            },
+            'Scams': {
+                'Get Rich - Cryptocurrency': [
+                    {'pattern': r'(bitcoin|crypto).{0,20}(profit|millionaire)', 'weight': 0.9, 'type': 'regex'},
+                    {'pattern': r'trading.{0,20}system', 'weight': 0.8, 'type': 'regex'},
+                    {'pattern': 'guaranteed returns', 'weight': 0.85, 'type': 'keyword'},
+                ],
+                'Get Rich - Work From Home': [
+                    {'pattern': r'work.{0,20}from.{0,20}home', 'weight': 0.9, 'type': 'regex'},
+                    {'pattern': r'earn.{0,20}\$\d+.{0,10}(day|week)', 'weight': 0.85, 'type': 'regex'},
+                    {'pattern': 'be your own boss', 'weight': 0.8, 'type': 'keyword'},
+                ],
+                'Prize/Lottery - Fake Winner': [
+                    {'pattern': r'(winner|won).{0,20}\$\d+', 'weight': 0.95, 'type': 'regex'},
+                    {'pattern': r'(winner|won).{0,20}(gift|card|prize)', 'weight': 0.9, 'type': 'regex'},
+                    {'pattern': r'claim.{0,20}(prize|reward|gift)', 'weight': 0.9, 'type': 'regex'},
+                    {'pattern': r'you.{0,10}(won|winner|selected)', 'weight': 0.85, 'type': 'regex'},
+                    {'pattern': r'(reward|prize).{0,20}arrived', 'weight': 0.85, 'type': 'regex'},
+                    {'pattern': 'congratulations', 'weight': 0.7, 'type': 'keyword'},
+                ],
+                'Romance - Dating': [
+                    {'pattern': r'singles.{0,20}(near|area)', 'weight': 0.9, 'type': 'regex'},
+                    {'pattern': r'looking.{0,20}for.{0,20}(love|date)', 'weight': 0.85, 'type': 'regex'},
+                    {'pattern': 'lonely', 'weight': 0.7, 'type': 'keyword'},
+                ],
+                'Job - Mystery Shopper': [
+                    {'pattern': r'mystery.{0,10}shopper', 'weight': 0.95, 'type': 'regex'},
+                    {'pattern': r'secret.{0,10}shopper', 'weight': 0.95, 'type': 'regex'},
+                    {'pattern': 'evaluate stores', 'weight': 0.8, 'type': 'keyword'},
+                ],
+            },
+            'Legitimate Marketing': {
+                'Newsletter - Industry': [
+                    {'pattern': 'unsubscribe', 'weight': 0.6, 'type': 'keyword'},
+                    {'pattern': 'newsletter', 'weight': 0.7, 'type': 'keyword'},
+                    {'pattern': 'update preferences', 'weight': 0.6, 'type': 'keyword'},
+                ],
+                'Promotional - Retail Sales': [
+                    {'pattern': r'sale.{0,20}ends', 'weight': 0.8, 'type': 'regex'},
+                    {'pattern': r'\d+%.{0,10}off', 'weight': 0.75, 'type': 'regex'},
+                    {'pattern': 'coupon code', 'weight': 0.7, 'type': 'keyword'},
+                ],
+                'Transactional - Order Confirmation': [
+                    {'pattern': r'order.{0,20}#\d+', 'weight': 0.95, 'type': 'regex'},
+                    {'pattern': r'tracking.{0,20}number', 'weight': 0.9, 'type': 'regex'},
+                    {'pattern': 'has been shipped', 'weight': 0.85, 'type': 'keyword'},
+                    {'pattern': 'delivery confirmation', 'weight': 0.85, 'type': 'keyword'},
+                ],
+                'Transactional - Account Update': [
+                    {'pattern': r'statement.{0,20}available', 'weight': 0.85, 'type': 'regex'},
+                    {'pattern': 'password was changed', 'weight': 0.8, 'type': 'keyword'},
+                    {'pattern': 'payment received', 'weight': 0.8, 'type': 'keyword'},
+                ],
+            }
+        }
+    
+    def _compile_patterns(self) -> Dict[str, Dict[str, List[Tuple]]]:
+        """Compile regex patterns for efficiency"""
+        compiled = {}
+        for primary_cat, subcats in self.patterns.items():
+            compiled[primary_cat] = {}
+            for subcat, patterns in subcats.items():
+                compiled[primary_cat][subcat] = []
+                for p in patterns:
+                    if p['type'] == 'regex':
+                        compiled_regex = re.compile(p['pattern'], re.IGNORECASE)
+                        compiled[primary_cat][subcat].append((compiled_regex, p['weight'], 'regex'))
+                    else:
+                        compiled[primary_cat][subcat].append((p['pattern'].lower(), p['weight'], 'keyword'))
+        return compiled
+    
+    def tag_email(self, email_data: Dict, primary_category: str) -> Tuple[str, float, Dict]:
+        """
+        Tag an email with a subcategory based on its primary category
+        
+        Args:
+            email_data: Dict with 'subject', 'sender_email', 'sender_domain', etc.
+            primary_category: The primary category from ML classifier
+            
+        Returns:
+            Tuple of (subcategory, confidence, match_details)
+        """
+        # Normalize primary category for our patterns
+        primary_normalized = self._normalize_primary_category(primary_category)
+        
+        if primary_normalized not in self.compiled_patterns:
+            return 'Unknown', 0.0, {}
+        
+        # Combine text for analysis
+        text_to_analyze = self._prepare_text(email_data)
+        
+        # Score each subcategory
+        scores = {}
+        match_details = defaultdict(list)
+        
+        for subcat, patterns in self.compiled_patterns[primary_normalized].items():
+            score = 0.0
+            for pattern, weight, pattern_type in patterns:
+                if pattern_type == 'regex':
+                    if pattern.search(text_to_analyze):
+                        score += weight
+                        match_details[subcat].append(f"Regex: {pattern.pattern}")
+                else:  # keyword
+                    if pattern in text_to_analyze.lower():
+                        score += weight
+                        match_details[subcat].append(f"Keyword: {pattern}")
+            
+            if score > 0:
+                scores[subcat] = score
+        
+        # Find best match
+        if scores:
+            best_subcat = max(scores, key=scores.get)
+            # More aggressive confidence scoring - single match can be enough
+            confidence = min(scores[best_subcat] / 1.5, 1.0)  # Normalize to 0-1
+            
+            # Update pattern statistics
+            self.pattern_stats[best_subcat] += 1
+            
+            return best_subcat, confidence, dict(match_details)
+        
+        return f'{primary_normalized} - Unspecified', 0.1, {}
+    
+    def _normalize_primary_category(self, category: str) -> str:
+        """Map various primary categories to our pattern categories"""
+        category_lower = category.lower()
+        
+        # Map to our four main categories
+        if any(term in category_lower for term in ['phish', 'malware', 'fraud', 'extort', 'scam']):
+            return 'Dangerous'
+        elif any(term in category_lower for term in ['commercial', 'health', 'medical', 'financial', 'business', 'retail']):
+            return 'Commercial Spam'
+        elif any(term in category_lower for term in ['prize', 'lottery', 'romance', 'dating', 'job', 'rich']):
+            return 'Scams'
+        elif any(term in category_lower for term in ['marketing', 'promotional', 'newsletter', 'transactional']):
+            return 'Legitimate Marketing'
+        else:
+            return 'Commercial Spam'  # Default
+    
+    def _prepare_text(self, email_data: Dict) -> str:
+        """Prepare email text for pattern matching"""
+        parts = []
+        
+        # Add subject if available
+        if 'subject' in email_data and email_data['subject']:
+            parts.append(email_data['subject'])
+        
+        # Add sender info
+        if 'sender_email' in email_data and email_data['sender_email']:
+            parts.append(email_data['sender_email'])
+        
+        # Add any body preview or additional data
+        if 'body_preview' in email_data and email_data['body_preview']:
+            parts.append(email_data['body_preview'])
+        
+        # Add raw data if available (might contain headers)
+        if 'raw_data' in email_data and email_data['raw_data']:
+            parts.append(email_data['raw_data'][:500])  # First 500 chars
+        
+        return ' '.join(parts)
+    
+    def _load_pattern_stats(self):
+        """Load pattern effectiveness statistics from database"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            # Check if table exists
+            cursor.execute("""
+                SELECT name FROM sqlite_master 
+                WHERE type='table' AND name='subcategory_patterns'
+            """)
+            
+            if cursor.fetchone():
+                cursor.execute("""
+                    SELECT subcategory, SUM(hit_count) 
+                    FROM subcategory_patterns 
+                    GROUP BY subcategory
+                """)
+                for subcat, count in cursor.fetchall():
+                    self.pattern_stats[subcat] = count
+            
+            conn.close()
+        except Exception as e:
+            print(f"Warning: Could not load pattern stats: {e}")
+    
+    def get_threat_level(self, primary_category: str, subcategory: str) -> int:
+        """
+        Calculate threat level (1-5) based on categories
+        
+        Returns:
+            int: 1 (lowest threat) to 5 (highest threat)
+        """
+        threat_mapping = {
+            'Dangerous': {
+                'default': 4,
+                'Phishing - Account Verification': 5,
+                'Phishing - Password Reset': 5,
+                'Malware - Fake Invoice': 5,
+                'Financial Fraud - Wire Transfer': 5,
+                'Extortion - Sextortion': 5,
+            },
+            'Commercial Spam': {
+                'default': 2,
+                'Health - ED Medication': 2,
+                'Financial - Auto Warranty': 2,
+                'Financial - Loans/Credit': 3,  # Higher risk
+            },
+            'Scams': {
+                'default': 3,
+                'Get Rich - Cryptocurrency': 4,  # Higher risk
+                'Romance - Dating': 4,  # Emotional/financial damage
+            },
+            'Legitimate Marketing': {
+                'default': 1,
+                'Transactional - Order Confirmation': 1,
+                'Transactional - Account Update': 1,
+            }
+        }
+        
+        primary_normalized = self._normalize_primary_category(primary_category)
+        
+        if primary_normalized in threat_mapping:
+            subcategory_threats = threat_mapping[primary_normalized]
+            return subcategory_threats.get(subcategory, subcategory_threats['default'])
+        
+        return 2  # Default medium threat
+    
+    def get_analytics_summary(self) -> Dict:
+        """Get summary statistics for analytics display"""
+        summary = {
+            'total_tagged': sum(self.pattern_stats.values()),
+            'by_subcategory': dict(self.pattern_stats),
+            'threat_distribution': defaultdict(int),
+            'top_subcategories': []
+        }
+        
+        # Get threat level distribution from database
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                SELECT threat_level, COUNT(*) 
+                FROM processed_emails_bulletproof 
+                WHERE threat_level IS NOT NULL 
+                GROUP BY threat_level
+            """)
+            
+            for level, count in cursor.fetchall():
+                summary['threat_distribution'][level] = count
+            
+            # Get top subcategories
+            cursor.execute("""
+                SELECT subcategory, COUNT(*) as count 
+                FROM processed_emails_bulletproof 
+                WHERE subcategory IS NOT NULL 
+                GROUP BY subcategory 
+                ORDER BY count DESC 
+                LIMIT 10
+            """)
+            
+            summary['top_subcategories'] = [
+                {'subcategory': row[0], 'count': row[1]} 
+                for row in cursor.fetchall()
+            ]
+            
+            conn.close()
+        except Exception as e:
+            print(f"Warning: Could not get analytics: {e}")
+        
+        return summary
+
+
+def create_database_schema(db_path: str):
+    """Create or update database schema for subcategory tracking"""
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    
+    # Add new columns to existing table if they don't exist
+    try:
+        cursor.execute("ALTER TABLE processed_emails_bulletproof ADD COLUMN primary_category TEXT")
+    except sqlite3.OperationalError:
+        pass  # Column already exists
+    
+    try:
+        cursor.execute("ALTER TABLE processed_emails_bulletproof ADD COLUMN subcategory TEXT")
+    except sqlite3.OperationalError:
+        pass
+    
+    try:
+        cursor.execute("ALTER TABLE processed_emails_bulletproof ADD COLUMN threat_level INTEGER")
+    except sqlite3.OperationalError:
+        pass
+    
+    try:
+        cursor.execute("ALTER TABLE processed_emails_bulletproof ADD COLUMN subcategory_confidence REAL")
+    except sqlite3.OperationalError:
+        pass
+    
+    # Create pattern statistics table
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS subcategory_patterns (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            primary_category TEXT,
+            subcategory TEXT,
+            pattern_type TEXT,
+            pattern_value TEXT,
+            weight REAL,
+            hit_count INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(subcategory, pattern_value)
+        )
+    """)
+    
+    conn.commit()
+    conn.close()
+
+
+if __name__ == "__main__":
+    # Example usage
+    import os
+    project_root = Path(__file__).parent.parent.parent.parent
+    db_path = os.path.join(project_root, "data", "mail_filter.db")
+    
+    # Create schema
+    create_database_schema(db_path)
+    
+    # Initialize tagger
+    tagger = SubcategoryTagger(db_path)
+    
+    # Example email
+    test_email = {
+        'subject': '🔒 Endurance Auto Warranty: Trusted Protection for Your Vehicle',
+        'sender_email': 'noreply@endurance-warranty.com',
+        'sender_domain': 'endurance-warranty.com'
+    }
+    
+    # Tag it
+    subcategory, confidence, details = tagger.tag_email(test_email, 'Financial & Investment Spam')
+    threat_level = tagger.get_threat_level('Financial & Investment Spam', subcategory)
+    
+    print(f"Subcategory: {subcategory}")
+    print(f"Confidence: {confidence:.2f}")
+    print(f"Threat Level: {threat_level}")
+    print(f"Match Details: {details}")

@@ -248,7 +248,7 @@ async def dashboard(request: Request):
                 sender_email, 
                 subject, 
                 category,
-                new_category,
+                primary_category,
                 subcategory,
                 confidence_score,
                 reason,
@@ -263,25 +263,44 @@ async def dashboard(request: Request):
         # Format emails for template
         recent_emails = []
         for email in latest_emails:
+            # Map detailed category to 4-category system
+            detailed_cat = (email['primary_category'] or email['category'] or '').upper()
+            
+            # Map to 4-category system
+            if detailed_cat in ['LEGITIMATE MARKETING', 'PROMOTIONAL EMAIL', 'COMMUNITY EMAIL']:
+                four_cat = 'MARKETING'
+            elif detailed_cat in ['PHISHING', 'PAYMENT SCAM', 'BRAND IMPERSONATION', 'DANGEROUS', 'LEGAL & COMPENSATION SCAMS']:
+                four_cat = 'SPAM'
+            elif detailed_cat in ['FINANCIAL & INVESTMENT SPAM', 'HEALTH & MEDICAL SPAM', 'COMMERCIAL SPAM', 'MARKETING SPAM', 
+                                'ADULT & DATING SPAM', 'GAMBLING SPAM', 'REAL ESTATE SPAM', 'EDUCATION/TRAINING SPAM', 
+                                'BUSINESS OPPORTUNITY SPAM']:
+                four_cat = 'SUSPICIOUS'
+            elif detailed_cat in ['SCAMS', 'FLAGGED FOR DELETION']:
+                four_cat = 'SPAM'
+            elif detailed_cat == 'USER KEYWORD':
+                four_cat = 'LEGITIMATE'
+            else:
+                four_cat = 'SUSPICIOUS'
+            
             recent_emails.append({
-                'timestamp': email.get('timestamp', ''),
-                'sender': email.get('sender_email', ''),
-                'subject': email.get('subject', ''),
-                'category': email.get('category', ''),
-                'new_category': email.get('new_category', email.get('category', '')),
-                'subcategory': email.get('subcategory', ''),
-                'confidence_score': float(email.get('confidence_score', 0.0)),
-                'action': email.get('action', ''),
-                'reason': email.get('reason', '')
+                'timestamp': email['timestamp'] or '',
+                'sender': email['sender_email'] or '',
+                'subject': email['subject'] or '',
+                'category': email['category'] or '',
+                'primary_category': four_cat,  # Use mapped 4-category
+                'subcategory': email['subcategory'] or '',
+                'confidence_score': float(email['confidence_score'] or 0.0),
+                'action': email['action'] or '',
+                'reason': email['reason'] or ''
             })
         
         # Get 4-category counts
         category_counts = db.execute_query("""
             SELECT 
-                COALESCE(new_category, category) as cat,
+                COALESCE(primary_category, category) as cat,
                 COUNT(*) as count
             FROM processed_emails_bulletproof
-            GROUP BY COALESCE(new_category, category)
+            GROUP BY COALESCE(primary_category, category)
         """)
         
         # Initialize category counts
@@ -292,17 +311,25 @@ async def dashboard(request: Request):
         
         # Map counts to 4-category system
         for row in category_counts:
-            cat = (row.get('cat') or '').upper()
-            count = row.get('count', 0)
+            cat = (row['cat'] or '').upper()
+            count = row['count'] or 0
             
-            if cat == 'LEGITIMATE':
-                stats['legitimate_count'] = count
-            elif cat == 'MARKETING':
-                stats['marketing_count'] = count
-            elif cat == 'SUSPICIOUS':
-                stats['suspicious_count'] = count
-            elif cat in ['SPAM', 'PHISHING']:
+            # Map detailed categories to 4-category system
+            if cat in ['LEGITIMATE MARKETING', 'PROMOTIONAL EMAIL', 'COMMUNITY EMAIL']:
+                stats['marketing_count'] += count
+            elif cat in ['PHISHING', 'PAYMENT SCAM', 'BRAND IMPERSONATION', 'DANGEROUS', 'LEGAL & COMPENSATION SCAMS']:
+                stats['spam_count'] += count  # High threat
+            elif cat in ['FINANCIAL & INVESTMENT SPAM', 'HEALTH & MEDICAL SPAM', 'COMMERCIAL SPAM', 'MARKETING SPAM', 
+                        'ADULT & DATING SPAM', 'GAMBLING SPAM', 'REAL ESTATE SPAM', 'EDUCATION/TRAINING SPAM', 
+                        'BUSINESS OPPORTUNITY SPAM']:
+                stats['suspicious_count'] += count  # Medium threat
+            elif cat in ['SCAMS', 'FLAGGED FOR DELETION']:
                 stats['spam_count'] += count
+            elif cat == 'USER KEYWORD':
+                stats['legitimate_count'] += count
+            else:
+                # For any unmapped categories, put in suspicious for now
+                stats['suspicious_count'] += count
         
         # Use template instead of inline HTML
         return templates.TemplateResponse(
@@ -1080,7 +1107,7 @@ async def get_country_classifications(country_code: str):
             WHERE sender_country_code = ?
             AND category IS NOT NULL
             AND action = 'DELETED'
-            AND category NOT IN ('Marketing', 'Promotional', 'Whitelisted', 'Marketing Spam', 'Promotional Email', 'Transactional', 'TRANSACTIONAL', 'BUSINESS_TRANSACTION')
+            AND category NOT IN ('Legitimate Marketing', 'Transactional', 'TRANSACTIONAL', 'BUSINESS_TRANSACTION')
             GROUP BY category
             ORDER BY count DESC 
             LIMIT 7
@@ -1257,7 +1284,7 @@ def get_analytics_data():
         WHERE sender_country_code IS NOT NULL
         AND sender_country_name IS NOT NULL
         AND action = 'DELETED'
-        AND category NOT IN ('Marketing', 'Promotional', 'Whitelisted', 'Marketing Spam', 'Promotional Email', 'Transactional', 'TRANSACTIONAL', 'BUSINESS_TRANSACTION')
+        AND category NOT IN ('Legitimate Marketing', 'Transactional', 'TRANSACTIONAL', 'BUSINESS_TRANSACTION')
         GROUP BY sender_country_code, sender_country_name
         ORDER BY count DESC 
         LIMIT 15

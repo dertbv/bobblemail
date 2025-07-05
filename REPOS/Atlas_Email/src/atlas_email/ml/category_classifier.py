@@ -28,7 +28,7 @@ import warnings
 warnings.filterwarnings('ignore')
 
 from atlas_email.ml.feature_extractor import MLFeatureExtractor
-from hybrid_classifier import HybridEmailClassifier
+# from hybrid_classifier import HybridEmailClassifier
 
 class MultiClassCategoryClassifier:
     """
@@ -545,7 +545,7 @@ class MultiClassCategoryClassifier:
             'features_used': len([f for f in features.values() if f != 0])
         }
     
-    def integrate_with_hybrid_classifier(self, hybrid_classifier: HybridEmailClassifier) -> 'EnhancedHybridClassifier':
+    def integrate_with_hybrid_classifier(self, hybrid_classifier) -> 'EnhancedHybridClassifier':
         """
         Create enhanced hybrid classifier that includes category prediction.
         
@@ -718,7 +718,7 @@ class EnhancedHybridClassifier:
     with multi-class category prediction capabilities.
     """
     
-    def __init__(self, hybrid_classifier: HybridEmailClassifier, category_classifier: MultiClassCategoryClassifier):
+    def __init__(self, hybrid_classifier, category_classifier: MultiClassCategoryClassifier):
         """Initialize enhanced hybrid classifier."""
         self.hybrid_classifier = hybrid_classifier
         self.category_classifier = category_classifier

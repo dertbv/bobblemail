@@ -27,6 +27,22 @@ from config.constants import ML_SETTINGS_FILE
 from atlas_email.utils.general import safe_json_load
 from atlas_email.models.database import db
 
+# Performance monitoring
+from atlas_email.utils.performance_monitor import (
+    performance_monitor, monitor_operation, get_performance_stats
+)
+
+# Bulk operations
+from atlas_email.models.bulk_operations import get_bulk_manager
+
+# Parallel processing
+try:
+    from atlas_email.core.parallel_processor import ParallelEmailProcessor, StreamingParallelProcessor
+    PARALLEL_PROCESSING_AVAILABLE = True
+except ImportError:
+    PARALLEL_PROCESSING_AVAILABLE = False
+    print("⚠️ Parallel processing not available")
+
 # ATLAS Integration
 try:
     from atlas_integration import log_email_processing_session, atlas
@@ -536,7 +552,7 @@ class FolderManager:
 class EmailProcessor:
     """Main class for processing emails in folders with provider optimization"""
 
-    def __init__(self, mail_connection, domain_validator=None, account_email=None, account_id=None, enable_ab_testing=True):
+    def __init__(self, mail_connection, domain_validator=None, account_email=None, account_id=None, enable_ab_testing=False):
         self.mail = mail_connection
         # Initialize with new split architecture
         self.domain_validator = domain_validator or DomainValidator(logger=write_log)
@@ -550,12 +566,21 @@ class EmailProcessor:
         # Initialize Unified Keyword Processor (content-first classification)
         self.keyword_processor = KeywordProcessor()
         
-        # Initialize A/B Testing Classifier if enabled
-        self.ab_testing_enabled = enable_ab_testing
-        if enable_ab_testing:
+        # Initialize A/B Testing Classifier based on settings
+        from config.settings import Settings
+        ab_config = Settings.get_ab_testing_config()
+        
+        # Override with parameter if explicitly set
+        if enable_ab_testing is not None:
+            self.ab_testing_enabled = enable_ab_testing
+        else:
+            self.ab_testing_enabled = ab_config["enabled"]
+        
+        if self.ab_testing_enabled:
             try:
-                self.ab_classifier = ABClassifierIntegrationSimple(rollout_percentage=10.0)
-                print("✅ A/B Testing enabled at 10% rollout for 4-category classification")
+                rollout = ab_config["rollout_percentage"]
+                self.ab_classifier = ABClassifierIntegrationSimple(rollout_percentage=rollout)
+                print(f"✅ A/B Testing enabled at {rollout}% rollout for 4-category classification")
             except Exception as e:
                 print(f"⚠️ Could not enable A/B testing: {e}")
                 self.ab_testing_enabled = False
@@ -683,39 +708,10 @@ class EmailProcessor:
 
     def _check_whitelist_protection(self, sender_email, subject=""):
         """Check if sender or subject is protected by custom whitelist"""
-        try:
-            # Load whitelist from centralized settings
-            try:
-                from config.settings import Settings
-                whitelist_config = Settings.get_whitelist()
-                custom_whitelist = whitelist_config.get('custom_whitelist', [])
-                custom_keyword_whitelist = whitelist_config.get('custom_keyword_whitelist', [])
-            except ImportError:
-                # Fallback to JSON if settings.py not available
-                ml_settings = safe_json_load(ML_SETTINGS_FILE, {})
-                custom_whitelist = ml_settings.get('custom_whitelist', [])
-                custom_keyword_whitelist = ml_settings.get('custom_keyword_whitelist', [])
-            
-            # Check domain whitelist
-            if custom_whitelist and sender_email and '@' in sender_email:
-                sender_lower = sender_email.lower()
-                for whitelist_domain in custom_whitelist:
-                    if whitelist_domain.lower() in sender_lower:
-                        return True, "domain"
-            
-            # Check keyword whitelist
-            if custom_keyword_whitelist and subject:
-                subject_lower = subject.lower()
-                for keyword in custom_keyword_whitelist:
-                    if keyword.lower() in subject_lower:
-                        return True, "keyword"
-            
-            return False, ""
-            
-        except Exception as e:
-            write_log(f"Error checking whitelist protection: {e}", True)
-            return False, ""
+        # DISABLED: No whitelists per user requirement
+        return False, ""
 
+    @performance_monitor("email_processing")
     def process_folder_messages(self, folder_name, filters=None, auto_confirm=False, preview_mode=False, debug_mode=False, quiet_mode=False):
         """Process messages in a specific folder with optional preview mode and debugging - Updated for single classifier architecture"""
         deleted_count = 0
@@ -817,10 +813,11 @@ class EmailProcessor:
                     self.stats['total_analyzed'] += 1
                     
                     # Parse message first to get sender and subject for comprehensive analysis
-                    try:
-                        msg = email.message_from_bytes(headers.encode("utf-8", errors="ignore"))
-                    except Exception:
-                        msg = email.message_from_string(headers)
+                    with monitor_operation("email_processing", "parse_email", {"uid": uid}):
+                        try:
+                            msg = email.message_from_bytes(headers.encode("utf-8", errors="ignore"))
+                        except Exception:
+                            msg = email.message_from_string(headers)
                     
                     try:
                         subject = decode_header_value(msg.get('Subject', ''))
@@ -881,56 +878,66 @@ class EmailProcessor:
                     
                     # Check if we should use A/B testing classifier
                     if self.ab_testing_enabled and self.ab_classifier:
-                        try:
-                            # Get email body if available (limited to avoid performance issues)
-                            body = ""
+                        with monitor_operation("classification", "ab_testing_classify", {"uid": uid}):
                             try:
-                                if msg.is_multipart():
-                                    for part in msg.walk():
-                                        if part.get_content_type() == "text/plain":
-                                            body = part.get_payload(decode=True).decode('utf-8', errors='ignore')[:1000]
-                                            break
-                                else:
-                                    body = msg.get_payload(decode=True).decode('utf-8', errors='ignore')[:1000]
-                            except:
+                                # Get email body if available (limited to avoid performance issues)
                                 body = ""
+                                try:
+                                    if msg.is_multipart():
+                                        for part in msg.walk():
+                                            if part.get_content_type() == "text/plain":
+                                                body = part.get_payload(decode=True).decode('utf-8', errors='ignore')[:1000]
+                                                break
+                                    else:
+                                        body = msg.get_payload(decode=True).decode('utf-8', errors='ignore')[:1000]
+                                except:
+                                    body = ""
                             
-                            # Use A/B testing classifier
-                            ab_result = self.ab_classifier.classify_with_ab_testing(
-                                sender=sender,
-                                subject=subject,
-                                body=body,
-                                headers=headers
-                            )
-                            
-                            # Map 4-category results to existing categories
-                            if ab_result['classifier_used'] == 'new':
-                                # Map new 4-category system to old categories
-                                category_mapping = {
-                                    'Dangerous': 'Phishing',
-                                    'Commercial Spam': 'Business Opportunity Spam',
-                                    'Scams': 'Payment Scam',
-                                    'Legitimate Marketing': 'Promotional Email'
-                                }
-                                hybrid_category = category_mapping.get(ab_result['category'], ab_result['category'])
-                                hybrid_confidence = ab_result['confidence'] * 100
+                                # Use A/B testing classifier
+                                # Extract domain from sender
+                                domain = None
+                                if '<' in sender and '>' in sender:
+                                    email_part = sender.split('<')[1].split('>')[0]
+                                    if '@' in email_part:
+                                        domain = email_part.split('@')[1]
+                                elif '@' in sender:
+                                    domain = sender.split('@')[1]
                                 
-                                # Log A/B testing result
+                                ab_result = self.ab_classifier.classify_with_ab_testing(
+                                    sender=sender,
+                                    subject=subject,
+                                    domain=domain,
+                                    headers=headers
+                                )
+                            
+                                # Map 4-category results to existing categories
+                                if ab_result['classifier_used'] == 'new':
+                                    # Map new 4-category system to old categories
+                                    category_mapping = {
+                                        'Dangerous': 'Phishing',
+                                        'Commercial Spam': 'Business Opportunity Spam',
+                                        'Scams': 'Payment Scam',
+                                        'Legitimate Marketing': 'Promotional Email'
+                                    }
+                                    hybrid_category = category_mapping.get(ab_result['category'], ab_result['category'])
+                                    hybrid_confidence = ab_result['confidence'] * 100
+                                    
+                                    # Log A/B testing result
+                                    if debug_mode:
+                                        write_log(f"DEBUG UID {uid}: A/B Testing - New classifier: {ab_result['category']} ({ab_result['subcategory']})", True)
+                                else:
+                                    # Use old classifier result
+                                    hybrid_category = ab_result.get('predicted_category', 'Unknown')
+                                    hybrid_confidence = ab_result.get('category_confidence', 75.0)
+                            except Exception as e:
                                 if debug_mode:
-                                    write_log(f"DEBUG UID {uid}: A/B Testing - New classifier: {ab_result['category']} ({ab_result['subcategory']})", True)
-                            else:
-                                # Use old classifier result
-                                hybrid_category = ab_result.get('predicted_category', 'Unknown')
-                                hybrid_confidence = ab_result.get('category_confidence', 75.0)
-                        except Exception as e:
-                            if debug_mode:
-                                write_log(f"DEBUG UID {uid}: A/B testing failed, falling back: {e}", True)
-                            # Fall back to keyword processor
-                            hybrid_category = self.keyword_processor.process_keywords(
-                                headers="",
-                                sender=sender,
-                                subject=subject
-                            )
+                                    write_log(f"DEBUG UID {uid}: A/B testing failed, falling back: {e}", True)
+                                # Fall back to keyword processor
+                                hybrid_category = self.keyword_processor.process_keywords(
+                                    headers="",
+                                    sender=sender,
+                                    subject=subject
+                                )
                     else:
                         # Use unified keyword system for classification
                         hybrid_category = self.keyword_processor.process_keywords(
@@ -948,30 +955,24 @@ class EmailProcessor:
                     ]
                     hybrid_spam = hybrid_category in spam_categories
                         
-                        # Get confidence from logical classifier if available, otherwise use category-based confidence
-                        if hasattr(self.keyword_processor, 'last_classification_confidence') and self.keyword_processor.last_classification_confidence > 0:
-                            # Use logical classifier confidence (convert from 0.0-1.0 to 0-100 scale)
-                            hybrid_confidence = self.keyword_processor.last_classification_confidence * 100.0
+                    # Get confidence from logical classifier if available, otherwise use category-based confidence
+                    if hasattr(self.keyword_processor, 'last_classification_confidence') and self.keyword_processor.last_classification_confidence > 0:
+                        # Use logical classifier confidence (convert from 0.0-1.0 to 0-100 scale)
+                        hybrid_confidence = self.keyword_processor.last_classification_confidence * 100.0
+                    else:
+                        # Fallback to category-based confidence
+                        if hybrid_category in ['Phishing', 'Health & Medical Spam', 'Financial & Investment Spam']:
+                            hybrid_confidence = 85.0  # High confidence for specific categories
+                        elif hybrid_category in ['Generic Spam', 'Promotional Email']:
+                            hybrid_confidence = 60.0  # Lower confidence for generic categories
+                        elif hybrid_category in ['Trusted Domain', 'Legitimate Billing/Delivery', 'Community Email']:
+                            hybrid_confidence = 90.0  # Very high confidence for trusted, legitimate billing, and community content
                         else:
-                            # Fallback to category-based confidence
-                            if hybrid_category in ['Phishing', 'Health & Medical Spam', 'Financial & Investment Spam']:
-                                hybrid_confidence = 85.0  # High confidence for specific categories
-                            elif hybrid_category in ['Generic Spam', 'Promotional Email']:
-                                hybrid_confidence = 60.0  # Lower confidence for generic categories
-                            elif hybrid_category in ['Trusted Domain', 'Legitimate Billing/Delivery', 'Community Email']:
-                                hybrid_confidence = 90.0  # Very high confidence for trusted, legitimate billing, and community content
-                            else:
-                                hybrid_confidence = 75.0  # Medium confidence for other specific categories
+                            hybrid_confidence = 75.0  # Medium confidence for other specific categories
                         
                         # Debug: show unified keyword system results
                         if debug_mode and i < 3:
                             write_log(f"DEBUG UID {uid}: Unified keyword result - Category: {hybrid_category}, Spam: {hybrid_spam}, Confidence: {hybrid_confidence:.1f}%, Method: content-first", True)
-                        
-                    except Exception as e:
-                        write_log(f"DEBUG UID {uid}: Unified Keyword Processor ERROR: {e}", True)
-                        hybrid_spam = False
-                        hybrid_category = "ERROR"
-                        hybrid_confidence = 0.0
                     
                     # Debug comparison for first few emails (DISABLED for clean output)
                     # if debug_mode and i < 10:
@@ -1107,24 +1108,8 @@ class EmailProcessor:
                             # User keyword overrides domain validation
                             write_log(f"KEYWORD OVERRIDE ({folder_name}): Domain validation would preserve, but my_keywords.txt takes authority: '{subject}' from {sender} - {domain_reason}", False)
 
-                        # STEP 4: Whitelist protection check (overrides everything except user keywords and deletion flags)
-                        whitelist_protected, whitelist_type = self._check_whitelist_protection(sender, subject)
-                        if whitelist_protected and not user_keyword_override and not is_flagged_for_deletion:
-                            # Whitelist protection overrides spam detection including promotional content from legitimate domains
-                            # Full protection for domains explicitly added to whitelist (like unraid.net)
-                            preserved_count += 1
-                            self.stats['total_preserved'] += 1
-                            protection_reason = f"Sender {whitelist_type} is whitelisted" if whitelist_type == "domain" else f"Subject contains whitelisted {whitelist_type}"
-                            write_log(f"WHITELIST PROTECTED ({folder_name}): '{subject}' from {sender} - {protection_reason} [WHITELIST override]", False)
-                            # Log to bulletproof table for tracking - use "Whitelisted" as category instead of spam classification
-                            logger.log_email_action("PRESERVED", uid, sender, subject, folder_name, f"{protection_reason} [WHITELIST override]", "Whitelisted", confidence_score=100, print_to_screen=False, geo_data=geo_data)
-                            continue
-                        elif whitelist_protected and is_flagged_for_deletion:
-                            # Deletion flag overrides whitelist protection
-                            write_log(f"DELETION FLAG OVERRIDE ({folder_name}): Whitelist would protect, but email is flagged for deletion: '{subject}' from {sender}", False)
-                        elif whitelist_protected and user_keyword_override:
-                            # User keyword still takes priority even over whitelist
-                            write_log(f"USER KEYWORD OVERRIDE ({folder_name}): Whitelist would protect, but user keyword takes priority: '{subject}' from {sender}", False)
+                        # STEP 4: Whitelist protection DISABLED per user requirement
+                        # No whitelists - all emails processed based on spam classification only
 
                         # Prepare enhanced reason with source information
                         if is_flagged_for_deletion:

@@ -47,6 +47,36 @@
         font-size: 0.8em;
         z-index: 1000;
     }
+    
+    /* High threat geographic analysis styles */
+    .high-threat-geo-card .country-item.selected {
+        background-color: #f0f0f0 !important;
+        border-left: 4px solid #fd7e14 !important;
+    }
+    
+    .high-threat-geo-card .country-item:hover {
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    
+    #threatPieChart {
+        display: none;
+        max-height: 350px;
+    }
+    
+    /* Subcategory geographic analysis styles */
+    .subcategory-geo-card .category-item.selected {
+        background-color: #f0f0f0 !important;
+        border-left: 4px solid #17a2b8 !important;
+    }
+    
+    .subcategory-geo-card .category-item:hover {
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    
+    #subcategoryPieChart {
+        display: none;
+        max-height: 350px;
+    }
 </style>
 {% endblock %}
 
@@ -237,6 +267,134 @@
     </div>
 </div>
 
+<div class="analytics-card subcategory-geo-card" style="height: 500px;">
+    <div class="card-title">
+        🏷️ Detailed Spam Subcategories
+    </div>
+    <div style="display: flex; height: calc(100% - 60px);">
+        <!-- Left side: Category list -->
+        <div style="width: 40%; border-right: 1px solid #dee2e6; overflow-y: auto; padding-right: 20px;">
+            {% if category_breakdown_data %}
+                <div class="category-list">
+                    {% for cat in category_breakdown_data %}
+                        <div class="category-item" 
+                             data-category="{{ cat.category }}"
+                             onclick="loadCategorySubcategories('{{ cat.category }}')"
+                             style="padding: 12px; border-radius: 8px; margin-bottom: 8px; cursor: pointer; transition: all 0.2s;"
+                             onmouseover="this.style.backgroundColor='#f0f0f0'"
+                             onmouseout="this.style.backgroundColor='transparent'">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <div style="font-weight: 600; color: #333; font-size: 1.1em;">
+                                        {% if cat.category == 'Dangerous' %}🔴{% elif cat.category == 'Commercial Spam' %}🟠{% elif cat.category == 'Scams' %}🟡{% else %}🟢{% endif %}
+                                        {{ cat.category }}
+                                    </div>
+                                    <div style="font-size: 0.85em; color: #666;">
+                                        {{ "{:,}".format(cat.email_count) }} emails • {{ cat.subcategory_count }} subcategories
+                                    </div>
+                                </div>
+                                <div style="text-align: right;">
+                                    <div style="font-size: 1.2em; font-weight: 600; color: #17a2b8;">
+                                        {{ cat.percentage|round(1) }}%
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="text-center opacity-8">No category data available</p>
+            {% endif %}
+        </div>
+        
+        <!-- Right side: Pie chart -->
+        <div style="width: 60%; padding-left: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+            <div id="subcategory-chart-container" style="width: 100%; height: 350px; position: relative;">
+                <canvas id="subcategoryPieChart"></canvas>
+                <div id="subcategory-chart-placeholder" style="text-align: center; color: #666;">
+                    <p style="margin-top: 100px;">Select a category to view subcategory breakdown</p>
+                </div>
+            </div>
+            <div id="selected-subcategory-label" style="margin-top: 20px; font-weight: 600; color: #333; display: none;"></div>
+        </div>
+    </div>
+</div>
+
+<div class="analytics-card high-threat-geo-card" style="height: 500px;">
+    <div class="card-title">
+        🌍 High Threat Geographic Analysis (Level 3-4)
+    </div>
+    <div style="display: flex; height: calc(100% - 60px);">
+        <!-- Left side: Country list -->
+        <div style="width: 40%; border-right: 1px solid #dee2e6; overflow-y: auto; padding-right: 20px;">
+            {% if high_threat_countries %}
+                <div class="country-list">
+                    {% for country in high_threat_countries %}
+                        <div class="country-item" 
+                             data-country-code="{{ country.sender_country_code }}"
+                             data-country-name="{{ country.sender_country_name }}"
+                             onclick="loadCountryThreats('{{ country.sender_country_code }}', '{{ country.sender_country_name }}')"
+                             style="padding: 12px; border-radius: 8px; margin-bottom: 8px; cursor: pointer; transition: all 0.2s;"
+                             onmouseover="this.style.backgroundColor='#f0f0f0'"
+                             onmouseout="this.style.backgroundColor='transparent'">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <div style="font-weight: 600; color: #333;">
+                                        🏴 {{ country.sender_country_name }}
+                                    </div>
+                                    <div style="font-size: 0.85em; color: #666;">
+                                        {{ "{:,}".format(country.threat_count) }} threats
+                                    </div>
+                                </div>
+                                <div style="text-align: right;">
+                                    <div style="font-size: 1.1em; font-weight: 600; color: #fd7e14;">
+                                        {{ country.percentage|round(1) }}%
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="text-center opacity-8">No high threat countries found</p>
+            {% endif %}
+        </div>
+        
+        <!-- Right side: Pie chart -->
+        <div style="width: 60%; padding-left: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+            <div id="threat-chart-container" style="width: 100%; height: 350px; position: relative;">
+                <canvas id="threatPieChart"></canvas>
+                <div id="chart-placeholder" style="text-align: center; color: #666;">
+                    <p style="margin-top: 100px;">Select a country to view threat subcategories</p>
+                </div>
+            </div>
+            <div id="selected-country-label" style="margin-top: 20px; font-weight: 600; color: #333; display: none;"></div>
+        </div>
+    </div>
+</div>
+
+<div class="analytics-card threat-card">
+    <div class="card-title">
+        ⚠️ Threat Level Distribution
+    </div>
+    {% if threat_level_data %}
+        {% set threat_names = {5: '🔴 Critical', 4: '🟠 High', 3: '🟡 Medium', 2: '🟢 Low', 1: '⚪ Minimal'} %}
+        {% set max_threat_percentage = threat_level_data | map(attribute='percentage') | max %}
+        {% for threat in threat_level_data %}
+            {% set bar_width = (threat.percentage / max_threat_percentage * 100) if max_threat_percentage > 0 else 0 %}
+            <div class="chart-bar">
+                <div class="bar-label">{{ threat_names.get(threat.threat_level, 'Level ' ~ threat.threat_level) }}</div>
+                <div class="bar-container">
+                    <div class="bar-fill" style="width: {{ bar_width|round(1) }}%; background-color: {% if threat.threat_level == 5 %}#dc3545{% elif threat.threat_level == 4 %}#fd7e14{% elif threat.threat_level == 3 %}#ffc107{% elif threat.threat_level == 2 %}#28a745{% else %}#6c757d{% endif %};"></div>
+                </div>
+                <div class="bar-value">{{ "{:,}".format(threat.count) }} ({{ threat.percentage|round(1) }}%)</div>
+            </div>
+        {% endfor %}
+    {% else %}
+        <p class="text-center opacity-8">No threat level data available</p>
+    {% endif %}
+</div>
+
 <div class="analytics-card activity-card">
     <div class="card-title">
         📈 Daily Activity (Last 14 Days)
@@ -272,11 +430,242 @@
 {% endblock %}
 
 {% block extra_js %}
+<!-- Chart.js for pie chart -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    // Data refresh functionality
-    setInterval(function() {
-        window.location.reload();
-    }, 30000); // Refresh every 30 seconds
+    // Global variables for charts
+    let threatPieChart = null;
+    let subcategoryPieChart = null;
+    
+    // Function to load country threat subcategories
+    function loadCountryThreats(countryCode, countryName) {
+        // Update selected state visually
+        document.querySelectorAll('.country-item').forEach(item => {
+            item.style.backgroundColor = 'transparent';
+            item.style.borderLeft = 'none';
+        });
+        event.currentTarget.style.backgroundColor = '#f0f0f0';
+        event.currentTarget.style.borderLeft = '4px solid #fd7e14';
+        
+        // Hide placeholder, show chart
+        document.getElementById('chart-placeholder').style.display = 'none';
+        document.getElementById('threatPieChart').style.display = 'block';
+        document.getElementById('selected-country-label').style.display = 'block';
+        document.getElementById('selected-country-label').textContent = `Threat Subcategories for ${countryName}`;
+        
+        // Fetch subcategory data
+        fetch(`/api/country-threats/${countryCode}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.subcategories.length > 0) {
+                    updatePieChart(data.subcategories);
+                } else {
+                    // Show no data message
+                    document.getElementById('chart-placeholder').innerHTML = '<p style="margin-top: 100px;">No subcategory data available for ' + countryName + '</p>';
+                    document.getElementById('chart-placeholder').style.display = 'block';
+                    document.getElementById('threatPieChart').style.display = 'none';
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching threat data:', error);
+                document.getElementById('chart-placeholder').innerHTML = '<p style="margin-top: 100px; color: #dc3545;">Error loading data</p>';
+                document.getElementById('chart-placeholder').style.display = 'block';
+                document.getElementById('threatPieChart').style.display = 'none';
+            });
+    }
+    
+    // Function to update pie chart
+    function updatePieChart(subcategories) {
+        const ctx = document.getElementById('threatPieChart').getContext('2d');
+        
+        // Destroy existing chart if it exists
+        if (threatPieChart) {
+            threatPieChart.destroy();
+        }
+        
+        // Prepare data
+        const labels = subcategories.map(item => item.subcategory);
+        const data = subcategories.map(item => item.count);
+        const percentages = subcategories.map(item => item.percentage.toFixed(1));
+        
+        // Generate colors
+        const colors = [
+            '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
+            '#FF9F40', '#FF6384', '#C45850', '#F39C12', '#27AE60',
+            '#8E44AD', '#3498DB', '#E74C3C', '#1ABC9C', '#34495E'
+        ];
+        
+        // Create chart
+        threatPieChart = new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: data,
+                    backgroundColor: colors.slice(0, labels.length),
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: {
+                            padding: 10,
+                            font: {
+                                size: 12
+                            },
+                            generateLabels: function(chart) {
+                                const data = chart.data;
+                                if (data.labels.length && data.datasets.length) {
+                                    return data.labels.map((label, i) => {
+                                        const dataset = data.datasets[0];
+                                        const value = dataset.data[i];
+                                        const percentage = percentages[i];
+                                        return {
+                                            text: `${label} (${percentage}%)`,
+                                            fillStyle: dataset.backgroundColor[i],
+                                            hidden: false,
+                                            index: i
+                                        };
+                                    });
+                                }
+                                return [];
+                            }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.parsed || 0;
+                                const percentage = percentages[context.dataIndex];
+                                return `${label}: ${value.toLocaleString()} (${percentage}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    // Function to load category subcategories
+    function loadCategorySubcategories(category) {
+        // Update selected state visually
+        document.querySelectorAll('.category-item').forEach(item => {
+            item.style.backgroundColor = 'transparent';
+            item.style.borderLeft = 'none';
+        });
+        event.currentTarget.style.backgroundColor = '#f0f0f0';
+        event.currentTarget.style.borderLeft = '4px solid #17a2b8';
+        
+        // Hide placeholder, show chart
+        document.getElementById('subcategory-chart-placeholder').style.display = 'none';
+        document.getElementById('subcategoryPieChart').style.display = 'block';
+        document.getElementById('selected-subcategory-label').style.display = 'block';
+        document.getElementById('selected-subcategory-label').textContent = `Subcategories for: ${category}`;
+        
+        // Fetch subcategory data
+        fetch(`/api/category-subcategories/${encodeURIComponent(category)}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.subcategories.length > 0) {
+                    updateSubcategoryPieChart(data.subcategories);
+                } else {
+                    // Show no data message
+                    document.getElementById('subcategory-chart-placeholder').innerHTML = '<p style="margin-top: 100px;">No subcategory data available for ' + category + '</p>';
+                    document.getElementById('subcategory-chart-placeholder').style.display = 'block';
+                    document.getElementById('subcategoryPieChart').style.display = 'none';
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching category data:', error);
+                document.getElementById('subcategory-chart-placeholder').innerHTML = '<p style="margin-top: 100px; color: #dc3545;">Error loading data</p>';
+                document.getElementById('subcategory-chart-placeholder').style.display = 'block';
+                document.getElementById('subcategoryPieChart').style.display = 'none';
+            });
+    }
+    
+    // Function to update subcategory pie chart
+    function updateSubcategoryPieChart(subcategories) {
+        const ctx = document.getElementById('subcategoryPieChart').getContext('2d');
+        
+        // Destroy existing chart if it exists
+        if (subcategoryPieChart) {
+            subcategoryPieChart.destroy();
+        }
+        
+        // Prepare data
+        const labels = subcategories.map(item => item.subcategory);
+        const data = subcategories.map(item => item.count);
+        const percentages = subcategories.map(item => item.percentage.toFixed(1));
+        
+        // Generate colors
+        const colors = [
+            '#17a2b8', '#20c997', '#6610f2', '#e83e8c', '#fd7e14',
+            '#ffc107', '#28a745', '#dc3545', '#007bff', '#6c757d',
+            '#343a40', '#f8f9fa', '#6f42c1', '#e83e8c', '#fd7e14'
+        ];
+        
+        // Create chart
+        subcategoryPieChart = new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: data,
+                    backgroundColor: colors.slice(0, labels.length),
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: {
+                            padding: 10,
+                            font: {
+                                size: 12
+                            },
+                            generateLabels: function(chart) {
+                                const data = chart.data;
+                                if (data.labels.length && data.datasets.length) {
+                                    return data.labels.map((label, i) => {
+                                        const dataset = data.datasets[0];
+                                        const value = dataset.data[i];
+                                        const percentage = percentages[i];
+                                        return {
+                                            text: `${label} (${percentage}%)`,
+                                            fillStyle: dataset.backgroundColor[i],
+                                            hidden: false,
+                                            index: i
+                                        };
+                                    });
+                                }
+                                return [];
+                            }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.parsed || 0;
+                                const percentage = percentages[context.dataIndex];
+                                return `${label}: ${value.toLocaleString()} (${percentage}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
     
     // Add fade-in animation to cards
     document.addEventListener('DOMContentLoaded', function() {

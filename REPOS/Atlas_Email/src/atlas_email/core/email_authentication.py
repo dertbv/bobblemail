@@ -50,7 +50,7 @@ class EmailAuthenticator:
         self.dns_timeout = 10  # 10 second DNS timeout
         
         if DB_LOGGING_AVAILABLE:
-            write_log("Email Authentication module initialized", True)
+            write_log("Email Authentication module initialized", False)
     
     def authenticate_email(self, email_msg: email.message.EmailMessage, 
                           sender_ip: str = None) -> Dict[str, any]:

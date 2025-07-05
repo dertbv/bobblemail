@@ -12,10 +12,12 @@ cursor = conn.cursor()
 cursor.execute("""
     DELETE FROM processed_emails_bulletproof
     WHERE rowid NOT IN (
-        SELECT MIN(rowid)
+        SELECT MAX(rowid)
         FROM processed_emails_bulletproof
-        GROUP BY sender_email, subject, timestamp, folder_name
+        WHERE uid IS NOT NULL AND uid != ''
+        GROUP BY uid, folder_name
     )
+    AND uid IS NOT NULL AND uid != ''
 """)
 
 print(f"Deleted {cursor.rowcount} duplicates")

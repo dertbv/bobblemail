@@ -75,21 +75,21 @@
                     <td>{{ email.sender | escape }}</td>
                     <td>{{ email.subject | escape | truncate(50) }}</td>
                     <td>
-                        <span class="category-badge category-{{ email.new_category | lower }}">
-                            {% if email.new_category == 'LEGITIMATE' %}
-                                🟢 {{ email.new_category }}
-                            {% elif email.new_category == 'MARKETING' %}
-                                🟡 {{ email.new_category }}
-                            {% elif email.new_category == 'SUSPICIOUS' %}
-                                🟠 {{ email.new_category }}
-                            {% elif email.new_category == 'SPAM' %}
-                                🔴 {{ email.new_category }}
+                        <span class="category-badge category-{{ email.primary_category | lower }}">
+                            {% if email.primary_category == 'LEGITIMATE' %}
+                                🟢 {{ email.primary_category }}
+                            {% elif email.primary_category == 'MARKETING' %}
+                                🟡 {{ email.primary_category }}
+                            {% elif email.primary_category == 'SUSPICIOUS' %}
+                                🟠 {{ email.primary_category }}
+                            {% elif email.primary_category == 'SPAM' %}
+                                🔴 {{ email.primary_category }}
                             {% else %}
                                 {{ email.category }}
                             {% endif %}
                         </span>
                     </td>
-                    <td>{{ "%.1f%%" | format(email.confidence_score * 100) }}</td>
+                    <td>{{ "%.1f%%" | format(email.confidence_score) }}</td>
                     <td>
                         <span class="action-{{ email.action | lower }}">
                             {{ email.action }}

@@ -1,0 +1,27 @@
+{
+  "total_processed": 4928,
+  "total_tagged": 1171,
+  "tags_by_category": {
+    "Commercial Spam": 848,
+    "Legitimate Marketing": 52,
+    "Dangerous": 265,
+    "Scams": 6
+  },
+  "tags_by_subcategory": {
+    "Investment Fraud": 91,
+    "Health & Pharma Spam": 37,
+    "Prize & Lottery Scams": 181,
+    "Cryptocurrency Scams": 100,
+    "General Marketing": 150,
+    "Package Delivery Phishing": 3,
+    "Newsletter Marketing": 377,
+    "Suspicious Activity": 23,
+    "Political News Spam": 64,
+    "Adult Content": 51,
+    "Phishing Attempts": 44,
+    "Fake Invoices & Bills": 2,
+    "Tech Support Scams": 17,
+    "Auto Warranty & Insurance": 27,
+    "Job Scams": 4
+  }
+}

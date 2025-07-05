@@ -7,6 +7,7 @@ Refactored with modular architecture: MenuHandler, ProcessingController, Configu
 """
 
 import sys
+import argparse
 from pathlib import Path
 
 # Add src directory to path for package imports
@@ -15,6 +16,7 @@ sys.path.insert(0, str(src_root))
 
 from atlas_email.models.db_logger import logger, LogCategory
 from atlas_email.utils.general import clear_screen
+from atlas_email.models.database import db
 
 # Import the new modular components
 from atlas_email.cli.menu_handler import display_main_menu, get_menu_choice
@@ -26,10 +28,53 @@ from config.manager import initialize_application, initialize_auto_timer, config
 auto_timer = None
 
 
+def cleanup_duplicates_command():
+    """Execute the cleanup duplicates command"""
+    try:
+        print("🔍 Checking for duplicate emails...")
+        deleted_count = db.cleanup_duplicates()
+        
+        if deleted_count > 0:
+            print(f"✅ Cleaned up {deleted_count} duplicate entries")
+        else:
+            print("✅ No duplicates found")
+        
+        return 0  # Success
+    except Exception as e:
+        print(f"❌ Error cleaning up duplicates: {e}")
+        return 1  # Error
+
+
+def parse_arguments():
+    """Parse command line arguments"""
+    parser = argparse.ArgumentParser(
+        description="Atlas Email - Advanced IMAP Mail Filter with ML Domain Validation"
+    )
+    
+    # Add subcommands
+    subparsers = parser.add_subparsers(dest='command', help='Available commands')
+    
+    # Add cleanup-duplicates command
+    subparsers.add_parser(
+        'cleanup-duplicates', 
+        help='Clean up duplicate email entries from the database'
+    )
+    
+    return parser.parse_args()
+
+
 def main():
     """Main application entry point"""
     global auto_timer
     
+    # Parse command line arguments
+    args = parse_arguments()
+    
+    # Handle specific commands
+    if args.command == 'cleanup-duplicates':
+        return cleanup_duplicates_command()
+    
+    # If no command specified, run the interactive menu
     try:
         # Initialize application
         filters = initialize_application()
@@ -127,4 +172,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

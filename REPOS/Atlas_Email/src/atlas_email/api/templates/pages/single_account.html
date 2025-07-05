@@ -862,8 +862,15 @@
                                                style="cursor: pointer; transform: scale(1.0); accent-color: #28a745; width: 16px; height: 16px; aspect-ratio: 1/1;"
                                                title="Flag for research investigation">
                                     </td>
-                                    <td class="email-cell email-cell-sender" style="padding: 10px; border-right: 1px solid #eee; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${email.sender}">
-                                        ${email.sender}
+                                    <td class="email-cell email-cell-sender" style="padding: 10px; border-right: 1px solid #eee; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer;" 
+                                        title="${email.sender}"
+                                        onmouseover="this.style.textDecoration='underline'"
+                                        onmouseout="this.style.textDecoration='none'">
+                                        ${(() => {
+                                            const s = email.sender || '';
+                                            const idx = s.lastIndexOf('<');
+                                            return idx > 0 ? s.substring(0, idx).trim() : s;
+                                        })()}
                                     </td>
                                     <td class="email-cell email-cell-subject" style="padding: 10px; border-right: 1px solid #eee; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${email.subject}">
                                         ${email.subject}
@@ -1208,8 +1215,15 @@
                                     <td class="email-cell email-cell-account" style="padding: 10px; border-right: 1px solid #eee; width: 140px; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.85em; color: #6c757d;" title="${email.account_email}">
                                         ${email.account_email}
                                     </td>
-                                    <td class="email-cell email-cell-sender" style="padding: 10px; border-right: 1px solid #eee; width: 180px; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${email.sender}">
-                                        ${email.sender}
+                                    <td class="email-cell email-cell-sender" style="padding: 10px; border-right: 1px solid #eee; width: 180px; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer;" 
+                                        title="${email.sender}"
+                                        onmouseover="this.style.textDecoration='underline'"
+                                        onmouseout="this.style.textDecoration='none'">
+                                        ${(() => {
+                                            const s = email.sender || '';
+                                            const idx = s.lastIndexOf('<');
+                                            return idx > 0 ? s.substring(0, idx).trim() : s;
+                                        })()}
                                     </td>
                                     <td class="email-cell email-cell-subject" style="padding: 10px; border-right: 1px solid #eee; width: 250px; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${email.subject}">
                                         ${email.subject}

@@ -10,6 +10,24 @@ from typing import List, Dict, Any, Tuple
 from contextlib import contextmanager
 import threading
 
+# Performance monitoring
+try:
+    from atlas_email.utils.performance_monitor import performance_monitor, monitor_operation
+except ImportError:
+    # Fallback if performance monitoring not available
+    def performance_monitor(category):
+        def decorator(func):
+            return func
+        return decorator
+    
+    class monitor_operation:
+        def __init__(self, *args, **kwargs):
+            pass
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            pass
+
 # Database configuration
 import os
 # Point to data directory from package root
@@ -1130,6 +1148,55 @@ class DatabaseManager:
         except Exception as e:
             print(f"❌ Failed to get research flagged emails: {e}")
             return []
+    
+    def cleanup_duplicates(self) -> int:
+        """
+        Clean up duplicate emails from processed_emails_bulletproof table.
+        Keeps the most recent entry (MAX(rowid)) for each unique email.
+        
+        Returns:
+            Number of duplicate entries deleted
+        """
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                
+                # Count duplicates before deletion
+                cursor.execute("""
+                    SELECT COUNT(*) FROM processed_emails_bulletproof
+                    WHERE rowid NOT IN (
+                        SELECT MAX(rowid)
+                        FROM processed_emails_bulletproof
+                        WHERE uid IS NOT NULL AND uid != ''
+                        GROUP BY uid, folder_name
+                    )
+                    AND uid IS NOT NULL AND uid != ''
+                """)
+                duplicates_count = cursor.fetchone()[0]
+                
+                if duplicates_count == 0:
+                    print("✅ No duplicates found")
+                    return 0
+                
+                # Delete duplicates
+                cursor.execute("""
+                    DELETE FROM processed_emails_bulletproof
+                    WHERE rowid NOT IN (
+                        SELECT MAX(rowid)
+                        FROM processed_emails_bulletproof
+                        WHERE uid IS NOT NULL AND uid != ''
+                        GROUP BY uid, folder_name
+                    )
+                    AND uid IS NOT NULL AND uid != ''
+                """)
+                
+                conn.commit()
+                print(f"✅ Cleaned up {duplicates_count} duplicate entries")
+                return duplicates_count
+                
+        except Exception as e:
+            print(f"❌ Failed to cleanup duplicates: {e}")
+            return 0
     
     def get_session_email_actions(self, limit: int = 100, action_filter: str = None) -> list:
         """

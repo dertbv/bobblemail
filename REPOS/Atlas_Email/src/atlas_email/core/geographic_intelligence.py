@@ -12,6 +12,13 @@ from dataclasses import dataclass
 from datetime import datetime
 import logging
 
+# Import caching
+try:
+    from atlas_email.utils.cache_manager import get_geographic_cache, set_geographic_cache
+    CACHE_ENABLED = True
+except ImportError:
+    CACHE_ENABLED = False
+
 @dataclass
 class GeographicData:
     """Container for geographic intelligence data"""
@@ -184,6 +191,13 @@ class GeographicIntelligenceProcessor:
         """
         if not ip_address or not self._is_external_ip(ip_address):
             return GeographicData()
+        
+        # Check cache first
+        if CACHE_ENABLED:
+            cached_data = get_geographic_cache(ip_address)
+            if cached_data:
+                # Convert dict back to GeographicData
+                return GeographicData(**cached_data)
             
         try:
             # Use GeoIP2Fast for geographic lookup
@@ -196,13 +210,27 @@ class GeographicIntelligenceProcessor:
                 # Calculate risk score based on country
                 risk_score = self.COUNTRY_RISK_SCORES.get(country_code, 0.30)  # Default moderate risk
                 
-                return GeographicData(
+                geo_data = GeographicData(
                     sender_ip=ip_address,
                     sender_country_code=country_code,
                     sender_country_name=country_name,
                     geographic_risk_score=risk_score,
                     detection_method="GEOIP2FAST_LOOKUP"
                 )
+                
+                # Cache the result
+                if CACHE_ENABLED:
+                    # Convert to dict for caching
+                    cache_data = {
+                        'sender_ip': geo_data.sender_ip,
+                        'sender_country_code': geo_data.sender_country_code,
+                        'sender_country_name': geo_data.sender_country_name,
+                        'geographic_risk_score': geo_data.geographic_risk_score,
+                        'detection_method': geo_data.detection_method
+                    }
+                    set_geographic_cache(ip_address, cache_data, ttl=604800)  # 7 days
+                
+                return geo_data
             else:
                 # IP lookup failed but we have the IP
                 return GeographicData(

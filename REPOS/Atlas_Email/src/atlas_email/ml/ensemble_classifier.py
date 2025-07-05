@@ -19,6 +19,22 @@ from atlas_email.filters.keyword_processor import KeywordProcessor, classify_spa
 from atlas_email.core.spam_classifier import is_authenticated_domain, detect_provider_from_sender
 # Temporarily disabled due to import issues: from atlas_email.ml.category_classifier import MLCategoryClassifier
 
+# Import caching
+try:
+    from atlas_email.utils.cache_manager import get_classification_cache, set_classification_cache
+    CACHE_ENABLED = True
+except ImportError:
+    CACHE_ENABLED = False
+    print("⚠️ Cache manager not available, running without cache")
+
+# Import classifier optimizer
+try:
+    from atlas_email.ml.classifier_cache import get_classifier_optimizer
+    OPTIMIZER_ENABLED = True
+except ImportError:
+    OPTIMIZER_ENABLED = False
+    print("⚠️ Classifier optimizer not available")
+
 class EnsembleHybridClassifier:
     """
     Advanced hybrid classifier using ML Ensemble for superior accuracy.
@@ -154,6 +170,13 @@ class EnsembleHybridClassifier:
         start_time = time.time()
         self.stats['total_classifications'] += 1
         
+        # Check cache first
+        if CACHE_ENABLED:
+            cached_result = get_classification_cache(sender, subject)
+            if cached_result:
+                self.stats['total_classifications'] -= 1  # Don't count cache hits
+                return cached_result
+        
         # Prepare email data
         email_data = {
             "subject": subject,
@@ -176,7 +199,13 @@ class EnsembleHybridClassifier:
                 if result.get('confidence_level') == 'HIGH':
                     self.stats['high_confidence_decisions'] += 1
                 
-                return self._format_classification_result(result, "ensemble", processing_time)
+                formatted_result = self._format_classification_result(result, "ensemble", processing_time)
+                
+                # Cache the result
+                if CACHE_ENABLED:
+                    set_classification_cache(sender, subject, formatted_result, ttl=7200)  # 2 hours
+                
+                return formatted_result
                 
             except Exception as e:
                 print(f"⚠️ Ensemble classification failed: {e}")
@@ -190,7 +219,13 @@ class EnsembleHybridClassifier:
         processing_time = (time.time() - start_time) * 1000
         self.stats['processing_times'].append(processing_time)
         
-        return self._format_classification_result(result, "fallback", processing_time)
+        formatted_result = self._format_classification_result(result, "fallback", processing_time)
+        
+        # Cache the result
+        if CACHE_ENABLED:
+            set_classification_cache(sender, subject, formatted_result, ttl=7200)  # 2 hours
+        
+        return formatted_result
     
     def _classify_with_ensemble(self, email_data):
         """Classify using ML Ensemble voting system"""

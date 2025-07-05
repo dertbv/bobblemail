@@ -4,6 +4,7 @@ Replaces: ml_settings.json, ml_ensemble_config.json, ensemble_hybrid_config.json
 """
 
 import os
+from datetime import datetime
 from typing import Dict, List, Any
 
 
@@ -107,18 +108,20 @@ class Settings:
         }
     }
     
-    # Whitelist Configuration - Personal domains for spam protection
+    # Whitelist Configuration - DISABLED per user requirement (no whitelists)
     WHITELIST = {
-        "custom_whitelist": [
-            "unraid.net",
-            "inova.org",
-            "aetna.com",
-            "dertbv@gmail.com",
-            "genesismotorsamerica.comm",
-            "statements.myaccountviewonline@lplfinancial.com",
-            "anthropic.com"
-        ],
+        "custom_whitelist": [],
         "custom_keyword_whitelist": []
+    }
+    
+    # A/B Testing Configuration for 4-Category Classifier
+    AB_TESTING = {
+        "enabled": os.getenv('AB_TESTING_ENABLED', 'true').lower() == 'true',
+        "rollout_percentage": float(os.getenv('AB_TESTING_ROLLOUT', 100.0)),  # Stage 4: Full deployment
+        "force_classifier": os.getenv('AB_TESTING_FORCE', None),  # 'old', 'new', or None for random
+        "track_results": os.getenv('AB_TESTING_TRACK', 'true').lower() == 'true',
+        "test_id": os.getenv('AB_TESTING_ID', datetime.now().strftime('%Y%m%d')),
+        "comparison_mode": os.getenv('AB_TESTING_COMPARISON', 'false').lower() == 'true'  # Run both classifiers
     }
     
     @classmethod
@@ -180,6 +183,26 @@ class Settings:
         """Enable or disable a spam category"""
         if category in cls.ML_SETTINGS["enabled_categories"]:
             cls.ML_SETTINGS["enabled_categories"][category] = enabled
+    
+    @classmethod
+    def get_ab_testing_config(cls) -> Dict[str, Any]:
+        """Get A/B testing configuration for 4-category classifier"""
+        return cls.AB_TESTING.copy()
+    
+    @classmethod
+    def is_ab_testing_enabled(cls) -> bool:
+        """Check if A/B testing is enabled"""
+        return cls.AB_TESTING["enabled"]
+    
+    @classmethod
+    def get_ab_rollout_percentage(cls) -> float:
+        """Get current A/B testing rollout percentage"""
+        return cls.AB_TESTING["rollout_percentage"]
+    
+    @classmethod
+    def update_ab_rollout(cls, percentage: float) -> None:
+        """Update A/B testing rollout percentage (0-100)"""
+        cls.AB_TESTING["rollout_percentage"] = max(0.0, min(100.0, percentage))
 
 
 # Legacy JSON compatibility functions for migration
