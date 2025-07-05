@@ -19,19 +19,14 @@ This bypasses ALL permission prompts from the start!
 tmux send-keys -t [agent-name] '
 AUTONOMOUS AGENT MISSION - [AGENT-NAME]
 
-STEP 1: Enable Auto-Accept Mode
-- Press Shift+Tab NOW to enable auto-accept mode
-- Look for "⏵⏵ auto-accept edits on" at the bottom
-- This allows you to work without ANY permission prompts
-
-STEP 2: Your Authority
+STEP 1: Your Authority
 You have FULL AUTONOMOUS AUTHORITY for ALL operations including:
 - Creating, editing, deleting ANY files (auto-accepted)
 - Running ANY commands or tests (auto-accepted)
 - Making ANY code changes (auto-accepted)
 - All tool uses automatically approved with auto-accept on
 
-STEP 3: Your Mission
+STEP 2: Your Mission
 [INSERT SPECIFIC MISSION HERE]
 
 Remember: With auto-accept mode on (Shift+Tab), you work completely autonomously!'

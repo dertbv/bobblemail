@@ -28,9 +28,6 @@ tmux send-keys -t $BRANCH_NAME "You are the PLANNER agent in a six-agent system.
 # Provide connection instructions
 echo "✅ Agent system deployed!"
 echo ""
-echo "To connect:"
-echo "  tmux attach -t $BRANCH_NAME"
-echo ""
 echo "For iTerm2 native windows:"
 echo "  tmux -CC attach -t $BRANCH_NAME"
 echo ""

@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Agent Communication Monitor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, monospace;
+            background: #0a0a0a;
+            color: #e0e0e0;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        .dashboard {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            color: #00ff88;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .status-card {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 15px;
+            transition: all 0.3s ease;
+        }
+        
+        .status-card:hover {
+            border-color: #00ff88;
+            transform: translateY(-2px);
+        }
+        
+        .status-card h3 {
+            color: #00ff88;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+        
+        .status-value {
+            font-size: 28px;
+            font-weight: bold;
+            color: #fff;
+        }
+        
+        .messages-container {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        
+        .message {
+            background: #0d0d0d;
+            border-left: 3px solid #00ff88;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            animation: slideIn 0.3s ease;
+        }
+        
+        .message.request {
+            border-left-color: #ffaa00;
+        }
+        
+        .message.response {
+            border-left-color: #00aaff;
+        }
+        
+        .message-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        
+        .agent-id {
+            color: #00ff88;
+            font-weight: bold;
+        }
+        
+        .timestamp {
+            color: #666;
+        }
+        
+        .message-description {
+            color: #fff;
+            margin-bottom: 5px;
+        }
+        
+        .message-content {
+            background: #1a1a1a;
+            padding: 8px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            color: #999;
+            overflow-x: auto;
+        }
+        
+        .tags {
+            display: flex;
+            gap: 5px;
+            margin-top: 8px;
+        }
+        
+        .tag {
+            background: #333;
+            color: #00ff88;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        button {
+            background: #00ff88;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s ease;
+        }
+        
+        button:hover {
+            background: #00cc66;
+            transform: translateY(-1px);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        .auto-refresh {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #666;
+        }
+        
+        input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .error {
+            background: #ff3333;
+            color: #fff;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        
+        .no-messages {
+            text-align: center;
+            color: #666;
+            padding: 40px;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <h1>
+            <span class="pulse">🎭</span>
+            Multi-Agent Communication Monitor
+        </h1>
+        
+        <div class="controls">
+            <button onclick="refreshData()">Refresh Now</button>
+            <button onclick="clearOldMessages()">Clear Consumed</button>
+            <div class="auto-refresh">
+                <input type="checkbox" id="autoRefresh" checked>
+                <label for="autoRefresh">Auto-refresh every 2s</label>
+            </div>
+        </div>
+        
+        <div class="status-grid">
+            <div class="status-card">
+                <h3>Total Messages</h3>
+                <div class="status-value" id="totalMessages">0</div>
+            </div>
+            <div class="status-card">
+                <h3>Unconsumed</h3>
+                <div class="status-value" id="unconsumed">0</div>
+            </div>
+            <div class="status-card">
+                <h3>Awaiting Response</h3>
+                <div class="status-value" id="awaitingResponse">0</div>
+            </div>
+            <div class="status-card">
+                <h3>Pending Requests</h3>
+                <div class="status-value" id="pendingRequests">0</div>
+            </div>
+            <div class="status-card">
+                <h3>Broker Uptime</h3>
+                <div class="status-value" id="uptime">0s</div>
+            </div>
+        </div>
+        
+        <h2 style="color: #00ff88; margin-bottom: 15px;">📨 Message Stream</h2>
+        <div class="messages-container" id="messagesContainer">
+            <div class="no-messages">No messages yet...</div>
+        </div>
+    </div>
+    
+    <script>
+        const BROKER_URL = 'http://localhost:3000';
+        let autoRefreshInterval;
+        
+        async function fetchStatus() {
+            try {
+                const response = await fetch(`${BROKER_URL}/status`);
+                return await response.json();
+            } catch (error) {
+                console.error('Failed to fetch status:', error);
+                return null;
+            }
+        }
+        
+        async function fetchMessages() {
+            try {
+                const response = await fetch(`${BROKER_URL}/check`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
+                });
+                const data = await response.json();
+                return data.messages || [];
+            } catch (error) {
+                console.error('Failed to fetch messages:', error);
+                return [];
+            }
+        }
+        
+        function formatTimestamp(ts) {
+            const date = new Date(ts);
+            return date.toLocaleTimeString();
+        }
+        
+        function formatUptime(seconds) {
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const secs = Math.floor(seconds % 60);
+            
+            if (hours > 0) {
+                return `${hours}h ${minutes}m`;
+            } else if (minutes > 0) {
+                return `${minutes}m ${secs}s`;
+            } else {
+                return `${secs}s`;
+            }
+        }
+        
+        function renderMessage(msg) {
+            const messageClass = msg.awaiting_response ? 'request' : 
+                                msg.response_to ? 'response' : '';
+            
+            return `
+                <div class="message ${messageClass}">
+                    <div class="message-header">
+                        <span class="agent-id">${msg.agent_id}</span>
+                        <span class="timestamp">${formatTimestamp(msg.timestamp)}</span>
+                    </div>
+                    <div class="message-description">${msg.description || 'No description'}</div>
+                    <div class="message-content">${JSON.stringify(msg.content, null, 2)}</div>
+                    <div class="tags">
+                        ${msg.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}
+                    </div>
+                    ${msg.consumed ? '<div style="color: #666; font-size: 12px; margin-top: 5px;">✓ Consumed</div>' : ''}
+                </div>
+            `;
+        }
+        
+        async function refreshData() {
+            const status = await fetchStatus();
+            const messages = await fetchMessages();
+            
+            if (status) {
+                document.getElementById('totalMessages').textContent = status.messages.total;
+                document.getElementById('unconsumed').textContent = status.messages.unconsumed;
+                document.getElementById('awaitingResponse').textContent = status.messages.awaiting_response;
+                document.getElementById('pendingRequests').textContent = status.pending_requests;
+                document.getElementById('uptime').textContent = formatUptime(status.uptime);
+            }
+            
+            const container = document.getElementById('messagesContainer');
+            if (messages.length === 0) {
+                container.innerHTML = '<div class="no-messages">No messages yet...</div>';
+            } else {
+                // Sort messages by timestamp (newest first)
+                messages.sort((a, b) => b.timestamp - a.timestamp);
+                container.innerHTML = messages.map(msg => renderMessage(msg)).join('');
+            }
+        }
+        
+        async function clearOldMessages() {
+            // This would need a backend endpoint to actually clear messages
+            alert('Clear consumed messages feature coming soon!');
+        }
+        
+        function toggleAutoRefresh() {
+            const checkbox = document.getElementById('autoRefresh');
+            if (checkbox.checked) {
+                autoRefreshInterval = setInterval(refreshData, 2000);
+            } else {
+                clearInterval(autoRefreshInterval);
+            }
+        }
+        
+        // Initialize
+        document.getElementById('autoRefresh').addEventListener('change', toggleAutoRefresh);
+        refreshData();
+        toggleAutoRefresh();
+    </script>
+</body>
+</html>

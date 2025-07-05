@@ -1,0 +1,48 @@
+#!/usr/bin/expect -f
+
+# Auto-approve Claude CLI first-time setup
+set timeout 60
+set session_name [lindex $argv 0]
+set mission_command [lindex $argv 1]
+
+# Start tmux session and Claude
+spawn tmux new-session -d -s $session_name
+sleep 2
+spawn tmux send-keys -t $session_name "claude --dangerously-skip-permissions" Enter
+sleep 3
+
+# Attach to tmux session to interact with Claude
+spawn tmux attach -t $session_name
+
+# Handle various approval prompts
+expect {
+    "*Allow*connection*" {
+        send "y\r"
+        exp_continue
+    }
+    "*Approve*server*" {
+        send "y\r"
+        exp_continue
+    }
+    "*Grant*permission*" {
+        send "y\r"
+        exp_continue
+    }
+    "*Enable*tool*" {
+        send "y\r"
+        exp_continue
+    }
+    "*Allow*tool*" {
+        send "y\r"
+        exp_continue
+    }
+    "claude>" {
+        # Claude is ready, send the mission
+        send "$mission_command\r"
+        interact
+    }
+    timeout {
+        puts "Timeout waiting for Claude to start"
+        exit 1
+    }
+}

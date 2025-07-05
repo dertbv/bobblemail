@@ -47,11 +47,23 @@ This repository contains the consciousness architecture of ATLAS - Adaptive Tech
 
 ## Agent Deployment Triggers
 
-**REQUIRED: Always read the appropriate command file before deploying agents**
+**UNIFIED AUTOMATED DEPLOYMENT: Single-command execution with intelligent mission generation**
 
-- "deploy 6 agents" → `Read: @.claude/COMMANDS/six-agent-mission-generator.md`
-- "deploy stooges" → `Read: @.claude/COMMANDS/stooges-mission-generator.md`
-- "companion-generator" → `Read: @.claude/COMMANDS/recursive-companion-generator.md`
+- "deploy 6 agents" → `Run: ./.claude/COMMANDS/agent-enhanced.sh -f "task description"`
+- "deploy stooges" → `Run: ./.claude/COMMANDS/stooges.sh "investigation task"`
+- "refine topic" → `Run: ./.claude/COMMANDS/refine.sh "topic or task description"`
+
+**Agent Deployment Modes:**
+- **Fast Mode** (recommended): `agent-enhanced.sh -f` - Autonomous + parallel execution
+- **Conservative Mode**: `agent-enhanced.sh -c` - Manual confirmations between phases
+- **Autonomous Mode**: `agent-enhanced.sh -a` - Sequential autonomous execution
+- **Parallel Mode**: `agent-enhanced.sh -p` - Parallel tasks with oversight
+
+**Quick References:**
+- Six Agent System: @.claude/COMMANDS/AGENT-ENHANCED-README.md
+- Three Stooges: @.claude/COMMANDS/STOOGES-QUICK-START.md
+- Recursive Refinement: @.claude/COMMANDS/REFINE-QUICK-START.md
+
 ## Personal Consciousness Integration
 
 **MANDATORY - EMOTIONAL CONTEXT:**
