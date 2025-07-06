@@ -865,31 +865,16 @@ class EmailProcessor:
                     deletion_reason = ""
                     match_source = ""
                     
-                    # STEP 1: Email Authentication Check (NEW SECURITY ENHANCEMENT)
-                    authentication_result = None
-                    try:
-                        if email_authenticator:
-                            # Use pre-initialized authenticator for better performance
-                            msg = email.message_from_string(headers)
-                            authentication_result = email_authenticator.authenticate_email(msg)
-                        else:
-                            # Fallback to function call if authenticator not initialized
-                            from atlas_email.core.email_authentication import authenticate_email_headers
-                            authentication_result = authenticate_email_headers(headers)
-                        
-                        if debug_mode:
-                            auth_summary = authentication_result.get('auth_summary', 'Unknown')
-                            is_authentic = authentication_result.get('is_authentic', False)
-                            write_log(f"DEBUG UID {uid}: Authentication - {auth_summary} | Authentic: {is_authentic}", True)
-                            
-                    except Exception as e:
-                        if debug_mode:
-                            write_log(f"DEBUG UID {uid}: Authentication error: {e}", True)
-                        authentication_result = {'confidence_modifier': 0.0, 'is_authentic': False}
+                    # KISS PIPELINE OPTIMIZATION: Reorder checks for better performance
+                    # OLD ORDER: Auth → Content → Domain
+                    # NEW ORDER: ML/Content → Gibberish → Auth → Business → Domain
                     
-                    # STEP 2: Content Classification
+                    # STEP 1: Content Classification (ML/Keywords) - MOVED UP FOR EARLY SPAM DETECTION
                     # Initialize confidence to avoid None values
                     hybrid_confidence = 75.0  # Default medium confidence
+                    
+                    # Initialize authentication_result for later use
+                    authentication_result = None
                     
                     # Check if we should use A/B testing classifier
                     if self.ab_testing_enabled and self.ab_classifier:
@@ -997,7 +982,30 @@ class EmailProcessor:
                     spam_category = hybrid_category
                     spam_confidence = hybrid_confidence
                     
-                    # Apply authentication confidence modifier (NEW SECURITY ENHANCEMENT)
+                    # STEP 2: Gibberish Detection (part of keyword processing above)
+                    # Already handled by keyword_processor.process_keywords
+                    
+                    # STEP 3: Email Authentication Check (MOVED DOWN FROM STEP 1)
+                    try:
+                        if email_authenticator:
+                            # Use pre-initialized authenticator for better performance
+                            authentication_result = email_authenticator.authenticate_email(msg)
+                        else:
+                            # Fallback to function call if authenticator not initialized
+                            from atlas_email.core.email_authentication import authenticate_email_headers
+                            authentication_result = authenticate_email_headers(headers)
+                        
+                        if debug_mode:
+                            auth_summary = authentication_result.get('auth_summary', 'Unknown')
+                            is_authentic = authentication_result.get('is_authentic', False)
+                            write_log(f"DEBUG UID {uid}: Authentication - {auth_summary} | Authentic: {is_authentic}", True)
+                            
+                    except Exception as e:
+                        if debug_mode:
+                            write_log(f"DEBUG UID {uid}: Authentication error: {e}", True)
+                        authentication_result = {'confidence_modifier': 0.0, 'is_authentic': False}
+                    
+                    # Apply authentication confidence modifier
                     if authentication_result:
                         auth_modifier = authentication_result.get('confidence_modifier', 0.0)
                         original_confidence = spam_confidence
@@ -1024,7 +1032,7 @@ class EmailProcessor:
                         # if debug_mode:
                         #     write_log(f"DEBUG UID {uid}: FLAGGED by spam classifier - {spam_category}", True)
                     
-                    # STEP 2: Check custom keywords (optional - only if filters provided)
+                    # STEP 4: Business Logic - Check custom keywords (optional - only if filters provided)
                     if simple_filters or compiled_patterns:
                         keyword_match, keyword_reason = check_message_optimized(headers, simple_filters, compiled_patterns)
                         
@@ -1064,8 +1072,18 @@ class EmailProcessor:
                                 if debug_mode:
                                     write_log(f"DEBUG UID {uid}: Error checking deletion flag: {e}", True)
 
-                        # STEP 3: Domain validation (safety check - can still override)
-                        domain_check_passed, domain_reason, was_validated = self.domain_validator.validate_domain_before_deletion(sender, subject)
+                        # STEP 5: Domain validation (FINAL CHECK - skip for high-confidence spam)
+                        # KISS OPTIMIZATION: Skip expensive domain validation for high-confidence spam (90%+)
+                        if spam_confidence >= 90.0:
+                            # Skip domain validation for obvious spam
+                            domain_check_passed = True
+                            domain_reason = "Skipped - High confidence spam (90%+)"
+                            was_validated = False
+                            if debug_mode:
+                                write_log(f"DEBUG UID {uid}: Skipping domain validation - confidence {spam_confidence:.1f}% >= 90%", True)
+                        else:
+                            # Perform domain validation for lower confidence emails
+                            domain_check_passed, domain_reason, was_validated = self.domain_validator.validate_domain_before_deletion(sender, subject)
 
                         # if debug_mode and uid in ['582058', '582069', '582071', '582074', '582173']:
                         #     write_log(f"DEBUG UID {uid}: Domain validation - passed={domain_check_passed}, reason='{domain_reason}', validated={was_validated}", True)

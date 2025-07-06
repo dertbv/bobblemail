@@ -124,6 +124,15 @@ class Settings:
         "comparison_mode": os.getenv('AB_TESTING_COMPARISON', 'false').lower() == 'true'  # Run both classifiers
     }
     
+    # Classifier Configuration System Feature Flags
+    CLASSIFIER_CONFIG = {
+        "use_dynamic_pipeline": os.getenv('USE_DYNAMIC_PIPELINE', 'false').lower() == 'true',
+        "enable_config_ui": os.getenv('ENABLE_CONFIG_UI', 'false').lower() == 'true',
+        "config_cache_ttl": int(os.getenv('CONFIG_CACHE_TTL', 300)),  # 5 minutes default
+        "allow_empty_pipeline": os.getenv('ALLOW_EMPTY_PIPELINE', 'false').lower() == 'true',
+        "log_pipeline_execution": os.getenv('LOG_PIPELINE_EXECUTION', 'true').lower() == 'true'
+    }
+    
     @classmethod
     def get_ml_settings(cls) -> Dict[str, Any]:
         """Get ML classification settings including whitelist"""
@@ -203,6 +212,26 @@ class Settings:
     def update_ab_rollout(cls, percentage: float) -> None:
         """Update A/B testing rollout percentage (0-100)"""
         cls.AB_TESTING["rollout_percentage"] = max(0.0, min(100.0, percentage))
+    
+    @classmethod
+    def get_classifier_config(cls) -> Dict[str, Any]:
+        """Get classifier configuration feature flags"""
+        return cls.CLASSIFIER_CONFIG.copy()
+    
+    @classmethod
+    def is_dynamic_pipeline_enabled(cls) -> bool:
+        """Check if dynamic pipeline configuration is enabled"""
+        return cls.CLASSIFIER_CONFIG["use_dynamic_pipeline"]
+    
+    @classmethod
+    def is_config_ui_enabled(cls) -> bool:
+        """Check if configuration UI is enabled"""
+        return cls.CLASSIFIER_CONFIG["enable_config_ui"]
+    
+    @classmethod
+    def get_config_cache_ttl(cls) -> int:
+        """Get configuration cache TTL in seconds"""
+        return cls.CLASSIFIER_CONFIG["config_cache_ttl"]
 
 
 # Legacy JSON compatibility functions for migration
