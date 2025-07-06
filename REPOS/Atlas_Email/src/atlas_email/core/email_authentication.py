@@ -49,8 +49,10 @@ class EmailAuthenticator:
         self.cache_timeout = timedelta(hours=24)  # 24-hour cache
         self.dns_timeout = 10  # 10 second DNS timeout
         
-        if DB_LOGGING_AVAILABLE:
+        # Only log initialization once per session to reduce noise
+        if DB_LOGGING_AVAILABLE and not hasattr(self.__class__, '_logged_init'):
             write_log("Email Authentication module initialized", False)
+            self.__class__._logged_init = True
     
     def authenticate_email(self, email_msg: email.message.EmailMessage, 
                           sender_ip: str = None) -> Dict[str, any]:

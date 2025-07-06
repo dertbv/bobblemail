@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Multi-Agent Orchestrator POC
-# Controls multiple Claude agents via Claude Squad + MCP
+# Controls multiple Claude agents via Claude Squad with git-based coordination
 
 set -e
 
@@ -13,10 +13,10 @@ RED='\033[0;31m'
 NC='\033[0m'
 
 # Configuration
-MCP_PORT=${MCP_PORT:-3000}
 AGENT_COUNT=${1:-3}
 MISSION=${2:-"Test mission"}
 SQUAD_BINARY="$HOME/.local/bin/cs"
+COORDINATION_DIR="./coordination"
 
 echo -e "${BLUE}🎭 Multi-Agent Orchestrator POC${NC}"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
@@ -43,19 +43,24 @@ check_dependencies() {
     echo -e "${GREEN}✅ All dependencies found${NC}"
 }
 
-# Start MCP communication server
-start_mcp_server() {
-    echo -e "\n${YELLOW}Starting MCP communication server...${NC}"
+# Initialize git-based coordination directory
+init_coordination() {
+    echo -e "\n${YELLOW}Initializing git-based coordination...${NC}"
     
-    # Check if already running
-    if lsof -Pi :$MCP_PORT -sTCP:LISTEN -t >/dev/null ; then
-        echo -e "${GREEN}✅ MCP server already running on port $MCP_PORT${NC}"
-    else
-        # Start in background tmux session
-        tmux new-session -d -s mcp-server "cd mcp-agent-communication && npm start"
-        sleep 3
-        echo -e "${GREEN}✅ MCP server started on port $MCP_PORT${NC}"
+    # Create coordination directory
+    mkdir -p "$COORDINATION_DIR"
+    
+    # Initialize git if not already
+    if [[ ! -d "$COORDINATION_DIR/.git" ]]; then
+        cd "$COORDINATION_DIR"
+        git init
+        echo "# Agent Coordination" > README.md
+        git add README.md
+        git commit -m "Initial coordination setup"
+        cd ..
     fi
+    
+    echo -e "${GREEN}✅ Git coordination initialized${NC}"
 }
 
 # Create agent mission files
@@ -72,10 +77,10 @@ create_agent_missions() {
 You are Agent $i in a multi-agent system.
 
 ## Communication
-You can communicate with other agents using MCP tools:
-- send_message: Broadcast updates
-- wait_for_message: Wait for specific messages
-- check_messages: See what others are doing
+You coordinate with other agents using git-tracked files in the coordination directory:
+- Write status updates to: coordination/agent-$i-status.md
+- Read other agents' status from their respective files
+- Use git commits to track changes and coordination points
 
 ## Mission
 $MISSION
@@ -154,7 +159,7 @@ monitor_agents() {
 # Main execution
 main() {
     check_dependencies
-    start_mcp_server
+    init_coordination
     create_agent_missions
     launch_agents
     monitor_agents
@@ -162,13 +167,13 @@ main() {
     echo -e "\n${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "${GREEN}🚀 Multi-Agent System Deployed!${NC}"
     echo -e "\n${YELLOW}Commands:${NC}"
-    echo "  Monitor MCP:     tmux attach -t mcp-server"
     echo "  View Squad:      tmux attach -t squad-orchestrator"
     echo "  Check agents:    tmux list-sessions | grep claudesquad_"
+    echo "  Monitor coordination: cd $COORDINATION_DIR && git log --oneline"
     echo -e "\n${YELLOW}Next steps:${NC}"
     echo "  1. Inject missions into each agent"
-    echo "  2. Connect agents to MCP server"
-    echo "  3. Watch them collaborate!"
+    echo "  2. Agents will coordinate via git-tracked files"
+    echo "  3. Watch them collaborate through file updates!"
 }
 
 # Handle cleanup

@@ -86,7 +86,13 @@ class EnsembleHybridClassifier:
             self.ensemble_available = False
         
         # Initialize legacy components as fallbacks
-        self.keyword_processor = KeywordProcessor()
+        # Try to use global instance first to avoid redundant initialization
+        try:
+            from atlas_email.filters.keyword_processor import keyword_processor
+            self.keyword_processor = keyword_processor
+        except ImportError:
+            # Fallback to creating new instance if global not available
+            self.keyword_processor = KeywordProcessor()
         
         # Performance tracking
         self.stats = {

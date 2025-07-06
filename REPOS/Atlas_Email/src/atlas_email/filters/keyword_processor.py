@@ -115,10 +115,15 @@ class KeywordProcessor:
         # 🚀 REVOLUTIONARY FEATURE: Initialize two-factor email validator
         if TWO_FACTOR_AVAILABLE:
             self.two_factor_validator = TwoFactorEmailValidator()
-            print("🎉 KeywordProcessor: Two-factor validation system initialized!")
+            # Only print initialization message if not already initialized (suppress redundant messages)
+            if not hasattr(self.__class__, '_initialized'):
+                print("🎉 KeywordProcessor: Two-factor validation system initialized!")
+                self.__class__._initialized = True
         else:
             self.two_factor_validator = None
-            print("⚠️ KeywordProcessor: Using fallback classification without two-factor validation")
+            if not hasattr(self.__class__, '_initialized'):
+                print("⚠️ KeywordProcessor: Using fallback classification without two-factor validation")
+                self.__class__._initialized = True
     
     def _load_category_thresholds(self) -> Dict[str, float]:
         """Load category-specific confidence thresholds from centralized settings."""

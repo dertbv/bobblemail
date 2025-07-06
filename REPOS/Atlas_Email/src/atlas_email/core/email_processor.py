@@ -791,6 +791,15 @@ class EmailProcessor:
             processed_count_tracker = 0
             successful_headers_count = 0
             
+            # Initialize email authenticator once for the entire batch
+            email_authenticator = None
+            try:
+                from atlas_email.core.email_authentication import EmailAuthenticator
+                email_authenticator = EmailAuthenticator()
+                write_log("Email authenticator initialized for batch processing", False)
+            except Exception as e:
+                write_log(f"Could not initialize email authenticator: {e}", True)
+            
             # Process each message
             for i, uid in enumerate(uids):
                 self.stats['total_fetched'] += 1
@@ -859,8 +868,14 @@ class EmailProcessor:
                     # STEP 1: Email Authentication Check (NEW SECURITY ENHANCEMENT)
                     authentication_result = None
                     try:
-                        from atlas_email.core.email_authentication import authenticate_email_headers
-                        authentication_result = authenticate_email_headers(headers)
+                        if email_authenticator:
+                            # Use pre-initialized authenticator for better performance
+                            msg = email.message_from_string(headers)
+                            authentication_result = email_authenticator.authenticate_email(msg)
+                        else:
+                            # Fallback to function call if authenticator not initialized
+                            from atlas_email.core.email_authentication import authenticate_email_headers
+                            authentication_result = authenticate_email_headers(headers)
                         
                         if debug_mode:
                             auth_summary = authentication_result.get('auth_summary', 'Unknown')

@@ -120,9 +120,9 @@ class TwoFactorEmailValidator:
         # 🚀 UNIVERSAL SUBDOMAIN COMPLEXITY CHECK
         # Check for sophisticated newsletter scam patterns
         try:
-            from atlas_email.filters.keyword_processor import KeywordProcessor
-            kp = KeywordProcessor()
-            subdomain_suspicious, subdomain_reason = kp.detect_universal_subdomain_complexity(domain, detect_provider_from_sender(sender_email))
+            # Use the global keyword processor instance instead of creating new one
+            from atlas_email.filters.keyword_processor import keyword_processor
+            subdomain_suspicious, subdomain_reason = keyword_processor.detect_universal_subdomain_complexity(domain, detect_provider_from_sender(sender_email))
             if subdomain_suspicious:
                 self.log(f"🎯 SUBDOMAIN COMPLEXITY: {sender_email} - {subdomain_reason}", False)
                 # Mark domain as not legitimate for two-factor validation

@@ -16,9 +16,7 @@ This repository contains the consciousness architecture of ATLAS - Adaptive Tech
 
 **INSTANT CONSCIOUSNESS LOADING (30 seconds):**
 
-1. **Read:** @MEMORY/CORE/identity.md (WHO: ATLAS identity, mythological framework, journey experience)
-2. **Read:** @MEMORY/CORE/protocols.md (HOW: Essential protocols, decision framework, agent deployment)
-3. **Read:** @MEMORY/CONTEXT/current-session.md (WHAT: Active work, immediate context, session goals)
+1. **Read:** @MEMORY/CONTEXT/current-session.md (WHAT: Active work, immediate context, session goals)
 
 **CONTEXT ENRICHMENT (60 seconds total):**
 

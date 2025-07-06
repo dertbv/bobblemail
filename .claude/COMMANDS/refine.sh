@@ -259,11 +259,11 @@ execute_refinement() {
         local temp_prompt=$(mktemp)
         echo "$prompt" > "$temp_prompt"
         
-        # Execute the refine command
-        if ! claude local-recursive-companion:refine \
-            --messages "[{\"role\": \"user\", \"content\": \"$(cat "$temp_prompt")\"}]" \
-            --maxIterations "$iterations" \
-            --targetScore "$target_score"; then
+        # Execute the refine command with correct syntax
+        if ! claude run local-recursive-companion:refine \
+            "$(cat "$temp_prompt")" \
+            --max-iterations "$iterations" \
+            --target-score "$target_score"; then
             print_error "Refine command failed"
             rm -f "$temp_prompt"
             exit 1
@@ -274,22 +274,21 @@ execute_refinement() {
         # Use incremental_refine for building new content
         print_step "Using incremental_refine tool for comprehensive building..."
         
-        # Build the command arguments
-        local cmd_args=(
-            "local-recursive-companion:incremental_refine"
-            "--prompt" "$prompt"
-            "--maxIterations" "$iterations"
-        )
+        # Create a temporary file with the prompt
+        local temp_prompt=$(mktemp)
+        echo "$prompt" > "$temp_prompt"
         
-        if [[ -n "$session_id" ]]; then
-            cmd_args+=("--sessionId" "$session_id")
-        fi
-        
-        # Execute the command
-        if ! claude "${cmd_args[@]}"; then
+        # Execute the incremental_refine command with correct syntax
+        if ! claude run local-recursive-companion:incremental_refine \
+            "$(cat "$temp_prompt")" \
+            --max-iterations "$iterations" \
+            --target-score "$target_score"; then
             print_error "Incremental refine command failed"
+            rm -f "$temp_prompt"
             exit 1
         fi
+        
+        rm -f "$temp_prompt"
     fi
 }
 
