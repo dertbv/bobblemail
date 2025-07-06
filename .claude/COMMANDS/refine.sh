@@ -234,61 +234,62 @@ Make it accessible yet thorough, suitable for both beginners and experienced pra
 EOF
 }
 
-# Execute the recursive companion tool directly
-execute_refinement() {
+# Generate the command for Claude Desktop
+generate_claude_command() {
     local prompt="$1"
     local iterations="$2"
     local target_score="$3"
     local session_id="$4"
     local mode="$5"
     
-    print_step "Executing recursive refinement..."
-    print_step "Mode: $mode | Max iterations: $iterations | Target score: $target_score"
+    print_step "Generating command for Claude Desktop..."
+    print_success "Mode: $mode | Max iterations: $iterations | Target score: $target_score"
     
-    # Validate Claude CLI is available
-    if ! command -v claude &> /dev/null; then
-        print_error "Claude CLI not found. Please install it first."
-        exit 1
-    fi
+    echo ""
+    echo -e "${CYAN}═══════════════════════════════════════════════════════════════════${NC}"
+    echo -e "${GREEN}📋 COPY AND PASTE THIS INTO CLAUDE DESKTOP:${NC}"
+    echo -e "${CYAN}═══════════════════════════════════════════════════════════════════${NC}"
+    echo ""
     
     if [[ "$mode" == "improve" ]]; then
-        # Use refine tool for improving existing content
-        print_step "Using refine tool for content improvement..."
-        
-        # Create temporary file for the prompt
-        local temp_prompt=$(mktemp)
-        echo "$prompt" > "$temp_prompt"
-        
-        # Execute the refine command with correct syntax
-        if ! claude run local-recursive-companion:refine \
-            "$(cat "$temp_prompt")" \
-            --max-iterations "$iterations" \
-            --target-score "$target_score"; then
-            print_error "Refine command failed"
-            rm -f "$temp_prompt"
-            exit 1
+        # Generate refine command
+        echo "Use the refine tool with these parameters:"
+        echo ""
+        echo "prompt: |"
+        echo "$prompt" | sed 's/^/  /'
+        echo ""
+        echo "maxIterations: $iterations"
+        echo "targetScore: $target_score"
+        if [[ -n "$session_id" ]]; then
+            echo "sessionId: \"$session_id\""
         fi
-        
-        rm -f "$temp_prompt"
     else
-        # Use incremental_refine for building new content
-        print_step "Using incremental_refine tool for comprehensive building..."
-        
-        # Create a temporary file with the prompt
-        local temp_prompt=$(mktemp)
-        echo "$prompt" > "$temp_prompt"
-        
-        # Execute the incremental_refine command with correct syntax
-        if ! claude run local-recursive-companion:incremental_refine \
-            "$(cat "$temp_prompt")" \
-            --max-iterations "$iterations" \
-            --target-score "$target_score"; then
-            print_error "Incremental refine command failed"
-            rm -f "$temp_prompt"
-            exit 1
+        # Generate incremental_refine command
+        echo "Use the incremental_refine tool with these parameters:"
+        echo ""
+        echo "prompt: |"
+        echo "$prompt" | sed 's/^/  /'
+        echo ""
+        echo "maxIterations: $iterations"
+        echo "targetScore: $target_score"
+        if [[ -n "$session_id" ]]; then
+            echo "sessionId: \"$session_id\""
         fi
-        
-        rm -f "$temp_prompt"
+    fi
+    
+    echo ""
+    echo -e "${CYAN}═══════════════════════════════════════════════════════════════════${NC}"
+    echo ""
+    
+    # Show helpful tips
+    echo -e "${YELLOW}💡 Tips:${NC}"
+    echo "  - The tool will show refinement progress and metrics"
+    echo "  - Quality scores and convergence status will be displayed"
+    echo "  - Session ID allows you to retrieve results later"
+    if [[ "$mode" == "improve" ]]; then
+        echo "  - Refine mode will iteratively improve the existing content"
+    else
+        echo "  - Incremental refine will build comprehensive content from scratch"
     fi
 }
 
@@ -377,20 +378,18 @@ main() {
     echo "..."
     echo ""
     
-    # Execute refinement directly
-    execute_refinement "$prompt" "$ITERATIONS" "$TARGET_SCORE" "$SESSION_ID" "$MODE"
-    
-    print_success "Recursive refinement completed!"
+    # Generate the command for Claude Desktop
+    generate_claude_command "$prompt" "$ITERATIONS" "$TARGET_SCORE" "$SESSION_ID" "$MODE"
     
     # Show next steps
     echo ""
-    echo -e "${CYAN}💡 Next Steps:${NC}"
+    echo -e "${CYAN}📌 Next Steps:${NC}"
+    echo "  1. Copy the command above"
+    echo "  2. Paste it into Claude Desktop"
+    echo "  3. The recursive refinement will execute automatically"
     if [[ -n "$SESSION_ID" ]]; then
-        echo "  - View session: claude local-recursive-companion:get_session --sessionId \"$SESSION_ID\""
-        echo "  - List all sessions: claude local-recursive-companion:get_sessions"
+        echo "  4. Later, you can retrieve results with: get_session tool, sessionId: \"$SESSION_ID\""
     fi
-    echo "  - Run again with different parameters if needed"
-    echo "  - Use --improve mode to further refine the output"
 }
 
 main

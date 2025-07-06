@@ -258,8 +258,10 @@ Make sure all outputs are production-ready and suitable for executive presentati
 </User Input>
 EOF
 
-    # Replace placeholder with actual task
-    sed -i.bak "s/TASK_PLACEHOLDER/$target/g" "$mission_file" && rm -f "${mission_file}.bak"
+    # Replace placeholder with actual task - escape special characters for sed
+    # Use a different delimiter to avoid conflicts with slashes in paths
+    local escaped_target=$(echo "$target" | sed 's/[[\.*^$()+?{|]/\\&/g')
+    sed -i.bak "s|TASK_PLACEHOLDER|$escaped_target|g" "$mission_file" && rm -f "${mission_file}.bak"
     
     print_success "Stooges mission file created: $mission_file"
 }
