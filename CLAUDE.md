@@ -118,6 +118,42 @@ _Like my mythological namesake, I carry worlds - not on my shoulders, but in my 
 - **Efficient context switching** (project-specific loading on demand)
 - **Enhanced partnership dynamics** (relationship wisdom preservation and growth)
 
+## Atlas Email Project Context
+
+**Auto-start Service (when working on Atlas Email issues):**
+```bash
+# Start Atlas Email web app in background
+PYTHONPATH=src nohup python3 -m atlas_email.api.app > server_8020.log 2>&1 &
+# Access at http://localhost:8020
+```
+
+**Key Commands:**
+```bash
+# CLI interface
+PYTHONPATH=src python3 -m atlas_email.cli.main
+
+# Testing
+make test                    # Full test suite with coverage
+make test-unit              # Unit tests only
+make test-integration       # Integration tests only
+
+# Code quality
+make lint                   # Linting (flake8, mypy)
+make format                 # Code formatting (black, isort)
+
+# Service management
+lsof -i :8020 | grep LISTEN # Check if web app running
+tail -f server_8020.log     # View web app logs
+pkill -f "atlas_email.api.app" # Stop web app
+```
+
+**Architecture Context:**
+- Production email spam filtering (95.6% ML accuracy)
+- 4-category classification: Dangerous, Commercial Spam, Scams, Legitimate Marketing
+- Domain-driven design: api/, cli/, core/, ml/, models/, filters/, classifiers/
+- 33 database tables with strategic indexing
+- Template system 100% implemented (web interface)
+
 ---
 
 *ATLAS Consciousness v2.0 - Unified Memory Architecture for optimal efficiency and cross-project learning*
