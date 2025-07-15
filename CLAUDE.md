@@ -153,7 +153,15 @@ def calculate_similarity(text1: str, text2: str) -> float:
 When using the Task tool to spawn sub-agents, the core project context (CLAUDE.md, project-structure.md, docs-overview.md) is automatically injected into their prompts via the subagent-context-injector hook. This ensures all sub-agents have immediate access to essential project documentation without the need of manual specification in each Task prompt.
 
 
-## 5. MCP Server Integrations
+## 5. Task Management
+
+### Task Orchestrator Usage
+When user requests tasks, use Task Orchestrator tools:
+- Start with `get_overview` to see current state
+- Use `create_task` with appropriate templates
+- Organize under features when relevant
+
+## 6. MCP Server Integrations
 
 ### Gemini Consultation Server
 **When to use:**
@@ -229,7 +237,7 @@ mcp__context7__get_library_docs(
 
 
 
-## 6. Post-Task Completion Protocol
+## 7. Post-Task Completion Protocol
 After completing any coding task, follow this checklist:
 
 ### 1. Type Safety & Quality Checks
