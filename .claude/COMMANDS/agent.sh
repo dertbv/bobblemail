@@ -343,7 +343,7 @@ main() {
     local timestamp=$(date +%Y%m%d_%H%M%S)
     local clean_task=$(echo "$task" | tr ' ' '-' | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]//g' | cut -c1-30)
     local branch_name="agent-${clean_task}-${timestamp}"
-    local worktree_path="/Users/Badman/Desktop/email/Agents/$branch_name"
+    local worktree_path="/Users/Badman/projects/Agents/$branch_name"
     
     # Create temporary mission file
     TEMP_MISSION_FILE=$(mktemp)

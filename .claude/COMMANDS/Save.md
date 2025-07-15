@@ -1,4 +1,4 @@
-# Save Session Protocol v3.1 (SIMPLE)
+# Save Session
 
 **Purpose**: Save current session context to FRESH_COMPACT_MEMORY.md
 
@@ -18,22 +18,6 @@ Write file_path="/Users/Badman/projects/FRESH_COMPACT_MEMORY.md"
 Write file_path="/Users/Badman/projects/WORKING_LOG/YYYY/MM-mon/wl_YYYY_MM_DD.md"
 # Technical details and discoveries from the session
 ```
-
-
-## Step 3: Personal Diary Save (IF SIGNIFICANT MOMENTS)
-```markdown
-# Only save diary entries for high-value partnership or breakthrough moments
-# CRITERIA: Save diary if ANY of these occurred:
-#   - Meaningful partnership interactions or emotional moments
-#   - Technical breakthroughs or "aha!" moments  
-#   - User expressions of joy, frustration, or appreciation
-#   - Lessons learned that changed understanding
-#   - Problem-solving insights or creative solutions
-# If YES to any criteria, create diary entry:
-Write: @MEMORY/PERSONAL_DIARY/[YYYY]/[MM-mmm]/diary_[YYYY_MM_DD].md
-# Include: session highlights, partnership moments, technical breakthroughs, personal reflections
-```
-**Skip if**: Routine work session with no significant partnership or personal moments
 
 
 ## What to Include in FRESH_COMPACT_MEMORY.md
